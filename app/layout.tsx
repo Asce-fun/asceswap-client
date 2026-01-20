@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 import { ThemeProvider } from "./components/theme-provider";
+import Web3Provider from "./providers/web3-provider";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -30,7 +31,9 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
+            <Web3Provider>
+              {children}
+            </Web3Provider>
           </ThemeProvider>
       </body>
     </html>

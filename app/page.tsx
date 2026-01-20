@@ -38,7 +38,7 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans text-slate-900 dark:text-slate-200 transition-colors duration-500 bg-white dark:bg-[#080a0e]">
       {/* Grid Background */}
-      <div className="fixed inset-0 z-0 bg-grid pointer-events-none opacity-40 dark:opacity-20"></div>
+      <div className="fixed inset-0 z-0 bg-grid pointer-events-none opacity-80 dark:opacity-70"></div>
       
       {/* Background Blobs - Deep Blue and Purple, refined for contrast */}
       <div className="fixed top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 dark:bg-blue-600/5 blur-[150px] rounded-full pointer-events-none animate-pulse-slow"></div>

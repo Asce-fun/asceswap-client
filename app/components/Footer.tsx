@@ -12,9 +12,18 @@ export const Footer: React.FC = () => {
           <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-blue-600/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-500 ring-1 ring-blue-500/20 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
             <RefreshCw className="w-4 h-4 transition-transform duration-700 group-hover:rotate-180" />
           </div>
-          <span className="text-xl font-bold tracking-tighter text-slate-900 dark:text-white">
-            ASCE<span className="text-[#38bdf8] dark:text-[#4facfe]">SWAP</span>
-          </span>
+<span className="text-xl font-bold tracking-tighter text-slate-900 dark:text-white">
+  ASCE
+  <span className="
+    text-transparent bg-clip-text
+    bg-linear-to-r
+    from-[#38bdf8] via-[#818cf8] to-[#a270ff]
+    dark:from-[#38bdf8] dark:via-[#818cf8] dark:to-[#a270ff]
+  ">
+    SWAP
+  </span>
+</span>
+
             </a>
             <p className="text-slate-500 text-sm leading-relaxed max-w-xs mb-6">
               Building the future of interest rate derivatives. Open source, permissionless, and community governed.
