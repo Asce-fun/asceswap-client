@@ -7,10 +7,38 @@ import { Hero } from './components/Hero';
 import { Terminal } from './components/Terminal';
 import { Stats } from './components/Stats';
 import { Footer } from './components/Footer';
+import { SwapCard } from './components/SwapCard';
+import { Duration, MarketData } from './interface/types';
 
 export default function Home() {
   const [isDark, setIsDark] = useState(true);
   const [mounted, setMounted] = useState(false);
+const MARKETS: MarketData[] = [
+  { 
+    id: '1', 
+    protocol: 'Ekubo', 
+    name: 'STRK/USDC LP Fees', 
+    oracleRate: 18.22, 
+    fixedDuration: Duration.D1,
+    maturityTimestamp: Date.now() + 1000 * 60 * 60 * 23 + 1000 * 60 * 45 // ~23h 45m
+  },
+  { 
+    id: '2', 
+    protocol: 'Vesu', 
+    name: 'STRK Supply Yield', 
+    oracleRate: 8.04, 
+    fixedDuration: Duration.D7,
+    maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 6 + 1000 * 60 * 60 * 2 // ~6d 2h
+  },
+  { 
+    id: '3', 
+    protocol: 'Nostra', 
+    name: 'USDC Supply Yield', 
+    oracleRate: 12.15, 
+    fixedDuration: Duration.D30,
+    maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 29 // ~29d
+  },
+];
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -51,7 +79,11 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-6">
             <Hero />
             <div className="mt-20">
-              <Terminal />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {MARKETS.map((market) => (
+              <SwapCard key={market.id} market={market} />
+            ))}
+          </div>
             </div>
           </div>
         </main>

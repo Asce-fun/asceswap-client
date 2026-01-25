@@ -15,3 +15,17 @@ export interface MarketState {
   duration: Duration;
   notional: number;
 }
+
+export interface MarketData {
+  id: string;
+  protocol: string;
+  name: string;
+  oracleRate: number;
+  icon?: string;
+  fixedDuration: Duration;
+  maturityTimestamp: number;
+}
+
+export type TokenSymbol = "STRK" | "USDC" | "ETH" | "BTC" | "USDT"; 
+
+export type SwapDirection = 'FIXED' | 'FLOATING';
