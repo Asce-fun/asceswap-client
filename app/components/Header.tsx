@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({ isDark, toggleTheme }) => {
   const isLoggedIn = !!primaryWallet;
   const address = primaryWallet?.address;
   const shortAddress = address
-    ? `${address.slice(0, 6)}…${address.slice(-4)}`
+    ? `${address.slice(0, 5)}…${address.slice(-4)}`
     : "";
 
   return (

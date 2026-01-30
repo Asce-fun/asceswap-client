@@ -18,7 +18,7 @@ export interface MarketState {
 
 export interface MarketData {
   id: string;
-  protocol: string;
+  protocol: ProtocolSymbol;
   name: string;
   oracleRate: number;
   icon?: string;
@@ -29,3 +29,7 @@ export interface MarketData {
 export type TokenSymbol = "STRK" | "USDC" | "ETH" | "BTC" | "USDT"; 
 
 export type SwapDirection = 'FIXED' | 'FLOATING';
+
+// interface/types.ts
+export type ProtocolSymbol = "Ekubo" | "Vesu" | "Nostra";
+

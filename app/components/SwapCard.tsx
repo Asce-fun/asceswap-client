@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { TrendingUp, TrendingDown, Info, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Info, Clock, Wallet } from "lucide-react";
 import { Duration, MarketData, SwapDirection } from "../interface/types";
 import { Dialog } from "./Dialog";
 import { SwapDialogContent } from "./SwapDialogContent";
 import { extractTokensFromName } from "../lib/helpers/helpers";
 import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
+import { PROTOCOL_LOGOS } from "../lib/helpers/dappLogos";
+import { LiquidityDialogContent } from "./LiquidityDialogContent";
 
 interface SwapCardProps {
   market: MarketData;
@@ -12,10 +14,11 @@ interface SwapCardProps {
 
 export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
   const [showSwapDialog, setShowSwapDialog] = useState(false);
+  const [showLiquidityDialog, setShowLiquidityDialog] = useState(false);
   const [activeDirection, setActiveDirection] =
     useState<SwapDirection>("FLOATING");
   const [timeLeft, setTimeLeft] = useState("");
-
+  const ProtocolIcon = PROTOCOL_LOGOS[market?.protocol];
   const tokens = extractTokensFromName(market.name);
 
   /* ---------------- Countdown ---------------- */
@@ -80,9 +83,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
               <div className="flex items-start gap-3">
                 {/* Protocol icon */}
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                  <span className="text-indigo-400 font-bold">
-                    {market.protocol[0]}
-                  </span>
+                  <ProtocolIcon size={20} />
                 </div>
 
                 {/* -------- Title + tokens -------- */}
@@ -157,7 +158,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => handleOpenSwap("FLOATING")}
-                className="bg-[#1de9b6] hover:bg-[#14cbad] text-black p-5 rounded-[1.5rem] shadow-xl shadow-[#1de9b6]/10 active:scale-95 transition-all group/btn"
+                className="bg-[#1de9b6] cursor-pointer hover:bg-[#14cbad] text-black p-5 rounded-[1.5rem] shadow-xl shadow-[#1de9b6]/10 active:scale-95 transition-all group/btn"
               >
                 <TrendingUp className="w-5 h-5 mx-auto mb-2 group-hover/btn:scale-110 transition-transform" />
                 <div className="text-xs font-black uppercase tracking-tighter">
@@ -170,7 +171,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
 
               <button
                 onClick={() => handleOpenSwap("FIXED")}
-                className="bg-[#00e5ff] hover:bg-[#00d1e8] text-black p-5 rounded-[1.5rem] shadow-xl shadow-[#00e5ff]/10 active:scale-95 transition-all group/btn"
+                className="bg-[#00e5ff] cursor-pointer hover:bg-[#00d1e8] text-black p-5 rounded-[1.5rem] shadow-xl shadow-[#00e5ff]/10 active:scale-95 transition-all group/btn"
               >
                 <TrendingDown className="w-5 h-5 mx-auto mb-2 group-hover/btn:scale-110 transition-transform" />
                 <div className="text-xs font-black uppercase tracking-tighter">
@@ -181,6 +182,14 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
                 </div>
               </button>
             </div>
+
+                        <button 
+              onClick={() => setShowLiquidityDialog(true)}
+              className="w-full cursor-pointer py-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-400 font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 transition-all hover:border-indigo-500/50"
+            >
+              <Wallet className="w-4 h-4" />
+              Provide Liquidity
+            </button>
 
             <div className="text-center text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
               Smart Contract Enforced • Atomic Execution
@@ -195,6 +204,12 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
           direction={activeDirection}
           duration={market.fixedDuration}
           onClose={() => setShowSwapDialog(false)}
+        />
+      </Dialog>
+            <Dialog isOpen={showLiquidityDialog} onClose={() => setShowLiquidityDialog(false)}>
+        <LiquidityDialogContent 
+          market={market}
+          onClose={() => setShowLiquidityDialog(false)}
         />
       </Dialog>
     </>
