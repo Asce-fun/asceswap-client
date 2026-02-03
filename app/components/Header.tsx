@@ -39,9 +39,9 @@ export const Header: React.FC<HeaderProps> = ({ isDark, toggleTheme }) => {
 
         {/* Actions */}
         <div className="flex items-center gap-2 relative">
-<button
-  onClick={() => setShowMint(true)}
-  className="
+          <button
+            onClick={() => setShowMint(true)}
+            className="
     relative group
     px-4 py-2 rounded-full
     text-xs font-black uppercase tracking-widest
@@ -54,25 +54,24 @@ export const Header: React.FC<HeaderProps> = ({ isDark, toggleTheme }) => {
     shadow-[0_0_0px_rgba(99,102,241,0.0)]
     hover:shadow-[0_0_25px_rgba(99,102,241,0.45)]
   "
->
-  {/* Glow */}
-  <span
-    className="
+          >
+            {/* Glow */}
+            <span
+              className="
       absolute inset-0 rounded-full
       bg-linear-to-r from-indigo-400/0 via-indigo-400/30 to-purple-400/0
       opacity-0 group-hover:opacity-100
       blur
       transition-opacity duration-300
     "
-  />
+            />
 
-  {/* Content */}
-  <span className="relative flex items-center gap-2">
-    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-    Mint Test Tokens
-  </span>
-</button>
-
+            {/* Content */}
+            <span className="relative flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              Mint Test Tokens
+            </span>
+          </button>
 
           <MintMockTokenModal
             isOpen={showMint}
@@ -81,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({ isDark, toggleTheme }) => {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-full cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             {isDark ? (
               <Sun className="w-4 h-4" />

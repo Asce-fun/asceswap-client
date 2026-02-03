@@ -5,17 +5,24 @@ export async function mintMockToken(
   tokenAddress: string,
   decimals: number
 ) {
-  if (!(window as any).starknet) {
-    throw new Error("Starknet wallet not found");
+  const starknet = (window as any).starknet;
+
+  if (!starknet) {
+    throw new Error("Starknet wallet not found. Please install Braavos or Argent X.");
   }
 
-  // 🔑 THIS IS REQUIRED
-  await (window as any).starknet.enable();
+  // Make sure wallet is connected and enabled
+  if (!starknet.isConnected) {
+    await starknet.enable({ starknetVersion: "v5" });
+  }
 
-  const account = (window as any).starknet.account;
+  // Wait a bit for the account to be ready
+  await new Promise(resolve => setTimeout(resolve, 100));
 
-  if (!account?.address || account.address === "0x") {
-    throw new Error("Starknet account not ready");
+  const account = starknet.account;
+
+  if (!account || !account.address) {
+    throw new Error("Wallet account not available. Please connect your wallet.");
   }
 
   const erc20 = new Contract({

@@ -37,11 +37,24 @@ export async function approveAndBuySwap({
   decimals: number;
 }) {
   /* -------- wallet -------- */
-  await (window as any).starknet.enable();
-  const account = (window as any).starknet.account;
+  const starknet = (window as any).starknet;
 
-  if (!account?.address || account.address === "0x") {
-    throw new Error("Wallet not connected");
+  if (!starknet) {
+    throw new Error("Starknet wallet not found. Please install Braavos or Argent X.");
+  }
+
+  // Make sure wallet is connected and enabled
+  if (!starknet.isConnected) {
+    await starknet.enable({ starknetVersion: "v5" });
+  }
+
+  // Wait a bit for the account to be ready
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  const account = starknet.account;
+
+  if (!account || !account.address) {
+    throw new Error("Wallet account not available. Please connect your wallet.");
   }
 
   /* -------- enum (DO NOT TOUCH) -------- */

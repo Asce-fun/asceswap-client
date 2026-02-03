@@ -402,7 +402,7 @@ export const SwapDialogContent: React.FC<SwapDialogContentProps> = ({
       ? "bg-[#1de9b6] hover:bg-[#20ffd4] text-black shadow-[#1de9b6]/30"
       : "bg-[#00e5ff] hover:bg-[#00f3ff] text-black shadow-[#00e5ff]/30"
   }`}
-            disabled={collateral === 0}
+            disabled={collateral === 0 || loading}
             onClick={handleBuy}
           >
             {loading ? "Executing..." : "Execute Swap"}

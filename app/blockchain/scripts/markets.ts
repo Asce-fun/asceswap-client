@@ -17,6 +17,10 @@ export async function getProtocolConfig() {
   return await asceSwap.get_protocol_config();
 }
 
+export async function getLpPosition(pairId:string,accountAddress:string) {
+  return await asceSwap.get_lp_position(accountAddress,pairId);
+}
+
 export async function getSwapQuote(
   pairId: string,
   side: keyof typeof SwapSide,

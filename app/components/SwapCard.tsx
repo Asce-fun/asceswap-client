@@ -105,7 +105,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
       <div className="relative group transition-all duration-500 h-full">
         <div className="absolute -inset-0.5 bg-linear-to-br from-blue-500/20 to-purple-500/20 rounded-[2rem] blur opacity-0 group-hover:opacity-100 transition duration-500" />
 
-        <div className="relative bg-[#11141d] border border-white/5 rounded-[2rem] overflow-hidden flex flex-col shadow-2xl h-full">
+        <div className="relative dark:bg-[#11141d] border dark:border-white/5 rounded-[2rem] bg-white border-slate-200 shadow-xl overflow-hidden flex flex-col shadow-2xl h-full">
           {/* ================= HEADER ================= */}
           <div className="p-6 pb-3">
             <div className="flex justify-between items-start mb-5">
@@ -117,7 +117,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
 
                 {/* -------- Title + tokens -------- */}
                 <div className="flex flex-col gap-2">
-                  <h3 className="font-bold text-slate-100 tracking-tight leading-none">
+                  <h3 className="font-bold dark:text-slate-100 tracking-tight leading-none">
                     {market.protocol}
                   </h3>
 
@@ -148,7 +148,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
                 Current Fixed Rate
               </div>
 
-              <div className="text-6xl font-mono font-bold text-white mb-2 tracking-tighter">
+              <div className="text-6xl font-mono font-bold dark:text-white mb-2 tracking-tighter">
                 {impliedFixedRate.toFixed(2)}%
               </div>
 
@@ -159,12 +159,12 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
           </div>
 
           {/* ================= TERM BAR ================= */}
-          <div className="px-6 py-4 border-y border-white/5 bg-black/40 flex items-center justify-between">
+          <div className="px-6 py-4 border-y dark:border-white/5 dark:bg-black/40 flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 mb-0.5">
                 Market Term
               </span>
-              <span className="text-xs font-mono font-bold text-slate-300">
+              <span className="text-xs font-mono font-bold dark:text-slate-300">
                 {marketDetails?.params.swapTermDays} Days
               </span>
             </div>

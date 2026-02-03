@@ -10,6 +10,8 @@ import {
   Scale,
   Coins,
   BarChart3,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from "lucide-react";
 import { FormattedMarket, MarketData } from "../interface/types";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
@@ -18,6 +20,8 @@ import numberFormatter from "../blockchain/utils/numberFormatter";
 import { PROTOCOL_LOGOS } from "../lib/helpers/dappLogos";
 import { getProtocolLogo } from "./SwapCard";
 import { approveAndSupplyLp } from "../blockchain/scripts/write/approveAndSupplyLp";
+import { getLpPosition } from "../blockchain/scripts/markets";
+import { withdrawLpLiquidity } from "../blockchain/scripts/write/withdrawLiquidity";
 
 interface LiquidityDialogContentProps {
   market: MarketData;
@@ -40,7 +44,7 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
   const [balanceSymbol, setBalanceSymbol] = useState<string>("");
   const [loadingBalance, setLoadingBalance] = useState(false);
   const ProtocolIcon = getProtocolLogo(market?.protocol);
-
+  const [activeTab, setActiveTab] = useState<string>("SUPPLY");
   useEffect(() => {
     if (!address) {
       setWalletBalance(null);
@@ -71,12 +75,39 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
       }
     }
 
-    fetchBalance();
+    async function fetchLPBalance() {
+      try {
+        setLoadingBalance(true);
+
+        const res = await getLpPosition(
+          String(marketDetails?.pairId), // 👈 token for this market
+          address as string,
+        );
+        if (!cancelled) {
+          setWalletBalance(
+            Number(res.shares) /
+              10 ** (marketDetails?.decimals ? marketDetails?.decimals : 1),
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch balance", err);
+        if (!cancelled) {
+          setWalletBalance(null);
+        }
+      } finally {
+        if (!cancelled) setLoadingBalance(false);
+      }
+    }
+    if (activeTab === "SUPPLY") {
+      fetchBalance();
+    } else {
+      fetchLPBalance();
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [address, marketDetails?.collateralToken]);
+  }, [address, marketDetails?.collateralToken, activeTab]);
 
   const handleSupply = async () => {
     try {
@@ -96,6 +127,30 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleWithdraw = async () => {
+    try {
+      setLoading(true);
+      const txHash = await withdrawLpLiquidity({
+        asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
+        pairId: String(marketDetails?.pairId),
+        shares: Number(amount),
+        shareDecimals: marketDetails?.decimals as number,
+      });
+
+      setTxHash(txHash);
+    } catch (e: any) {
+      console.log(e, "supply error");
+      setError(e.message ?? "Transaction failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const userPosition = {
+    totalValue: 12450.25,
+    accruedFees: 142.8,
+    share: "0.29%",
   };
 
   const maxAmount = walletBalance ?? 0;
@@ -156,6 +211,31 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
           </p>
         </div>
 
+        <div
+          className={`flex p-1 mt-6 rounded-2xl mb-6 dark:bg-black/40 border dark:border-white/5 bg-slate-100  border-slate-200}`}
+        >
+          <button
+            onClick={() => {
+              setActiveTab("SUPPLY");
+              setAmount(0);
+            }}
+            className={`flex-1 py-2.5 rounded-xl cursor-pointer text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeTab === "SUPPLY" ? "dark:bg-indigo-600 dark:text-white dark:shadow-lg bg-white text-indigo-600 shadow-sm dark:border-0 border border-slate-200" : "dark:text-slate-500 dark:hover:text-slate-300 text-slate-400 hover:text-slate-600"}`}
+          >
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            Supply
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("WITHDRAW");
+              setAmount(0);
+            }}
+            className={`flex-1 py-2.5 cursor-pointer rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeTab === "WITHDRAW" ? "dark:bg-rose-600 dark:text-white dark:shadow-lg bg-white text-rose-600 shadow-sm dark:border-0 border border-slate-200" : "dark:text-slate-500 dark:hover:text-slate-300 text-slate-400 hover:text-slate-600"}`}
+          >
+            <ArrowDownLeft className="w-3.5 h-3.5" />
+            Withdraw
+          </button>
+        </div>
+
         <div className="grid grid-cols-3 gap-8 mt-10">
           <div className="space-y-1">
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
@@ -185,6 +265,34 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
       </div>
 
       <div className="p-8 space-y-8">
+        {activeTab === "WITHDRAW" && (
+          <div
+            className={`grid grid-cols-2 gap-4 p-5 rounded-3xl border animate-in fade-in slide-in-from-top-2 duration-500 dark:bg-white/2 dark:border-white/5 bg-slate-50 border-slate-200`}
+          >
+            <div className="space-y-1">
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest dark:text-slate-500 text-slate-400`}
+              >
+                Your Liquidity
+              </span>
+              <div
+                className={`text-lg font-mono font-bold dark:text-white text-slate-900`}
+              >
+                ${numberFormatter(walletBalance)}
+              </div>
+            </div>
+            <div className="space-y-1 text-right">
+              <span
+                className={`text-[9px] font-black uppercase tracking-widest dark:text-slate-500 text-slate-400`}
+              >
+                Accrued Fees
+              </span>
+              <div className="text-lg font-mono font-bold text-emerald-500">
+                +${userPosition.accruedFees.toLocaleString()}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Deposit Input & Slider */}
         <div className="bg-white/2 p-8 rounded-[2.5rem] border border-white/5 space-y-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
@@ -194,7 +302,9 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
           <div className="flex justify-between items-end relative z-10">
             <div className="space-y-2 flex-1">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                Supply Collateral
+                {activeTab === "SUPPLY"
+                  ? "Supply Collateral"
+                  : "Withraw Collateral"}
               </label>
               <div className="flex items-center gap-1 group">
                 <span className="text-2xl text-slate-500 font-mono font-bold">
@@ -213,7 +323,7 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
             <div className="text-right pb-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-colors hover:bg-indigo-500/20 cursor-default">
                 <Wallet className="w-3 h-3" />
-                Wallet: ${numberFormatter(walletBalance)}
+                {activeTab==='SUPPLY'? "Wallet:":"SHARES:"} ${numberFormatter(walletBalance)}
               </div>
             </div>
           </div>
@@ -295,17 +405,34 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
           <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400">
             <Scale className="w-5 h-5" />
           </div>
-          <div className="space-y-1">
-            <p className="text-xs font-black text-slate-100 uppercase tracking-tighter">
-              Collective Risk Absorption
-            </p>
-            <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">
-              As an LP, you act as the global counterparty. You earn{" "}
-              {LP_FEE_SHARE * 100}% of all swap fees and absorb trader PnL
-              collectively. You gain when traders lose and lose when traders
-              win.
-            </p>
-          </div>
+          {activeTab === "SUPPLY" ? (
+            <div className="space-y-1">
+              <p className="text-xs font-black text-slate-100 uppercase tracking-tighter">
+                Collective Risk Absorption
+              </p>
+              <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">
+                As an LP, you act as the global counterparty. You earn{" "}
+                {LP_FEE_SHARE * 100}% of all swap fees and absorb trader PnL
+                collectively. You gain when traders lose and lose when traders
+                win.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <p
+                className={`text-xs font-black uppercase tracking-tighter dark:text-slate-100 text-slate-900`}
+              >
+                {"Liquidity Unlocking"}
+              </p>
+              <p
+                className={`text-[10px] leading-relaxed font-semibold dark:text-slate-500 text-slate-600`}
+              >
+                {
+                  "Withdrawing liquidity will stop your pro-rata accrual of swap fees and return your remaining collateral plus any net earnings or losses from trader PnL."
+                }
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Benefits Box */}
@@ -341,19 +468,29 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
             Cancel
           </button>
           <button
-            className="flex-1 cursor-pointer py-5 rounded-2xl font-black uppercase tracking-[0.25em] text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl shadow-indigo-600/30 transition-all active:scale-95 flex items-center justify-center gap-3 group/btn
-              disabled:cursor-not-allowed
+            className={`flex-1 cursor-pointer disabled:cursor-not-allowed
   disabled:opacity-50
   disabled:bg-gray-400
   disabled:text-gray-700
-  disabled:shadow-none
-            "
-            disabled={amount === 0}
+  disabled:shadow-none py-5 rounded-2xl font-black uppercase tracking-[0.25em] text-[10px] transition-all active:scale-95 flex items-center justify-center gap-3 group/btn ${
+    activeTab === "SUPPLY"
+      ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl shadow-indigo-600/30"
+      : "bg-rose-600 hover:bg-rose-500 text-white shadow-2xl shadow-rose-600/30"
+  }`}
+            disabled={amount === 0 || loading}
             onClick={() => {
-              handleSupply();
+              if (activeTab === "SUPPLY") {
+                handleSupply();
+              } else {
+                handleWithdraw();
+              }
             }}
           >
-            {loading ? "Providing Liquidity..." : "Confirm Deposit"}
+            {activeTab === "SUPPLY"
+              ? loading
+                ? "Providing Liquidity..."
+                : "Deposit Liquidity"
+              : loading?"Withdrawing...": "Withdraw Liquidity"}
             <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
           </button>
         </div>

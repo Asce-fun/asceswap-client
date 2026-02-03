@@ -1,5 +1,4 @@
 import { Contract, uint256 } from "starknet";
-import { ERC20_ABI } from "../../abis/erc20";
 import AsceSwapABI from "../../abis/AsceSwap.json";
 
 function toU256(amount: number, decimals: number) {
@@ -8,20 +7,17 @@ function toU256(amount: number, decimals: number) {
   );
 }
 
-export async function approveAndSupplyLp({
-  tokenAddress,
+export async function withdrawLpLiquidity({
   asceSwapAddress,
   pairId,
-  amount,
-  decimals,
+  shares,
+  shareDecimals = 18, // LP shares are usually 18 decimals
 }: {
-  tokenAddress: string;
   asceSwapAddress: string;
-  pairId: string;
-  amount: number;
-  decimals: number;
+  pairId: string; // felt252
+  shares: number; // number of LP shares to withdraw
+  shareDecimals?: number;
 }) {
-  // Access window.starknet directly
   const starknet = (window as any).starknet;
 
   if (!starknet) {
@@ -42,31 +38,19 @@ export async function approveAndSupplyLp({
     throw new Error("Wallet account not available. Please connect your wallet.");
   }
 
-  const amountU256 = toU256(amount, decimals);
-
-  const erc20 = new Contract({
-    abi:ERC20_ABI,
-    address:tokenAddress,
-    providerOrAccount:account
-});
+  const sharesU256 = toU256(shares, shareDecimals);
 
   const asceSwap = new Contract({
-    abi:AsceSwapABI,
-    address:asceSwapAddress,
-    providerOrAccount:account
-});
+    abi: AsceSwapABI,
+    address: asceSwapAddress,
+    providerOrAccount: account,
+  });
 
-  const calls = [
-    erc20.populate("approve", [
-      asceSwapAddress,
-      amountU256,
-    ]),
-    asceSwap.populate("supply_lp_collateral", [
-      pairId,
-      amountU256,
-    ]),
-  ];
+  const call = asceSwap.populate("withdraw_lp_collateral", [
+    pairId,
+    sharesU256,
+  ]);
 
-  const tx = await account.execute(calls);
+  const tx = await account.execute([call]);
   return tx.transaction_hash;
 }
