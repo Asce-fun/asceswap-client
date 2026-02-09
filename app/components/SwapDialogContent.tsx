@@ -29,6 +29,7 @@ interface SwapDialogContentProps {
   duration: Duration;
   onClose: () => void;
   marketDetails: FormattedMarket | null;
+  settlementDateLabel:string | null
 }
 
 export const SwapDialogContent: React.FC<SwapDialogContentProps> = ({
@@ -37,6 +38,7 @@ export const SwapDialogContent: React.FC<SwapDialogContentProps> = ({
   duration,
   onClose,
   marketDetails,
+  settlementDateLabel
 }) => {
   const [collateral, setCollateral] = useState(0);
   const { primaryWallet } = useDynamicContext();
@@ -161,7 +163,7 @@ export const SwapDialogContent: React.FC<SwapDialogContentProps> = ({
       const txHash = await approveAndBuySwap({
         tokenAddress: marketDetails?.collateralToken!,
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
-        oracleAddress: process.env.NEXT_PUBLIC_ORACLE_ADDRESS!,
+        oracleAddress: marketDetails?.oracle as string,
         pairId: String(marketDetails?.pairId), // MUST be string
         side: direction,
         notional: notional,
@@ -244,14 +246,14 @@ export const SwapDialogContent: React.FC<SwapDialogContentProps> = ({
           <div className="flex justify-between items-end relative z-10">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">
-                Collateral Amount
+                Notional Amount
               </label>
               <div className="text-5xl font-mono font-bold text-white tracking-tighter flex items-baseline gap-1">
                 <span className="text-2xl text-slate-500">$</span>
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={collateral === 0 ? "" : collateral}
+                  value={notional === 0 ? "" : notional}
                   onChange={(e) => handleAmountChange(e.target.value)}
                   placeholder="0"
                   className="bg-transparent border-none outline-none text-5xl font-mono font-bold text-white tracking-tighter w-full focus:ring-0 placeholder:opacity-20"
@@ -265,9 +267,9 @@ export const SwapDialogContent: React.FC<SwapDialogContentProps> = ({
               </div>
               <div className="text-right">
                 <div className="text-[11px] font-mono text-slate-500 font-bold uppercase tracking-tighter">
-                  Notional:{" "}
+                  Collateral:{" "}
                   <span className="text-slate-300">
-                    ${numberFormatter(notional)}
+                    ${numberFormatter(collateral)}
                   </span>
                 </div>
               </div>
@@ -288,7 +290,7 @@ export const SwapDialogContent: React.FC<SwapDialogContentProps> = ({
               <span></span>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-colors hover:bg-indigo-500/20 cursor-default">
                 <Wallet className="w-3 h-3" />
-                Wallet: ${numberFormatter(walletBalance)}
+                Wallet: ${numberFormatter(walletBalance ?walletBalance:0)}
               </div>
             </div>
             <div className="flex gap-2 mt-2">
@@ -349,10 +351,10 @@ export const SwapDialogContent: React.FC<SwapDialogContentProps> = ({
             </div>
             <div className="mt-4 relative z-10">
               <div className="text-[9px] font-black text-slate-500 uppercase mb-1">
-                Contract Expiry
+                Market Maturity
               </div>
               <div className="text-sm font-mono font-black text-white">
-                {expirationDate}
+                {settlementDateLabel}
               </div>
             </div>
           </div>

@@ -10,14 +10,51 @@ import { Footer } from './components/Footer';
 import { SwapCard } from './components/SwapCard';
 import { Duration, MarketData } from './interface/types';
 
-export default function Home() {
-  const [isDark, setIsDark] = useState(true);
-  const [mounted, setMounted] = useState(false);
-const MARKETS: MarketData[] = [
+export const MARKETS: MarketData[] = [
   { 
     id: '1', 
     protocol: 'Asceswap',
-    name: 'MOCK USDC Supply Yield', 
+    name: 'X mockUSDC Borrow Rate', 
+    oracleRate: 7.22, 
+    fixedDuration: Duration.D1,
+    maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 29 // ~23h 45m
+  },
+    { 
+    id: '2', 
+    protocol: 'Asceswap',
+    name: 'ETH Borrow Rate', 
+    oracleRate: 7.22, 
+    fixedDuration: Duration.D1,
+    maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 29 // ~23h 45m
+  },
+    { 
+    id: '3', 
+    protocol: 'Asceswap',
+    name: 'STRK Borrow Rate', 
+    oracleRate: 7.22, 
+    fixedDuration: Duration.D1,
+    maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 29 // ~23h 45m
+  },
+    { 
+    id: '4', 
+    protocol: 'Asceswap',
+    name: 'DAI Savings Rate', 
+    oracleRate: 7.22, 
+    fixedDuration: Duration.D1,
+    maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 29 // ~23h 45m
+  },
+      { 
+    id: '5', 
+    protocol: 'Asceswap',
+    name: 'USDT Borrow Rate', 
+    oracleRate: 7.22, 
+    fixedDuration: Duration.D1,
+    maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 29 // ~23h 45m
+  },
+        { 
+    id: '6', 
+    protocol: 'Asceswap',
+    name: 'wBTC Borrow Rate', 
     oracleRate: 7.22, 
     fixedDuration: Duration.D1,
     maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 29 // ~23h 45m
@@ -39,6 +76,10 @@ const MARKETS: MarketData[] = [
   //   maturityTimestamp: Date.now() + 1000 * 60 * 60 * 24 * 29 // ~29d
   // },
 ];
+
+export default function Home() {
+  const [isDark, setIsDark] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');

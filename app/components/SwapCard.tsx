@@ -100,12 +100,29 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
     setShowSwapDialog(true);
   };
 
+  const settlementEndTs = useMemo(() => {
+  if (!marketDetails?.params?.swapTermDays) return null;
+
+  const now = Date.now();
+  const termMs =
+    marketDetails.params.swapTermDays * 24 * 60 * 60 * 1000;
+
+  return now + termMs;
+}, [marketDetails?.params?.swapTermDays]);
+
+
+  const settlementDateLabel = useMemo(() => {
+  if (!settlementEndTs) return null;
+  return new Date(settlementEndTs).toLocaleString();
+}, [settlementEndTs]);
+
+
   return (
     <>
       <div className="relative group transition-all duration-500 h-full">
         <div className="absolute -inset-0.5 bg-linear-to-br from-blue-500/20 to-purple-500/20 rounded-[2rem] blur opacity-0 group-hover:opacity-100 transition duration-500" />
 
-        <div className="relative dark:bg-[#11141d] border dark:border-white/5 rounded-[2rem] bg-white border-slate-200 shadow-xl overflow-hidden flex flex-col shadow-2xl h-full">
+        <div className="relative dark:bg-[#11141d] border dark:border-white/5 rounded-[2rem] bg-white border-slate-200 shadow-xl overflow-hidden flex flex-col h-full">
           {/* ================= HEADER ================= */}
           <div className="p-6 pb-3">
             <div className="flex justify-between items-start mb-5">
@@ -149,11 +166,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
               </div>
 
               <div className="text-6xl font-mono font-bold dark:text-white mb-2 tracking-tighter">
-                {impliedFixedRate.toFixed(2)}%
-              </div>
-
-              <div className="text-xs text-slate-400 font-medium">
-                Spot APR: {marketDetails?.rate?.currentPct.toFixed(2)}%
+                {marketDetails?.rate?.currentPct.toFixed(2)}%
               </div>
             </div>
           </div>
@@ -171,12 +184,12 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
 
             <div className="flex flex-col items-end">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 mb-0.5">
-                Settlement Deadline
+                Market Maturity
               </span>
               <div className="flex items-center gap-2">
                 <Clock className="w-3 h-3 text-blue-500 animate-pulse" />
                 <span className="text-xs font-mono font-bold text-blue-400">
-                  {timeLeft}
+                  {settlementDateLabel}
                 </span>
               </div>
             </div>
@@ -236,6 +249,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
           duration={market.fixedDuration}
           onClose={() => setShowSwapDialog(false)}
           marketDetails={marketDetails}
+          settlementDateLabel={settlementDateLabel}
         />
       </Dialog>
       <Dialog

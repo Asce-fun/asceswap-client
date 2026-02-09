@@ -58,7 +58,7 @@ export const MintMockTokenModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 resetStates()
                 onClose()
             }}
-            className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            className="absolute cursor-pointer top-4 right-4 text-slate-400 hover:text-white"
           >
             ✕
           </button>
@@ -87,7 +87,7 @@ export const MintMockTokenModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             <div>
               <span className="text-slate-500">Amount</span>
-              <div className="font-bold text-white">10,000 tokens</div>
+              <div className="font-bold text-white">10,000 Mock tokens</div>
             </div>
           </div>
 
@@ -104,9 +104,9 @@ export const MintMockTokenModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <button
             onClick={handleMint}
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-black font-black text-xs uppercase tracking-widest"
+            className="w-full cursor-pointer py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-black font-black text-xs uppercase tracking-widest"
           >
-            {loading ? "Minting..." : "Mint 10,000 Tokens"}
+            {loading ? "Minting..." : "Mint 10,000 Mock Tokens"}
           </button>
         </div>
       </div>

@@ -1,0 +1,877 @@
+[
+  {
+    "type": "impl",
+    "name": "AnalyticsImpl",
+    "interface_name": "asceswap_cairo::interfaces::analytics::IAnalytics"
+  },
+  {
+    "type": "struct",
+    "name": "core::integer::u256",
+    "members": [
+      {
+        "name": "low",
+        "type": "core::integer::u128"
+      },
+      {
+        "name": "high",
+        "type": "core::integer::u128"
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "core::bool",
+    "variants": [
+      {
+        "name": "False",
+        "type": "()"
+      },
+      {
+        "name": "True",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::asce_swap::SignedValue",
+    "members": [
+      {
+        "name": "value",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "is_negative",
+        "type": "core::bool"
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "asceswap_cairo::types::asce_swap::SwapSide",
+    "variants": [
+      {
+        "name": "Fixed",
+        "type": "()"
+      },
+      {
+        "name": "Floating",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "asceswap_cairo::types::asce_swap::SwapStatus",
+    "variants": [
+      {
+        "name": "Uninitialized",
+        "type": "()"
+      },
+      {
+        "name": "Active",
+        "type": "()"
+      },
+      {
+        "name": "Settled",
+        "type": "()"
+      },
+      {
+        "name": "Liquidated",
+        "type": "()"
+      },
+      {
+        "name": "ExitedEarly",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::asce_swap::UserSwapSummary",
+    "members": [
+      {
+        "name": "swap_id",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "pair_id",
+        "type": "core::felt252"
+      },
+      {
+        "name": "side",
+        "type": "asceswap_cairo::types::asce_swap::SwapSide"
+      },
+      {
+        "name": "status",
+        "type": "asceswap_cairo::types::asce_swap::SwapStatus"
+      },
+      {
+        "name": "notional",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "collateral",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "current_pnl",
+        "type": "asceswap_cairo::types::asce_swap::SignedValue"
+      },
+      {
+        "name": "health_factor_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "progress_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "remaining_seconds",
+        "type": "core::integer::u64"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::array::Span::<asceswap_cairo::types::asce_swap::UserSwapSummary>",
+    "members": [
+      {
+        "name": "snapshot",
+        "type": "@core::array::Array::<asceswap_cairo::types::asce_swap::UserSwapSummary>"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::asce_swap::UserLpSummary",
+    "members": [
+      {
+        "name": "pair_id",
+        "type": "core::felt252"
+      },
+      {
+        "name": "shares",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "share_value",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "share_percentage_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "utilization_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "can_withdraw",
+        "type": "core::bool"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::array::Span::<asceswap_cairo::types::asce_swap::UserLpSummary>",
+    "members": [
+      {
+        "name": "snapshot",
+        "type": "@core::array::Array::<asceswap_cairo::types::asce_swap::UserLpSummary>"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::DashboardPageData",
+    "members": [
+      {
+        "name": "user",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "total_portfolio_value",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_collateral_at_risk",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_unrealized_pnl",
+        "type": "asceswap_cairo::types::asce_swap::SignedValue"
+      },
+      {
+        "name": "total_swaps",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "active_swaps",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "fixed_positions",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "floating_positions",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "total_notional_exposure",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "avg_health_factor_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "positions_at_risk",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "total_lp_value",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_lp_positions",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "total_lp_share_percentage_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "swap_positions",
+        "type": "core::array::Span::<asceswap_cairo::types::asce_swap::UserSwapSummary>"
+      },
+      {
+        "name": "lp_positions",
+        "type": "core::array::Span::<asceswap_cairo::types::asce_swap::UserLpSummary>"
+      },
+      {
+        "name": "has_liquidatable_positions",
+        "type": "core::bool"
+      },
+      {
+        "name": "has_expiring_soon",
+        "type": "core::bool"
+      },
+      {
+        "name": "expiring_soon_count",
+        "type": "core::integer::u32"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::array::Span::<core::integer::u256>",
+    "members": [
+      {
+        "name": "snapshot",
+        "type": "@core::array::Array::<core::integer::u256>"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::array::Span::<core::felt252>",
+    "members": [
+      {
+        "name": "snapshot",
+        "type": "@core::array::Array::<core::felt252>"
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "asceswap_cairo::types::asce_swap::MarketStatus",
+    "variants": [
+      {
+        "name": "Active",
+        "type": "()"
+      },
+      {
+        "name": "Paused",
+        "type": "()"
+      },
+      {
+        "name": "Closed",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::MarketForLp",
+    "members": [
+      {
+        "name": "pair_id",
+        "type": "core::felt252"
+      },
+      {
+        "name": "status",
+        "type": "asceswap_cairo::types::asce_swap::MarketStatus"
+      },
+      {
+        "name": "collateral_token",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "decimals",
+        "type": "core::integer::u8"
+      },
+      {
+        "name": "total_tvl",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "available_liquidity",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "utilization_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "current_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "fee_spread_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "net_exposure",
+        "type": "asceswap_cairo::types::asce_swap::SignedValue"
+      },
+      {
+        "name": "active_swaps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "user_shares",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "user_share_value",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "user_can_withdraw",
+        "type": "core::bool"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::array::Span::<asceswap_cairo::types::analytics::MarketForLp>",
+    "members": [
+      {
+        "name": "snapshot",
+        "type": "@core::array::Array::<asceswap_cairo::types::analytics::MarketForLp>"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::LpPageData",
+    "members": [
+      {
+        "name": "user",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "total_lp_value",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_positions",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "weighted_avg_utilization_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "markets",
+        "type": "core::array::Span::<asceswap_cairo::types::analytics::MarketForLp>"
+      },
+      {
+        "name": "total_protocol_tvl",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_active_markets",
+        "type": "core::integer::u32"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::UserLpPositions",
+    "members": [
+      {
+        "name": "user",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "total_lp_value",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_positions",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "positions",
+        "type": "core::array::Span::<asceswap_cairo::types::analytics::MarketForLp>"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::MarketForTrading",
+    "members": [
+      {
+        "name": "pair_id",
+        "type": "core::felt252"
+      },
+      {
+        "name": "status",
+        "type": "asceswap_cairo::types::asce_swap::MarketStatus"
+      },
+      {
+        "name": "collateral_token",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "decimals",
+        "type": "core::integer::u8"
+      },
+      {
+        "name": "current_oracle_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "fixed_side_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "floating_side_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "available_for_fixed",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "available_for_floating",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_liquidity",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_swaps_created",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "active_swap_count",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "swap_term_seconds",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "min_notional",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "max_notional_per_swap",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "swap_fee_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "early_exit_fee_bps",
+        "type": "core::integer::u256"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::array::Span::<asceswap_cairo::types::analytics::MarketForTrading>",
+    "members": [
+      {
+        "name": "snapshot",
+        "type": "@core::array::Array::<asceswap_cairo::types::analytics::MarketForTrading>"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::MarketsPageData",
+    "members": [
+      {
+        "name": "markets",
+        "type": "core::array::Span::<asceswap_cairo::types::analytics::MarketForTrading>"
+      },
+      {
+        "name": "total_markets",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "active_markets",
+        "type": "core::integer::u32"
+      },
+      {
+        "name": "total_protocol_tvl",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "total_active_swaps",
+        "type": "core::integer::u256"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::SwapDetailData",
+    "members": [
+      {
+        "name": "swap_id",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "pair_id",
+        "type": "core::felt252"
+      },
+      {
+        "name": "owner",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "side",
+        "type": "asceswap_cairo::types::asce_swap::SwapSide"
+      },
+      {
+        "name": "status",
+        "type": "asceswap_cairo::types::asce_swap::SwapStatus"
+      },
+      {
+        "name": "notional",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "collateral",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "leverage_x100",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "fixed_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "current_floating_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "spread_bps",
+        "type": "asceswap_cairo::types::asce_swap::SignedValue"
+      },
+      {
+        "name": "current_pnl",
+        "type": "asceswap_cairo::types::asce_swap::SignedValue"
+      },
+      {
+        "name": "projected_pnl_at_expiry",
+        "type": "asceswap_cairo::types::asce_swap::SignedValue"
+      },
+      {
+        "name": "breakeven_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "health_factor_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "required_margin",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "is_liquidatable",
+        "type": "core::bool"
+      },
+      {
+        "name": "start_time",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "expiration_time",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "elapsed_seconds",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "remaining_seconds",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "progress_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "early_exit_fee",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "early_exit_payout",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "market_utilization_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "market_tvl",
+        "type": "core::integer::u256"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::DetailedScenario",
+    "members": [
+      {
+        "name": "rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "pnl",
+        "type": "asceswap_cairo::types::asce_swap::SignedValue"
+      },
+      {
+        "name": "payout",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "return_percentage_bps",
+        "type": "asceswap_cairo::types::asce_swap::SignedValue"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::array::Span::<asceswap_cairo::types::analytics::DetailedScenario>",
+    "members": [
+      {
+        "name": "snapshot",
+        "type": "@core::array::Array::<asceswap_cairo::types::analytics::DetailedScenario>"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "asceswap_cairo::types::analytics::SwapScenarioAnalysis",
+    "members": [
+      {
+        "name": "swap_id",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "current_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "fixed_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "breakeven_rate_bps",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "scenarios",
+        "type": "core::array::Span::<asceswap_cairo::types::analytics::DetailedScenario>"
+      }
+    ]
+  },
+  {
+    "type": "interface",
+    "name": "asceswap_cairo::interfaces::analytics::IAnalytics",
+    "items": [
+      {
+        "type": "function",
+        "name": "get_user_dashboard_full",
+        "inputs": [
+          {
+            "name": "user",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "asceswap_cairo::types::analytics::DashboardPageData"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_dashboard_page",
+        "inputs": [
+          {
+            "name": "user",
+            "type": "core::starknet::contract_address::ContractAddress"
+          },
+          {
+            "name": "swap_ids",
+            "type": "core::array::Span::<core::integer::u256>"
+          },
+          {
+            "name": "lp_pair_ids",
+            "type": "core::array::Span::<core::felt252>"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "asceswap_cairo::types::analytics::DashboardPageData"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_lp_page",
+        "inputs": [
+          {
+            "name": "user",
+            "type": "core::starknet::contract_address::ContractAddress"
+          },
+          {
+            "name": "market_pair_ids",
+            "type": "core::array::Span::<core::felt252>"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "asceswap_cairo::types::analytics::LpPageData"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_user_lp_positions",
+        "inputs": [
+          {
+            "name": "user",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "asceswap_cairo::types::analytics::UserLpPositions"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_markets_page",
+        "inputs": [
+          {
+            "name": "market_pair_ids",
+            "type": "core::array::Span::<core::felt252>"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "asceswap_cairo::types::analytics::MarketsPageData"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_swap_detail",
+        "inputs": [
+          {
+            "name": "swap_id",
+            "type": "core::integer::u256"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "asceswap_cairo::types::analytics::SwapDetailData"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_swap_scenarios",
+        "inputs": [
+          {
+            "name": "swap_id",
+            "type": "core::integer::u256"
+          },
+          {
+            "name": "rate_scenarios_bps",
+            "type": "core::array::Span::<core::integer::u256>"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "asceswap_cairo::types::analytics::SwapScenarioAnalysis"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_protocol_stats",
+        "inputs": [
+          {
+            "name": "market_pair_ids",
+            "type": "core::array::Span::<core::felt252>"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "(core::integer::u256, core::integer::u256, core::integer::u32, core::integer::u32)"
+          }
+        ],
+        "state_mutability": "view"
+      }
+    ]
+  },
+  {
+    "type": "constructor",
+    "name": "constructor",
+    "inputs": [
+      {
+        "name": "asce_swap",
+        "type": "core::starknet::contract_address::ContractAddress"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "asceswap_cairo::analytics::Analytics::Event",
+    "kind": "enum",
+    "variants": []
+  }
+]

@@ -89,3 +89,155 @@ export interface FormattedMarket {
   };
 }
 
+
+export enum PositionSide {
+  FIXED = 'FIXED',
+  FLOAT = 'FLOAT'
+}
+
+export interface Position {
+    swapId: number;
+    pairId: number;
+    side: "FIXED" | "FLOAT";
+    status: "ACTIVE" | "CLOSED";
+    notional: number;
+    collateral: number;
+    pnl: number;
+    healthFactorPct: number;
+    progressPct: number;
+    remainingDays: number;
+    remainingSeconds:number;
+}
+
+export interface LPPosition {
+  id: string;
+  assets: string[];
+  amount: string;
+  apy: string;
+  type: string;
+}
+
+export interface ChartData {
+  time: string;
+  rate: number;
+  fixed: number;
+}
+
+export type UserDashboard = {
+  /* ---------- Identity ---------- */
+  user: string; // hex address
+
+  /* ---------- Portfolio ---------- */
+  portfolio: {
+    totalValue: number;
+    totalCollateralAtRisk: number;
+    totalNotionalExposure: number;
+    unrealizedPnl: number;
+  };
+
+  /* ---------- Counts ---------- */
+  counts: {
+    totalSwaps: number;
+    activeSwaps: number;
+    fixedPositions: number;
+    floatingPositions: number;
+    lpPositions: number;
+  };
+
+  /* ---------- Risk ---------- */
+  risk: {
+    avgHealthFactorPct: number;
+    positionsAtRisk: number;
+    hasLiquidatablePositions: boolean;
+    hasExpiringSoon: boolean;
+    expiringSoonCount: number;
+  };
+
+  /* ---------- LP ---------- */
+  lp: {
+    totalValue: number;
+    totalSharePct: number;
+    positions: {
+      pairId: number;
+      shares: number;
+      shareValue: number;
+      sharePct: number;
+      utilizationPct: number;
+      canWithdraw: boolean;
+    }[];
+  };
+
+  /* ---------- Swap Positions ---------- */
+  swaps: {
+    swapId: number;
+    pairId: number;
+    side: "FIXED" | "FLOAT";
+    status: "ACTIVE" | "CLOSED";
+    notional: number;
+    collateral: number;
+    pnl: number;
+    healthFactorPct: number;
+    progressPct: number;
+    remainingDays: number;
+    remainingSeconds:number;
+  }[];
+};
+
+export type SwapDetail = {
+  /* ---------- Identity ---------- */
+  swapId: number;
+  pairId: number;
+  side: "FIXED" | "FLOAT";
+  status: "ACTIVE" | "CLOSED";
+
+  /* ---------- Position ---------- */
+  notional: number;
+  collateral: number;
+  leverage: number;
+
+  /* ---------- Rates ---------- */
+  fixedRatePct: number;
+  floatingRatePct: number;
+  spreadPct: number;
+  breakevenRatePct: number;
+
+  /* ---------- PnL ---------- */
+  pnl: {
+    current: number;
+    projected: number;
+  };
+
+  /* ---------- Risk ---------- */
+  healthFactorPct: number;
+  requiredMargin: number;
+  isLiquidatable: boolean;
+
+  /* ---------- Time ---------- */
+  time: {
+    startTime: Date;
+    expirationTime: Date;
+
+    elapsedSeconds: number;
+    remainingSeconds: number;
+
+    elapsedDays: number;
+    remainingDays: number;
+
+    progressPct: number; // 0–100 (time-based)
+  };
+
+  /* ---------- Fees ---------- */
+  fees: {
+    earlyExitFee: number;
+    earlyExitPayout: number;
+  };
+
+  /* ---------- Market ---------- */
+  market: {
+    utilizationPct: number;
+    tvl: number;
+  };
+};
+
+
+

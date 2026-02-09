@@ -278,7 +278,7 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
               <div
                 className={`text-lg font-mono font-bold dark:text-white text-slate-900`}
               >
-                ${numberFormatter(walletBalance)}
+                ${numberFormatter(walletBalance ?walletBalance:0)}
               </div>
             </div>
             <div className="space-y-1 text-right">
@@ -288,7 +288,7 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
                 Accrued Fees
               </span>
               <div className="text-lg font-mono font-bold text-emerald-500">
-                +${userPosition.accruedFees.toLocaleString()}
+                {'Coming Soon'}
               </div>
             </div>
           </div>
@@ -323,7 +323,7 @@ export const LiquidityDialogContent: React.FC<LiquidityDialogContentProps> = ({
             <div className="text-right pb-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-colors hover:bg-indigo-500/20 cursor-default">
                 <Wallet className="w-3 h-3" />
-                {activeTab==='SUPPLY'? "Wallet:":"SHARES:"} ${numberFormatter(walletBalance)}
+                {activeTab==='SUPPLY'? "Wallet:":"SHARES:"} ${numberFormatter(walletBalance ? walletBalance:0)}
               </div>
             </div>
           </div>
