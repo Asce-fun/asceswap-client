@@ -60,8 +60,6 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
   };
 
   const elapsedPct = swapDetails?.time?.progressPct ?? 0;
-  console.log(position,'pos')
-
   const elapsedPctDisplay = Math.round(elapsedPct * 100) / 100;
 
   const earlyExit = async () => {
@@ -75,7 +73,6 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
 
       setTxHash(txHash);
     } catch (error: any) {
-      console.log(error, "err in early exit");
       setError(error?.message ?? "Tx failed");
     } finally {
       setLoading(false);
@@ -98,13 +95,13 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <button
         onClick={onBack}
-        className="flex cursor-pointer items-center gap-2 text-zinc-500 hover:text-white mb-8 group transition-colors"
+        className="flex cursor-pointer items-center gap-2 text-[#8A8894] hover:text-white mb-8 group transition-colors"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform cursor-pointer" />
         Back to Dashboard
       </button>
 
-      <div className="bg-zinc-900/30 border border-zinc-800 rounded-[2rem] p-8 mb-8">
+      <div className="bg-[#111114] border border-white/5 rounded-2xl p-8 mb-8">
         <div className="flex justify-between items-start mb-12">
           <div>
             <div className="flex items-center gap-4 mb-2">
@@ -115,16 +112,16 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
                 {position.status}
               </span>
             </div>
-            <p className="text-zinc-500 text-sm">
+            <p className="text-[#8A8894] text-sm">
               Minted {formatDate(swapDetails?.time?.startTime as any)} •{" "}
               <span className="font-mono">{`${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}`}</span>
             </p>
           </div>
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-800 text-sm font-medium hover:bg-zinc-800 transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/5 text-sm font-medium hover:bg-white/5 transition-colors">
               <Share2 className="w-4 h-4" /> Share
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-800 text-sm font-medium hover:bg-zinc-800 transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/5 text-sm font-medium hover:bg-white/5 transition-colors">
               <RefreshCw className="w-4 h-4" /> Refresh
             </button>
           </div>
@@ -136,29 +133,29 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             <AreaChart data={MOCK_CHART_DATA}>
               <defs>
                 <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="#1f2937"
+                stroke="rgba(180,175,200,0.06)"
               />
               <XAxis dataKey="time" hide />
               <YAxis domain={[3, 7]} hide />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#0f172a",
-                  border: "1px solid #1e293b",
+                  backgroundColor: "#111114",
+                  border: "1px solid rgba(255,255,255,0.1)",
                   borderRadius: "12px",
                 }}
-                itemStyle={{ color: "#3b82f6" }}
+                itemStyle={{ color: "#8b5cf6" }}
               />
               <Area
                 type="monotone"
                 dataKey="rate"
-                stroke="#3b82f6"
+                stroke="#8b5cf6"
                 fillOpacity={1}
                 fill="url(#colorRate)"
                 strokeWidth={2}
@@ -172,9 +169,9 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
               />
             </AreaChart>
           </ResponsiveContainer>
-          <div className="absolute top-4 right-12 text-xs text-zinc-500 flex gap-4">
+          <div className="absolute top-4 right-12 text-xs text-[#8A8894] flex gap-4">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-0.5 bg-blue-500"></span> Current Float:
+              <span className="w-3 h-0.5 bg-[#8b5cf6]"></span> Current Float:
               4.85%
             </div>
             <div className="flex items-center gap-2">
@@ -185,18 +182,18 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-y-12 gap-x-8 pb-12 border-b border-zinc-800/50">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-y-12 gap-x-8 pb-12 border-b border-white/5/50">
           <div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
               SIDE
             </p>
             <div className="flex items-center gap-2 text-xl font-medium">
-              <Lock className="w-5 h-5 text-blue-500" />{" "}
+              <Lock className="w-5 h-5 text-[#a78bfa]" />{" "}
               {position.side === PositionSide.FIXED ? "Fixed" : "Float"}
             </div>
           </div>
           <div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
               LOCKED RATE
             </p>
             <p className="text-xl font-medium">
@@ -207,7 +204,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
               YOUR P&L
             </p>
             <p
@@ -218,7 +215,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
               Market Tvl
             </p>
             <p className="text-xl font-medium">
@@ -226,7 +223,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
               NOTIONAL SIZE
             </p>
             <p className="text-xl font-medium">
@@ -234,7 +231,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
               COLLATERAL
             </p>
             <p className="text-xl font-medium">
@@ -242,7 +239,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
               Leverage
             </p>
             <p className="text-xl font-medium">
@@ -253,11 +250,11 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
               HEALTH FACTOR
             </p>
             <div className="flex items-center gap-3">
-              <div className="h-1.5 w-24 bg-zinc-800 rounded-full">
+              <div className="h-1.5 w-24 bg-white/5 rounded-full">
                 <div
                   className="h-full bg-green-500 rounded-full"
                   style={{ width: "75%" }}
@@ -271,27 +268,27 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
         </div>
 
         {/* Progress Section */}
-        <div className="py-12 border-b border-zinc-800/50">
+        <div className="py-12 border-b border-white/5/50">
           <div className="flex justify-between items-end mb-4">
             <div>
-              <p className="text-zinc-200 font-medium mb-1">
+              <p className="text-[#E4E2E8] font-medium mb-1">
                 Position Maturity
               </p>
-              <p className="text-zinc-500 text-sm">
+              <p className="text-[#8A8894] text-sm">
                 {elapsedPctDisplay}% elapsed
               </p>
             </div>
-            <p className="text-blue-500 font-semibold">
+            <p className="text-[#a78bfa] font-semibold">
               {position.remainingDays} days left
             </p>
           </div>
-          <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
+          <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
             <div
               className="h-full bg-white rounded-full transition-all duration-1000"
               style={{ width: `${elapsedPct}%` }}
             />
           </div>
-          <div className="flex justify-between mt-3 text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
+          <div className="flex justify-between mt-3 text-[10px] text-[#5C5A66] font-bold uppercase tracking-wider">
             <span>Start: {formatDate(swapDetails?.time.startTime as any)}</span>
             <span>
               End: {formatDate(swapDetails?.time.expirationTime as any)}
@@ -300,15 +297,15 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
         </div>
 
         {/* Gemini Insights */}
-        {/* <div className="mt-12 p-6 bg-blue-500/5 rounded-2xl border border-blue-500/10">
+        {/* <div className="mt-12 p-6 bg-[#8b5cf6]/5 rounded-2xl border border-blue-500/10">
           <div className="flex items-center gap-2 mb-4 text-blue-400">
             <Sparkles className="w-5 h-5" />
             <h3 className="font-bold uppercase tracking-widest text-xs">AI Yield Insights</h3>
           </div>
           {loadingInsights ? (
             <div className="space-y-3">
-              <div className="h-4 bg-zinc-800/50 rounded animate-pulse w-3/4" />
-              <div className="h-4 bg-zinc-800/50 rounded animate-pulse w-1/2" />
+              <div className="h-4 bg-white/5/50 rounded animate-pulse w-3/4" />
+              <div className="h-4 bg-white/5/50 rounded animate-pulse w-1/2" />
             </div>
           ) : (
             <ul className="space-y-3 list-disc list-inside text-sm text-zinc-400">
@@ -322,7 +319,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
         {/* Action Buttons */}
         <div className="flex gap-4 mt-12">
           <button
-            className="flex-1 py-4 px-6 cursor-pointer rounded-2xl bg-white text-black font-bold text-lg hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
+            className="flex-1 py-4 px-6 cursor-pointer rounded-2xl bg-linear-to-r from-[#8b5cf6] via-[#a78bfa] to-[#c4b5fd] text-white font-bold text-lg hover:opacity-90 transition-colors flex items-center justify-center gap-2"
             onClick={() => {
               earlyExit();
             }}
@@ -330,7 +327,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             Early Exit <ArrowLeft className="w-5 h-5 rotate-180" />
           </button>
           <button
-            className="flex-1 py-4 px-6 cursor-pointer rounded-2xl bg-zinc-800 text-white font-bold text-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
+            className="flex-1 py-4 px-6 cursor-pointer rounded-2xl bg-[#18181C] text-white font-bold text-lg border border-white/10 hover:bg-[#202024] transition-colors flex items-center justify-center gap-2"
             onClick={() => {
               setShowTransferDialog(true);
             }}
