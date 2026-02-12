@@ -1,6 +1,6 @@
 // components/MintMockTokenModal.tsx
 import React, { useState } from "react";
-import { Droplet } from "lucide-react";
+import { Droplet, X } from "lucide-react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { mintMockToken } from "../blockchain/scripts/write/mintMockToken";
 import { Portal } from "./Portal";
@@ -39,7 +39,6 @@ export const MintMockTokenModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
       setTxHash(hash);
     } catch (error) {
-      console.log(error, "err");
       setError("Mint failed");
     } finally {
       setLoading(false);
@@ -51,26 +50,27 @@ export const MintMockTokenModal: React.FC<Props> = ({ isOpen, onClose }) => {
       {/* Backdrop */}
       <div className="fixed inset-0 z-9999 bg-black/70 backdrop-blur-sm flex items-center justify-center">
         {/* Modal */}
-        <div className="relative w-105 rounded-2xl bg-[#0b0f1a] border border-white/10 p-6 space-y-6 shadow-2xl">
+        <div className="relative w-105 rounded-2xl bg-[#111114] border border-white/10 p-6 space-y-6 shadow-2xl">
           {/* Close */}
           <button
             onClick={()=>{
                 resetStates()
                 onClose()
             }}
-            className="absolute cursor-pointer top-4 right-4 text-slate-400 hover:text-white"
+            className="absolute cursor-pointer top-4 right-4 text-[#8A8894] hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors"
+            aria-label="Close"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
 
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-              <Droplet className="w-5 h-5 text-indigo-400" />
+            <div className="w-10 h-10 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center">
+              <Droplet className="w-5 h-5 text-[#a78bfa]" />
             </div>
             <div>
               <h3 className="text-white font-bold">Mint Test Tokens</h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#8A8894]">
                 MockERC20 faucet
               </p>
             </div>
@@ -79,14 +79,14 @@ export const MintMockTokenModal: React.FC<Props> = ({ isOpen, onClose }) => {
           {/* Info */}
           <div className="rounded-xl bg-black/40 p-4 text-xs space-y-2">
             <div>
-              <span className="text-slate-500">Recipient</span>
-              <div className="font-mono text-[11px] text-slate-300 break-all">
+              <span className="text-[#8A8894]">Recipient</span>
+              <div className="font-mono text-[11px] text-[#BAB8C4] break-all">
                 {account ?? "--"}
               </div>
             </div>
 
             <div>
-              <span className="text-slate-500">Amount</span>
+              <span className="text-[#8A8894]">Amount</span>
               <div className="font-bold text-white">10,000 Mock tokens</div>
             </div>
           </div>
@@ -104,7 +104,7 @@ export const MintMockTokenModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <button
             onClick={handleMint}
             disabled={loading}
-            className="w-full cursor-pointer py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-black font-black text-xs uppercase tracking-widest"
+            className="w-full cursor-pointer py-3 rounded-xl bg-linear-to-r from-[#8b5cf6] via-[#a78bfa] to-[#c4b5fd] hover:opacity-90 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-widest"
           >
             {loading ? "Minting..." : "Mint 10,000 Mock Tokens"}
           </button>
