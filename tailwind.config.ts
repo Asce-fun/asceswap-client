@@ -10,26 +10,29 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'sans-serif'],
-        mono: ['var(--font-jetbrains-mono)', 'monospace'],
+        sans: ['var(--font-sans)', 'sans-serif'],
+        mono: ['var(--font-mono)', 'monospace'],
+        serif: ['var(--font-instrument-serif)', 'serif'],
       },
       colors: {
         brand: {
-          50: '#f0f7ff',
-          100: '#e0effe',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb', 
-          700: '#1d4ed8',
+          50: '#f5f3ff',
+          100: '#ede9fe',
+          400: '#a78bfa',
+          500: '#8b5cf6',
+          600: '#7c3aed',
+          700: '#5b21b6',
+          800: '#4c1d95',
         },
         trade: {
-          up: '#10b981',
+          up: '#34d399',
           down: '#f43f5e',
         },
         accent: {
           400: '#a78bfa',
           500: '#8b5cf6',
           600: '#7c3aed',
+          700: '#5b21b6',
         }
       },
       animation: {
