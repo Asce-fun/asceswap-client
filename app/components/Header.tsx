@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   RefreshCw,
   Sun,
@@ -8,24 +8,33 @@ import {
   ChevronDown,
   LogOut,
   Menu,
+  X,
+  Droplet,
+  BarChart3,
+  Coins,
   Briefcase,
 } from "lucide-react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import STRKLogo from "../assets/icons/coins/strk";
 import { MintMockTokenModal } from "./MintMockTokenModal";
 import { useRouter, usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import Link from "next/link";
 
-interface HeaderProps {
-  isDark: boolean;
-  toggleTheme: () => void;
-}
+const NAV_LINKS = [
+  { href: "/markets", label: "Markets", icon: BarChart3 },
+  { href: "/liquidity", label: "Liquidity", icon: Coins },
+  { href: "/positions", label: "Positions", icon: Briefcase },
+];
 
-export const Header: React.FC<HeaderProps> = ({ isDark, toggleTheme }) => {
+export const Header: React.FC = () => {
   const { primaryWallet, handleLogOut, setShowAuthFlow } = useDynamicContext();
+  const { theme, setTheme } = useTheme();
 
   const [open, setOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showMint, setShowMint] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -36,115 +45,155 @@ export const Header: React.FC<HeaderProps> = ({ isDark, toggleTheme }) => {
     ? `${address.slice(0, 5)}…${address.slice(-4)}`
     : "";
 
-  /* ---------- Breadcrumb ---------- */
-  const pageLabel = pathname?.includes("user-positions")
-    ? "Positions"
-    : "Dashboard";
+  const isDark = theme === "dark";
+  const toggleTheme = () => setTheme(isDark ? "light" : "dark");
+
+  /* ---------- Click outside to close dropdown ---------- */
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  /* ---------- Close mobile menu on route change ---------- */
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-black/5 dark:border-white/5 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 w-full border-b border-[rgba(180,175,200,0.06)] bg-[#0A0A0C]/80 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-        {/* LEFT */}
+        {/* ===== LEFT: Logo ===== */}
         <div className="flex items-center gap-3">
-          {/* Mobile menu */}
+          {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen((v) => !v)}
-            className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="md:hidden p-2 rounded-xl hover:bg-white/5 cursor-pointer"
           >
-            <Menu className="w-5 h-5" />
+            {mobileOpen ? (
+              <X className="w-5 h-5" />
+            ) : (
+              <Menu className="w-5 h-5" />
+            )}
           </button>
 
-          {/* Logo / Breadcrumb */}
           {/* Logo */}
           <div
             className="flex items-center cursor-pointer gap-3 group"
-            onClick={() => {
-              router.push("/");
-            }}
+            onClick={() => router.push("/")}
           >
-            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-blue-600/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-500 ring-1 ring-blue-500/20 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#8b5cf6]/10 text-[#8b5cf6] ring-1 ring-[#8b5cf6]/20 group-hover:bg-[#8b5cf6] group-hover:text-white transition-all duration-300 shadow-[0_0_15px_rgba(167,139,250,0.22)]">
               <RefreshCw className="w-4 h-4 transition-transform duration-700 group-hover:rotate-180" />
             </div>
-            <span className="text-xl font-bold tracking-tighter text-slate-900 dark:text-white">
+            <span className="text-xl font-bold tracking-tighter text-white">
               ASCE
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-[#38bdf8] via-[#818cf8] to-[#a270ff]">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-[#a78bfa] via-[#8b5cf6] to-[#7c3aed]">
                 SWAP
               </span>
             </span>
           </div>
         </div>
 
-        {/* RIGHT – DESKTOP */}
+        {/* ===== CENTER: Nav Links (desktop) ===== */}
+        <div className="hidden md:flex items-center gap-1 bg-white/[0.02] rounded-xl p-1 border border-white/[0.03]">
+          {NAV_LINKS.map((link) => {
+            const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`relative px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  isActive
+                    ? "text-white bg-[#8b5cf6]/10"
+                    : "text-[#8A8894] hover:text-[#BAB8C4] hover:bg-white/5"
+                }`}
+              >
+                {link.label}
+                {isActive && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full bg-[#a78bfa]" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* ===== RIGHT: Actions (desktop) ===== */}
         <div className="hidden md:flex items-center gap-2">
-          {isLoggedIn && (
-            <>
-              {/* Positions */}
-              <button
-                onClick={() => router.push(`/user-positions/${address}`)}
-                className="flex cursor-pointer items-center gap-2 px-4 py-2 rounded-full
-                  text-xs font-black uppercase tracking-widest
-                  text-blue-500 bg-blue-500/10 border border-blue-500/30
-                  hover:bg-blue-500/20 transition-all"
-              >
-                <Briefcase className="w-4 h-4" />
-                Positions
-              </button>
-
-              {/* Mint */}
-              <button
-                onClick={() => setShowMint(true)}
-                className="px-4 cursor-pointer py-2 rounded-full text-xs font-black uppercase tracking-widest
-                  text-indigo-500 bg-indigo-500/10 border border-indigo-500/30
-                  hover:bg-indigo-500/20 transition-all"
-              >
-                Mint Test Tokens
-              </button>
-            </>
-          )}
-
           {/* Theme */}
           <button
             onClick={toggleTheme}
-            className="p-2 cursor-pointer rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-2 cursor-pointer rounded-xl hover:bg-white/5 transition-colors"
           >
             {isDark ? (
-              <Sun className="w-4 h-4" />
+              <Sun className="w-4 h-4 text-[#8A8894]" />
             ) : (
-              <Moon className="w-4 h-4" />
+              <Moon className="w-4 h-4 text-[#8A8894]" />
             )}
           </button>
+
+          {/* Mint icon button */}
+          {isLoggedIn && (
+            <button
+              onClick={() => setShowMint(true)}
+              className="p-2 cursor-pointer rounded-xl hover:bg-white/5 transition-colors"
+              title="Mint Test Tokens"
+            >
+              <Droplet className="w-4 h-4 text-[#a78bfa]" />
+            </button>
+          )}
 
           {/* Wallet */}
           {!isLoggedIn ? (
             <button
               onClick={() => setShowAuthFlow(true)}
-              className="px-6 cursor-pointer py-2 rounded-full text-sm font-semibold text-white
-                bg-linear-to-r from-sky-400 to-indigo-500"
+              className="px-6 cursor-pointer py-2 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-[#7c3aed] to-[#8b5cf6] hover:opacity-90 transition-opacity"
             >
               Log in
             </button>
           ) : (
-            <div className="relative">
+            <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpen((v) => !v)}
-                className="flex cursor-pointer items-center gap-2 px-4 py-2 rounded-full bg-white/70 dark:bg-slate-900/60"
+                className="flex cursor-pointer items-center gap-2 px-4 py-2 rounded-xl bg-[#111114]/60 border border-[rgba(180,175,200,0.08)] hover:border-[rgba(180,175,200,0.15)] transition-colors"
               >
                 <STRKLogo height={16} width={16} />
-                <span>{shortAddress}</span>
-                <ChevronDown className="w-4 h-4" />
+                <span className="text-sm">{shortAddress}</span>
+                <ChevronDown
+                  className={`w-4 h-4 text-[#8A8894] transition-transform ${open ? "rotate-180" : ""}`}
+                />
               </button>
 
               {open && (
-                <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white dark:bg-[#0b0b0b] border">
+                <div className="absolute right-0 mt-2 w-52 rounded-xl bg-[#111114] border border-[rgba(180,175,200,0.08)] shadow-xl shadow-black/40 overflow-hidden">
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      setShowMint(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#BAB8C4] hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <Droplet className="w-4 h-4 text-[#a78bfa]" />
+                    Mint Test Tokens
+                  </button>
+                  <div className="border-t border-white/5" />
                   <button
                     onClick={() => {
                       setOpen(false);
                       handleLogOut();
                     }}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
-                    Logout
+                    Disconnect
                   </button>
                 </div>
               )}
@@ -153,48 +202,77 @@ export const Header: React.FC<HeaderProps> = ({ isDark, toggleTheme }) => {
         </div>
       </div>
 
-      {/* MOBILE DROPDOWN */}
+      {/* ===== MOBILE DRAWER ===== */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-white/5 bg-white dark:bg-[#050505] px-4 py-4 space-y-3">
-          {isLoggedIn && (
-            <>
-              <button
-                onClick={() => {
-                  setMobileOpen(false);
-                  router.push(`/user-positions/${address}`);
-                }}
-                className="w-full cursor-pointer flex items-center gap-2 text-sm font-semibold"
+        <div className="md:hidden border-t border-[rgba(180,175,200,0.06)] bg-[#0A0A0C] px-4 py-4 space-y-1">
+          {/* Nav Links */}
+          {NAV_LINKS.map((link) => {
+            const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
+                  isActive
+                    ? "text-white bg-[#8b5cf6]/10"
+                    : "text-[#8A8894] hover:text-white hover:bg-white/5"
+                }`}
               >
-                <Briefcase className="w-4 h-4" /> Positions
-              </button>
+                <Icon className="w-4 h-4" />
+                {link.label}
+              </Link>
+            );
+          })}
 
-              <button
-                onClick={() => {
-                  setMobileOpen(false);
-                  setShowMint(true);
-                }}
-                className="w-full cursor-pointer text-left text-sm font-semibold"
-              >
-                Mint Test Tokens
-              </button>
-            </>
+          <div className="border-t border-white/5 my-2" />
+
+          {/* Actions */}
+          {isLoggedIn && (
+            <button
+              onClick={() => {
+                setMobileOpen(false);
+                setShowMint(true);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#8A8894] hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <Droplet className="w-4 h-4 text-[#a78bfa]" />
+              Mint Test Tokens
+            </button>
           )}
 
-          <button onClick={toggleTheme} className="w-full cursor-pointer text-left text-sm">
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#8A8894] hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
             Toggle Theme
           </button>
 
+          <div className="border-t border-white/5 my-2" />
+
           {isLoggedIn ? (
             <button
-              onClick={handleLogOut}
-              className="w-full text-left text-sm cursor-pointer text-red-500"
+              onClick={() => {
+                setMobileOpen(false);
+                handleLogOut();
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
             >
-              Logout
+              <LogOut className="w-4 h-4" />
+              Disconnect
             </button>
           ) : (
             <button
-              onClick={() => setShowAuthFlow(true)}
-              className="w-full cursor-pointer text-left text-sm"
+              onClick={() => {
+                setMobileOpen(false);
+                setShowAuthFlow(true);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-[#7c3aed] to-[#8b5cf6] cursor-pointer"
             >
               Log in
             </button>
