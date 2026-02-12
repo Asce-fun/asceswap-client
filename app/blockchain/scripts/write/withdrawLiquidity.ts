@@ -11,7 +11,7 @@ export async function withdrawLpLiquidity({
   asceSwapAddress,
   pairId,
   shares,
-  shareDecimals = 18, // LP shares are usually 18 decimals
+  shareDecimals = 6,
 }: {
   asceSwapAddress: string;
   pairId: string; // felt252
