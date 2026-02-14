@@ -71,7 +71,7 @@ export default function LiquidityPage() {
     : null;
 
   return (
-    <PageLayout>
+    <PageLayout showFooter={false}>
       <div>
         {/* Page Header */}
         <div className="mb-8">

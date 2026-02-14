@@ -53,7 +53,7 @@ const PositionsPage: React.FC = () => {
 
   if (!address) {
     return (
-      <PageLayout>
+      <PageLayout showFooter={false}>
         <div className="flex flex-col items-center justify-center py-32 text-center">
           <div className="w-16 h-16 rounded-2xl bg-[#8b5cf6]/10 flex items-center justify-center mb-6 text-[#a78bfa]">
             <Wallet className="w-8 h-8" />
@@ -77,7 +77,7 @@ const PositionsPage: React.FC = () => {
   }
 
   return (
-    <PageLayout>
+    <PageLayout showFooter={false}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         {/* Portfolio Value */}
         <div className="relative p-5 rounded-2xl border border-white/10 bg-[#111114] backdrop-blur-xl hover:border-white/20 transition-all">

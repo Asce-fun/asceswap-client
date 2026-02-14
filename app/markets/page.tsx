@@ -7,7 +7,7 @@ import { PageLayout } from '../components/PageLayout';
 
 export default function MarketsPage() {
   return (
-    <PageLayout>
+    <PageLayout showFooter={false}>
       <div>
         <div className="mb-10">
           <h2 className="font-serif font-normal text-white mb-2 text-3xl md:text-4xl tracking-tight">
