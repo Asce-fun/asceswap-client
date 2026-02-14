@@ -72,7 +72,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
         />
         <div className="relative bg-[#111114] border border-[rgba(180,175,200,0.06)] rounded-2xl overflow-hidden flex flex-col h-full group-hover/card:border-[rgba(180,175,200,0.12)] group-hover/card:shadow-[0_8px_32px_rgba(167,139,250,0.22),0_0_0_1px_rgba(167,139,250,0.22)] transition-all duration-400">
           {/* Top accent line */}
-          <div className="h-[2px] w-full bg-linear-to-r from-[#a78bfa] via-[#c4a6ff] to-[#e8b4b8] opacity-60 group-hover/card:opacity-100 transition-opacity duration-400" />
+          <div className="h-[2px] w-full bg-linear-to-r from-[#7c3aed] via-[#8b5cf6] to-[#7c3aed] opacity-50 group-hover/card:opacity-90 transition-opacity duration-400" />
 
           {/* ── HEADER ── */}
           <div className="px-5 pt-5 pb-0">
