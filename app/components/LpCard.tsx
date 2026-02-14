@@ -5,6 +5,8 @@ import { ArrowRight } from "lucide-react";
 import { FormattedMarket, MarketData } from "../interface/types";
 import { MARKET_META } from "../constants/markets";
 import numberFormatter from "../blockchain/utils/numberFormatter";
+import { extractTokensFromName } from "../lib/helpers/helpers";
+import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
 
 interface LpCardProps {
   market: MarketData;
@@ -44,6 +46,8 @@ export const LpCard: React.FC<LpCardProps> = ({
     ? (swapFeeBps * utilizationFraction * (365 / termDays)) / 10000
     : null;
 
+  const tokens = extractTokensFromName(market.name);
+  const collateralTokens=extractTokensFromName(collateralSymbol)
   return (
     <button
       onClick={onClick}
@@ -78,15 +82,12 @@ export const LpCard: React.FC<LpCardProps> = ({
         <div className="px-5 pt-5 pb-0">
           <div className="flex justify-between items-start">
             <div className="flex items-start gap-3">
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 border border-white/[0.06]"
-                style={{
-                  backgroundColor: `${meta?.iconColor ?? "#a78bfa"}12`,
-                  color: meta?.iconColor ?? "#a78bfa",
-                }}
-              >
-                {meta?.letter ?? "?"}
-              </div>
+                <div className="flex items-center gap-1">
+                  {tokens.map((token) => {
+                    const Logo = TOKEN_LOGOS[token];
+                    return <Logo key={token} size={40} />;
+                  })}
+                </div>
               <div>
                 <h3 className="text-[17px] font-bold text-white tracking-tight leading-none">
                   {market.name}
@@ -138,9 +139,12 @@ export const LpCard: React.FC<LpCardProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-full bg-[#2775ca]/15 flex items-center justify-center text-[8px] font-bold text-[#2775ca]">
-              $
-            </span>
+                <div className="flex items-center gap-1">
+                  {collateralTokens.map((token) => {
+                    const Logo = TOKEN_LOGOS[token];
+                    return <Logo key={token} size={20} />;
+                  })}
+                </div>
             <span className="text-xs font-mono font-bold text-[#BAB8C4]">
               {collateralSymbol}
             </span>

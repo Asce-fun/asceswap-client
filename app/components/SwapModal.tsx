@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   Info,
   ArrowDown,
@@ -10,18 +16,17 @@ import {
   AlertTriangle,
   ArrowRight,
   ExternalLink,
+  Wallet,
 } from "lucide-react";
-import {
-  MarketData,
-  SwapDirection,
-  FormattedMarket,
-} from "../interface/types";
+import { MarketData, SwapDirection, FormattedMarket } from "../interface/types";
 import { MARKET_META } from "../constants/markets";
 import { FullModal } from "./FullModal";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { getTokenBalance } from "../blockchain/scripts/tokenBalance";
 import { approveAndBuySwap } from "../blockchain/scripts/write/approveAndBuySwap";
 import numberFormatter from "../blockchain/utils/numberFormatter";
+import { extractTokensFromName } from "../lib/helpers/helpers";
+import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
 
 /* ─────────────────────── Types ─────────────────────── */
 
@@ -66,7 +71,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number; visible: boolean }>({
+  const [tooltipPos, setTooltipPos] = useState<{
+    x: number;
+    y: number;
+    visible: boolean;
+  }>({
     x: 0,
     y: 0,
     visible: false,
@@ -115,8 +124,9 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   /* ── Derived values ── */
   const minNotional = marketDetails?.params?.minNotional ?? 0;
   const maxNotional = marketDetails?.params?.maxNotional ?? 1000000;
-  const initialMarginPct = marketDetails?.params?.initialMarginMultiplierPct ?? 100;
-
+  const initialMarginPct =
+    marketDetails?.params?.initialMarginMultiplierPct ?? 100;
+  const maxAmount = walletBalance ?? 0;
   const collateral = useMemo(
     () => (notional * 100) / initialMarginPct,
     [notional, initialMarginPct],
@@ -238,6 +248,32 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     setTooltipPos((p) => ({ ...p, visible: false }));
   }, []);
 
+  const handleAmountChange = (val: string) => {
+    // allow digits + single dot
+    let clean = val.replace(/[^0-9.]/g, "");
+
+    // prevent multiple decimals
+    const parts = clean.split(".");
+    if (parts.length > 2) {
+      clean = parts[0] + "." + parts.slice(1).join("");
+    }
+
+    if (clean === "" || clean === ".") {
+      setNotional(0);
+      return;
+    }
+
+    const parsed = Number(clean);
+    if (Number.isNaN(parsed)) return;
+
+    if (walletBalance === null) {
+      setNotional(parsed);
+      return;
+    }
+
+    setNotional(Math.min(parsed, walletBalance));
+  };
+
   /* ── Execute Swap ── */
   const handleExecute = async () => {
     if (!marketDetails) return;
@@ -268,7 +304,8 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     const seed = Number(market.id) * 0.17;
     return parseFloat(((seed % 0.8) - 0.3).toFixed(2));
   }, [market.id]);
-
+  const tokens = extractTokensFromName(market.name);
+  const collateralTokens = extractTokensFromName("USDC");
   return (
     <FullModal isOpen={isOpen} onClose={onClose} maxWidth="1120px">
       <div
@@ -276,16 +313,13 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         style={{ maxHeight: "calc(100vh - 48px)" }}
       >
         {/* ========== A. MODAL HEADER ========== */}
-        <div className="px-6 pt-5 pb-4 border-b border-white/[0.04] shrink-0">
+        <div className="px-6 pt-5 pb-4 border-b border-white/4 shrink-0">
           <div className="flex items-center gap-3 pr-10">
-            <div
-              className="w-9 h-9 rounded-[10px] flex items-center justify-center text-base font-bold shrink-0"
-              style={{
-                backgroundColor: `${meta.iconColor}15`,
-                color: meta.iconColor,
-              }}
-            >
-              {meta.letter}
+            <div className="flex items-center gap-1">
+              {tokens.map((token) => {
+                const Logo = TOKEN_LOGOS[token];
+                return <Logo key={token} size={40} />;
+              })}
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white tracking-tight">
@@ -516,11 +550,21 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   <p className="text-[12px] text-[#8A8894] leading-relaxed">
                     {activeSide === "FIXED" ? (
                       <>
-                        By taking the <span className="text-white font-semibold">Fixed</span> side, you lock in the current rate. You profit when floating rates fall below your locked rate, and lose when rates rise above it. Your maximum loss is limited to the collateral you deposit.
+                        By taking the{" "}
+                        <span className="text-white font-semibold">Fixed</span>{" "}
+                        side, you lock in the current rate. You profit when
+                        floating rates fall below your locked rate, and lose
+                        when rates rise above it. Your maximum loss is limited
+                        to the collateral you deposit.
                       </>
                     ) : (
                       <>
-                        By taking the <span className="text-white font-semibold">Float</span> side, you receive the floating rate and pay the fixed rate. You profit when rates rise above the locked rate, and lose when rates fall below it. Your maximum loss is limited to the collateral you deposit.
+                        By taking the{" "}
+                        <span className="text-white font-semibold">Float</span>{" "}
+                        side, you receive the floating rate and pay the fixed
+                        rate. You profit when rates rise above the locked rate,
+                        and lose when rates fall below it. Your maximum loss is
+                        limited to the collateral you deposit.
                       </>
                     )}
                   </p>
@@ -588,9 +632,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                           </div>
                         </div>
                         <button
-                          onClick={() =>
-                            handleCopy(row.value, row.field)
-                          }
+                          onClick={() => handleCopy(row.value, row.field)}
                           className="p-1.5 rounded-md hover:bg-white/[0.05] text-[#8A8894] hover:text-white transition-colors cursor-pointer"
                         >
                           {copiedField === row.field ? (
@@ -643,11 +685,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     },
                     {
                       label: "Min Hold Period",
-                      value: `${marketDetails?.params?.minHoldPeriodMinutes ?? 0}m`,
+                      value: `${marketDetails?.params?.minHoldPeriodMinutes ?? 0} minutes`,
                     },
                     {
                       label: "Oracle Staleness",
-                      value: `${marketDetails?.params?.maxOracleStalenessSeconds ?? 0}s`,
+                      value: `${marketDetails?.params?.maxOracleStalenessSeconds ?? 0} seconds`,
                     },
                   ].map((p) => (
                     <div
@@ -698,8 +740,9 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                       <span className="text-white font-semibold">
                         Max loss = collateral deposited.
                       </span>{" "}
-                      Your maximum loss is limited to the collateral you deposit.
-                      There is no additional liability beyond your initial margin.
+                      Your maximum loss is limited to the collateral you
+                      deposit. There is no additional liability beyond your
+                      initial margin.
                     </p>
                   </div>
                   <div className="flex items-start gap-2">
@@ -709,8 +752,8 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                         Oracle risk.
                       </span>{" "}
                       Rates are sourced from on-chain oracles. Oracle
-                      manipulation or stale data could impact swap settlement and
-                      PnL calculations.
+                      manipulation or stale data could impact swap settlement
+                      and PnL calculations.
                     </p>
                   </div>
                 </div>
@@ -732,7 +775,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-[10px] font-semibold text-[#a78bfa]/70 hover:text-[#a78bfa] transition-colors"
                 >
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                  <svg
+                    className="w-3 h-3"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
                   @asceswap
@@ -786,13 +833,21 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   Notional Amount
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-3xl font-bold text-white tracking-tighter">
-                    ${numberFormatter(notional)}
-                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={notional === 0 ? "" : notional}
+                    onChange={(e) => handleAmountChange(e.target.value)}
+                    placeholder="0"
+                    className="bg-transparent border-none outline-none text-5xl font-mono font-bold text-white tracking-tighter w-full focus:ring-0 placeholder:opacity-20"
+                  />
                   <span className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#2775ca]/10 text-[10px] font-bold text-[#2775ca] uppercase shrink-0">
-                    <span className="w-4 h-4 rounded-full bg-[#2775ca]/20 flex items-center justify-center text-[8px] text-[#2775ca] font-bold">
-                      $
-                    </span>
+                    <div className="flex items-center gap-1">
+                      {collateralTokens.map((token) => {
+                        const Logo = TOKEN_LOGOS[token];
+                        return <Logo key={token} size={20} />;
+                      })}
+                    </div>
                     USDC
                   </span>
                 </div>
@@ -800,31 +855,39 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 {/* Slider */}
                 <input
                   type="range"
-                  min={minNotional}
-                  max={maxNotional}
-                  step={maxNotional > 1000 ? maxNotional / 1000 : 1}
-                  value={notional}
+                  min={0}
+                  max={maxAmount}
+                  step={maxAmount > 100 ? maxAmount / 100 : 0.01}
+                  value={Math.min(notional, maxAmount)}
                   onChange={(e) => setNotional(Number(e.target.value))}
-                  className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                  className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-indigo-500"
                 />
                 <div className="flex justify-between text-[9px] font-mono text-[#5C5A66]">
-                  <span>${numberFormatter(minNotional)}</span>
-                  <span>${numberFormatter(maxNotional)}</span>
+                  <div className="flex flex-col">
+                    <span>Min: ${numberFormatter(minNotional)}</span>
+                    <span>max :${numberFormatter(maxNotional)}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-colors hover:bg-indigo-500/20 cursor-default">
+                    <Wallet className="w-2 h-2" />
+                    Wallet: $
+                    {numberFormatter(walletBalance ? walletBalance : 0)}
+                  </div>
                 </div>
 
                 {/* Preset Buttons */}
-                <div className="flex flex-wrap gap-1.5">
-                  {presets.map((p) => (
+                <div className="flex gap-2 mt-2">
+                  {[25, 50, 75, 100].map((p) => (
                     <button
-                      key={p.value}
-                      onClick={() => setNotional(Math.min(p.value, maxNotional))}
-                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-colors cursor-pointer ${
-                        notional === p.value
-                          ? "bg-[rgba(167,139,250,0.10)] text-[#c4b5fd] border border-[rgba(167,139,250,0.22)]"
-                          : "bg-white/[0.04] hover:bg-[rgba(167,139,250,0.10)] text-[#8A8894] hover:text-[#c4b5fd]"
-                      }`}
+                      key={p}
+                      onClick={() => {
+                        if (walletBalance !== null) {
+                          const value = (walletBalance * p) / 100;
+                          setNotional(Number(value.toFixed(2)));
+                        }
+                      }}
+                      className="px-2 cursor-pointer py-1 text-[9px] font-black rounded-md bg-white/5 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400"
                     >
-                      {p.label}
+                      {p}%
                     </button>
                   ))}
                 </div>
@@ -844,14 +907,14 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 />
                 <QuoteRow
                   label="Effective Leverage"
-                  value={`~${effectiveLeverage.toFixed(0)}x`}
+                  value={`~${initialMarginPct.toFixed(0)}%`}
                   highlight
                 />
                 <QuoteRow
                   label="Entry Fee"
                   value={`$${numberFormatter(entryFee)}`}
                 />
-                <QuoteRow label="Expires" value={settlementDate} />
+                <QuoteRow label="Market Maturity" value={settlementDate} />
               </div>
 
               {/* P&L Scenario Card */}
@@ -879,7 +942,8 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                           s.pnl >= 0 ? "text-[#34d399]" : "text-[#f43f5e]"
                         }`}
                       >
-                        {s.pnl >= 0 ? "+" : ""}${numberFormatter(Math.abs(s.pnl))}
+                        {s.pnl >= 0 ? "+" : ""}$
+                        {numberFormatter(Math.abs(s.pnl))}
                       </div>
                       <div
                         className={`text-[9px] font-mono ${

@@ -11,6 +11,8 @@ import { PROTOCOL_LOGOS } from "../lib/helpers/dappLogos";
 import { DefaultProtocolLogo } from "../lib/helpers/DefaultProtocolLogo";
 import { getMarket } from "../blockchain/scripts/markets";
 import { MARKET_META } from "../constants/markets";
+import { extractTokensFromName } from "../lib/helpers/helpers";
+import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
 
 interface SwapCardProps {
   market: MarketData;
@@ -48,7 +50,8 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
 
   const currentRate = marketDetails?.rate?.currentPct ?? 0;
   const termDays = marketDetails?.params?.swapTermDays ?? "--";
-
+  const tokens = extractTokensFromName(market.name);
+    const collateralTokens=extractTokensFromName(collateralSymbol)
   const dayChange = useMemo(() => {
     const seed = Number(market.id) * 0.17;
     return parseFloat(((seed % 0.8) - 0.3).toFixed(2));
@@ -79,14 +82,11 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
             <div className="flex justify-between items-start">
               <div className="flex items-start gap-3">
                 {/* Market icon */}
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 border border-white/[0.06]"
-                  style={{
-                    backgroundColor: `${meta?.iconColor ?? "#a78bfa"}12`,
-                    color: meta?.iconColor ?? "#a78bfa",
-                  }}
-                >
-                  {meta?.letter ?? "?"}
+                <div className="flex items-center gap-1">
+                  {tokens.map((token) => {
+                    const Logo = TOKEN_LOGOS[token];
+                    return <Logo key={token} size={40} />;
+                  })}
                 </div>
                 <div>
                   <h3 className="text-[17px] font-bold text-white tracking-tight leading-none">
@@ -139,9 +139,12 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-4 h-4 rounded-full bg-[#2775ca]/15 flex items-center justify-center text-[8px] font-bold text-[#2775ca]">
-                $
-              </span>
+                <div className="flex items-center gap-1">
+                  {collateralTokens.map((token) => {
+                    const Logo = TOKEN_LOGOS[token];
+                    return <Logo key={token} size={20} />;
+                  })}
+                </div>
               <span className="text-xs font-mono font-bold text-[#BAB8C4]">
                 {collateralSymbol}
               </span>
@@ -163,12 +166,10 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
               </button>
               <button
                 onClick={() => handleOpenSwap("FIXED")}
-                className="bg-white/[0.06] cursor-pointer hover:bg-[rgba(167,139,250,0.10)] text-[#BAB8C4] hover:text-[#c4b5fd] py-2.5 rounded-lg active:scale-[0.97] transition-all duration-200 border border-[rgba(180,175,200,0.06)] hover:border-[rgba(167,139,250,0.22)] group/btn"
+                className="bg-white/6 cursor-pointer hover:bg-[rgba(167,139,250,0.10)] text-[#BAB8C4] hover:text-[#c4b5fd] py-2.5 rounded-lg active:scale-[0.97] transition-all duration-200 border border-[rgba(180,175,200,0.06)] hover:border-[rgba(167,139,250,0.22)] group/btn"
               >
                 <ArrowDown className="w-3.5 h-3.5 mx-auto mb-0.5 group-hover/btn:scale-110 transition-transform" />
-                <div className="text-[11px] font-bold tracking-tight">
-                  Down
-                </div>
+                <div className="text-[11px] font-bold tracking-tight">Down</div>
                 <div className="text-[8px] text-[#8A8894] mt-0.5 font-semibold">
                   rates go down
                 </div>
