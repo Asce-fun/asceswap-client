@@ -3,6 +3,7 @@
 import React from "react";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
+import { NetworkStatusBar } from "./NetworkStatusBar";
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -31,6 +32,10 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 
         {showFooter && <Footer />}
       </div>
+
+      <NetworkStatusBar />
+      {/* Spacer so content doesn't hide behind fixed status bar */}
+      <div className="h-8" />
     </div>
   );
 };
