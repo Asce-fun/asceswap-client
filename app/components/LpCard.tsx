@@ -65,7 +65,7 @@ export const LpCard: React.FC<LpCardProps> = ({
 
       <div className="relative bg-[#111114] border border-[rgba(180,175,200,0.06)] rounded-2xl overflow-hidden flex flex-col group-hover/card:border-[rgba(180,175,200,0.12)] group-hover/card:shadow-[0_8px_32px_rgba(167,139,250,0.22),0_0_0_1px_rgba(167,139,250,0.22)] transition-all duration-400">
         {/* Top accent line */}
-        <div className="h-[2px] w-full bg-linear-to-r from-[#8b5cf6] via-[#a78bfa] to-[#c4b5fd]" />
+        <div className="h-[2px] w-full bg-linear-to-r from-[#a78bfa] via-[#c4a6ff] to-[#e8b4b8] opacity-60 group-hover/card:opacity-100 transition-opacity duration-400" />
 
         {/* Your LP Badge */}
         {hasPosition && (
