@@ -55,7 +55,11 @@ const PositionsPage: React.FC = () => {
     return (
       <PageLayout showFooter={false}>
         <div className="flex flex-col items-center justify-center py-32 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#8b5cf6]/10 flex items-center justify-center mb-6 text-[#a78bfa]">
+          <div
+            className="w-16 h-16 rounded-2xl bg-[rgba(94,234,212,0.08)] 
+        border border-[rgba(94,234,212,0.20)] 
+        flex items-center justify-center mb-6 text-[#5eead4]"
+          >
             <Wallet className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">
@@ -67,7 +71,14 @@ const PositionsPage: React.FC = () => {
           </p>
           <button
             onClick={() => setShowAuthFlow(true)}
-            className="px-8 py-3 rounded-[20px] bg-linear-to-br from-[#b0a0e0] to-[#6d5aad] text-[#0A0A0C] font-semibold text-sm transition-all duration-300 shadow-lg shadow-[rgba(167,139,250,0.22)] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[rgba(167,139,250,0.40)] cursor-pointer"
+            className="px-8 py-3 rounded-[20px] 
+          font-semibold text-sm transition-all duration-300 
+          hover:-translate-y-0.5 cursor-pointer"
+            style={{
+              background: "linear-gradient(135deg,#5eead4,#14b8a6)",
+              color: "#0A0A0C",
+              boxShadow: "0 10px 30px rgba(94,234,212,0.25)",
+            }}
           >
             Connect Wallet
           </button>
@@ -191,9 +202,12 @@ const PositionsPage: React.FC = () => {
               </p>
             </div>
             <button
-              className="flex cursor-pointer items-center gap-2 px-6 py-3 rounded-2xl bg-linear-to-r from-[#8b5cf6] via-[#a78bfa] to-[#c4b5fd] text-white font-bold hover:opacity-90 transition-all shadow-lg shadow-[rgba(167,139,250,0.22)] active:scale-95"
-              onClick={() => {
-                router.push("/markets");
+              onClick={() => router.push("/markets")}
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all"
+              style={{
+                background: "linear-gradient(135deg,#5eead4,#14b8a6)",
+                color: "#0A0A0C",
+                boxShadow: "0 10px 30px rgba(94,234,212,0.30)",
               }}
             >
               <Plus className="w-5 h-5" />
@@ -226,104 +240,125 @@ const PositionsPage: React.FC = () => {
             <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-[#111114] backdrop-blur-xl shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]">
               {/* subtle top glow */}
               <div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-[#8b5cf6]/10 to-transparent pointer-events-none" />
-              <div className="hidden md:block">
-                <table className="relative w-full text-left">
-                  <thead>
-                    <tr className="border-b border-white/5 bg-white/5 backdrop-blur-md">
-                      <th className="px-6 py-4 text-[10px] font-bold text-[#8A8894] uppercase tracking-widest">
-                        Asset Market
-                      </th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-[#8A8894] uppercase tracking-widest text-right">
-                        Position
-                      </th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-[#8A8894] uppercase tracking-widest text-right">
-                        APY
-                      </th>
-                      <th className="px-6 py-4" />
-                    </tr>
-                  </thead>
+              <div
+                className="relative overflow-hidden rounded-2xl 
+                border border-white/5 
+                bg-[#0F1115] 
+                backdrop-blur-xl 
+                shadow-[0_40px_100px_-40px_rgba(0,0,0,0.9),
+                        0_0_80px_-30px_rgba(31,214,163,0.25)]"
+              >
+                {/* Mint top glow */}
+                <div
+                  className="absolute inset-x-0 top-0 h-32 
+                  bg-gradient-to-b 
+                  from-[#1FD6A3]/10 
+                  to-transparent 
+                  pointer-events-none"
+                />
 
-                  <tbody>
-                    {userDetails?.lp?.positions?.length ? (
-                      userDetails.lp.positions.map((lp) => {
-                        const market = marketByPairId[lp.pairId];
-                        const tokens = extractTokensFromName(market.name);
-                        if (!market) return null;
+                <div className="hidden md:block">
+                  <table className="relative w-full text-left">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-white/[0.03] backdrop-blur-md">
+                        <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                          Asset Market
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-widest text-right">
+                          Position
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-widest text-right">
+                          Utilization
+                        </th>
+                        <th className="px-6 py-4" />
+                      </tr>
+                    </thead>
 
-                        return (
-                          <tr
-                            key={lp.pairId}
-                            className="group transition-colors hover:bg-white/5"
-                          >
-                            <td className="px-6 py-8">
-                              <div className="flex items-center gap-4">
-                                <div className="flex -space-x-3">
-                                  <div className="flex items-center gap-1">
-                                    {tokens.map((token) => {
-                                      const Logo = TOKEN_LOGOS[token];
-                                      return <Logo key={token} size={40} />;
-                                    })}
+                    <tbody>
+                      {userDetails?.lp?.positions?.length ? (
+                        userDetails.lp.positions.map((lp) => {
+                          const market = marketByPairId[lp.pairId];
+                          const tokens = extractTokensFromName(market.name);
+                          if (!market) return null;
+
+                          return (
+                            <tr
+                              key={lp.pairId}
+                              className="group transition-colors hover:bg-white/[0.04]"
+                            >
+                              <td className="px-6 py-8">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex -space-x-3">
+                                    <div className="flex items-center gap-1">
+                                      {tokens.map((token) => {
+                                        const Logo = TOKEN_LOGOS[token];
+                                        return <Logo key={token} size={40} />;
+                                      })}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-lg text-white">
+                                      {market.name}
+                                    </p>
+                                    <p className="text-white/40 text-sm">
+                                      {market.protocol}
+                                    </p>
                                   </div>
                                 </div>
-                                <div>
-                                  <p className="font-bold text-lg text-white">
-                                    {market.name}
-                                  </p>
-                                  <p className="text-[#8A8894] text-sm">
-                                    {market.protocol}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-8 text-right">
-                              <p className="text-[#8A8894] text-[10px] font-bold uppercase mb-1">
-                                Position
-                              </p>
-                              <p className="text-xl font-medium tracking-tight text-white">
-                                ${lp.shareValue.toLocaleString()}
-                              </p>
-                              <p className="text-xs text-[#8A8894]">
-                                {lp.sharePct}% pool share
-                              </p>
-                            </td>
-                            <td className="px-6 py-8 text-right">
-                              <p className="text-[#8A8894] text-[10px] font-bold uppercase mb-1">
-                                Utilization
-                              </p>
-                              <p className="text-xl font-bold text-orange-400">
-                                {lp.utilizationPct}%
-                              </p>
-                            </td>
-                            <td className="px-6 py-8 text-right">
-                              <button
-                                disabled={!lp.canWithdraw}
-                                className={`
-                  px-6 py-2 rounded-xl font-bold text-sm transition-colors
-                  ${
-                    lp.canWithdraw
-                      ? "border border-white/10 hover:bg-white/5"
-                      : "border border-white/5 text-[#8A8894] cursor-not-allowed"
-                  }
-              `}
-                              >
-                                Withdraw
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-6 py-12 text-center text-[#8A8894]"
-                        >
-                          No LP positions found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                              </td>
+
+                              <td className="px-6 py-8 text-right">
+                                <p className="text-white/40 text-[10px] font-bold uppercase mb-1">
+                                  Position
+                                </p>
+                                <p className="text-xl font-semibold tracking-tight text-white">
+                                  ${lp.shareValue.toLocaleString()}
+                                </p>
+                                <p className="text-xs text-white/30">
+                                  {lp.sharePct}% pool share
+                                </p>
+                              </td>
+
+                              <td className="px-6 py-8 text-right">
+                                <p className="text-white/40 text-[10px] font-bold uppercase mb-1">
+                                  Utilization
+                                </p>
+                                <p className="text-xl font-bold text-[#1FD6A3]">
+                                  {lp.utilizationPct}%
+                                </p>
+                              </td>
+
+                              <td className="px-6 py-8 text-right">
+                                <button
+                                  disabled={!lp.canWithdraw}
+                                  className={`
+                      px-6 py-2 rounded-xl font-bold text-sm transition-all
+                      ${
+                        lp.canWithdraw
+                          ? "border border-[#1FD6A3]/40 text-[#1FD6A3] hover:bg-[#1FD6A3]/10"
+                          : "border border-white/5 text-white/30 cursor-not-allowed"
+                      }
+                    `}
+                                >
+                                  Withdraw
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="px-6 py-12 text-center text-white/40"
+                          >
+                            No LP positions found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               <div className="md:hidden space-y-4">
                 {userDetails?.lp?.positions?.length ? (
@@ -331,66 +366,86 @@ const PositionsPage: React.FC = () => {
                     const market = marketByPairId[lp.pairId];
                     if (!market) return null;
                     const tokens = extractTokensFromName(market.name);
+
                     return (
                       <div
                         key={lp.pairId}
-                        className="rounded-2xl border border-white/10 bg-[#111114] p-4"
+                        className="
+            relative overflow-hidden
+            rounded-2xl
+            border border-white/5
+            bg-[#0f1115]
+            p-4
+            shadow-[0_20px_60px_-25px_rgba(0,0,0,0.9)]
+          "
                       >
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="flex gap-1">
-                            {tokens.map((token) => {
-                              const Logo = TOKEN_LOGOS[token];
-                              return <Logo key={token} size={28} />;
-                            })}
+                        {/* subtle top glow */}
+                        <div className="absolute inset-x-0 top-0 h-20 bg-linear-to-b from-[#10b981]/10 to-transparent pointer-events-none" />
+
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="flex gap-1">
+                              {tokens.map((token) => {
+                                const Logo = TOKEN_LOGOS[token];
+                                return <Logo key={token} size={28} />;
+                              })}
+                            </div>
+
+                            <div>
+                              <p className="font-semibold text-white">
+                                {market.name}
+                              </p>
+                              <p className="text-xs text-[#6B7280]">
+                                {market.protocol}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-white">
-                              {market.name}
-                            </p>
-                            <p className="text-xs text-[#8A8894]">
-                              {market.protocol}
-                            </p>
+
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <p className="text-[10px] font-bold uppercase text-[#6B7280] mb-1">
+                                Position
+                              </p>
+                              <p className="text-lg font-medium text-white">
+                                ${lp.shareValue.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-[#6B7280]">
+                                {lp.sharePct}% pool share
+                              </p>
+                            </div>
+
+                            <div className="text-right">
+                              <p className="text-[10px] font-bold uppercase text-[#6B7280] mb-1">
+                                Utilization
+                              </p>
+                              <p className="text-lg font-bold text-[#34d399]">
+                                {lp.utilizationPct}%
+                              </p>
+                            </div>
                           </div>
+
+                          <button
+                            disabled={!lp.canWithdraw}
+                            className={`
+                w-full py-2 rounded-xl text-sm font-bold transition-all duration-200
+                ${
+                  lp.canWithdraw
+                    ? "border border-[#10b981]/30 bg-[#10b981]/5 text-[#34d399] hover:bg-[#10b981]/10 hover:border-[#10b981]/50"
+                    : "border border-white/5 text-[#4B5563] cursor-not-allowed"
+                }
+              `}
+                          >
+                            Withdraw
+                          </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <p className="text-[10px] font-bold uppercase text-[#8A8894] mb-1">
-                              Position
-                            </p>
-                            <p className="text-lg font-medium text-white">
-                              ${lp.shareValue.toLocaleString()}
-                            </p>
-                            <p className="text-xs text-[#8A8894]">
-                              {lp.sharePct}% pool share
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[10px] font-bold uppercase text-[#8A8894] mb-1">
-                              Utilization
-                            </p>
-                            <p className="text-lg font-bold text-orange-400">
-                              {lp.utilizationPct}%
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          disabled={!lp.canWithdraw}
-                          className={`
-            w-full py-2 rounded-xl text-sm font-bold transition
-            ${
-              lp.canWithdraw
-                ? "border border-white/15 hover:bg-white/5 text-white"
-                : "border border-white/5 text-[#8A8894] cursor-not-allowed"
-            }
-          `}
-                        >
-                          Withdraw
-                        </button>
+
+                        {/* decorative glow */}
+                        <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#10b981] blur-3xl opacity-10" />
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-center text-[#8A8894] py-10">
+                  <div className="text-center text-[#6B7280] py-10">
                     No LP positions found
                   </div>
                 )}

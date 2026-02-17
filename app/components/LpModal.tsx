@@ -317,16 +317,17 @@ export const LpModal: React.FC<LpModalProps> = ({
             </div>
 
             {/* Exposure Breakdown */}
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-3">
+            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[#8A8894] uppercase tracking-wider">
+                <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
                   Exposure Breakdown
                 </span>
+
                 <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                     isNetShort
-                      ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                      ? "bg-[#1FD6A3]/10 text-[#1FD6A3] border-[#1FD6A3]/30"
+                      : "bg-rose-500/10 text-rose-400 border-rose-500/30"
                   }`}
                 >
                   {isNetShort ? "Net Short Rates" : "Net Long Rates"}
@@ -334,41 +335,44 @@ export const LpModal: React.FC<LpModalProps> = ({
               </div>
 
               {/* Stacked bar */}
-              <div className="h-3 rounded-full overflow-hidden flex bg-white/[0.04]">
+              <div className="h-3 rounded-full overflow-hidden flex bg-white/[0.05]">
                 <div
-                  className="bg-[#a78bfa]/70 transition-all duration-500"
+                  className="bg-[#1FD6A3]/80 transition-all duration-500"
                   style={{ width: `${fixedPct}%` }}
                 />
                 <div
-                  className="bg-[#64748b]/70 transition-all duration-500"
+                  className="bg-white/20 transition-all duration-500"
                   style={{ width: `${floatPct}%` }}
                 />
               </div>
 
               <div className="flex items-center justify-between text-[11px]">
+                {/* Fixed */}
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#a78bfa]" />
-                  <span className="text-[#8A8894]">Fixed</span>
-                  <span className="font-mono font-semibold text-[#BAB8C4]">
+                  <span className="w-2 h-2 rounded-full bg-[#1FD6A3]" />
+                  <span className="text-white/50">Fixed</span>
+                  <span className="font-mono font-semibold text-white/80">
                     {fixedPct.toFixed(0)}%
                   </span>
-                  <span className="text-[#5C5A66] ml-1">
+                  <span className="text-white/30 ml-1">
                     ${numberFormatter(fixedNotional)}
                   </span>
                 </div>
+
+                {/* Float */}
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#64748b]" />
-                  <span className="text-[#8A8894]">Float</span>
-                  <span className="font-mono font-semibold text-[#BAB8C4]">
+                  <span className="w-2 h-2 rounded-full bg-white/40" />
+                  <span className="text-white/50">Float</span>
+                  <span className="font-mono font-semibold text-white/80">
                     {floatPct.toFixed(0)}%
                   </span>
-                  <span className="text-[#5C5A66] ml-1">
+                  <span className="text-white/30 ml-1">
                     ${numberFormatter(floatNotional)}
                   </span>
                 </div>
               </div>
 
-              <p className="text-[10px] text-[#5C5A66] leading-relaxed">
+              <p className="text-[10px] text-white/30 leading-relaxed">
                 The pool takes the opposite side of every swap. When more
                 traders are fixed, the pool is net short rates (profits when
                 rates fall).
@@ -528,14 +532,16 @@ export const LpModal: React.FC<LpModalProps> = ({
               <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.04]">
                 <button
                   onClick={() => setActionTab("deposit")}
-                  className={`py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                    actionTab === "deposit"
-                      ? "bg-[#7c3aed] text-white shadow-lg"
-                      : "text-[#8A8894] hover:text-[#BAB8C4]"
-                  }`}
+                  className={`py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider 
+              transition-all cursor-pointer ${
+                actionTab === "deposit"
+                  ? "bg-[#1FD6A3] text-black shadow-[0_0_20px_-5px_rgba(31,214,163,0.6)]"
+                  : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
+              }`}
                 >
                   Deposit
                 </button>
+
                 <button
                   onClick={() => setActionTab("withdraw")}
                   className={`py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
@@ -590,7 +596,12 @@ export const LpModal: React.FC<LpModalProps> = ({
                     step={maxAmount > 100 ? maxAmount / 100 : 0.01}
                     value={Math.min(amount, maxAmount)}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                    className="w-full h-2 
+             bg-white/10 
+             rounded-full 
+             appearance-none 
+             cursor-pointer 
+             accent-[#1FD6A3]"
                   />
                 ) : (
                   <input
@@ -600,19 +611,35 @@ export const LpModal: React.FC<LpModalProps> = ({
                     step={maxLpshares > 100 ? maxLpshares / 100 : 0.01}
                     value={Math.min(amount, maxLpshares)}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                    className="w-full h-2 
+             bg-white/10 
+             rounded-full 
+             appearance-none 
+             cursor-pointer 
+             accent-[#1FD6A3]"
                   />
                 )}
                 <div className="flex justify-between text-[9px] font-mono text-[#5C5A66]">
-                  {actionTab==='deposit' ?<div className="flex flex-col">
-                    <span>Min: ${numberFormatter(minNotional)}</span>
-                    <span>max :${numberFormatter(maxNotional)}</span>
-                  </div>:<div className="flex flex-col">
-                  </div>
-                  
-                  }
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-colors hover:bg-indigo-500/20 cursor-default">
-                    <Wallet className="w-2 h-2" />
+                  {actionTab === "deposit" ? (
+                    <div className="flex flex-col">
+                      <span>Min: ${numberFormatter(minNotional)}</span>
+                      <span>max :${numberFormatter(maxNotional)}</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col"></div>
+                  )}
+                  <div
+                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full 
+                bg-[#1FD6A3]/10 
+                border border-[#1FD6A3]/20 
+                text-[10px] font-semibold 
+                text-[#1FD6A3] 
+                uppercase tracking-widest 
+                transition-colors 
+                hover:bg-[#1FD6A3]/20 
+                cursor-default"
+                  >
+                    <Wallet className="w-3 h-3 text-[#1FD6A3]" />
                     Wallet: $
                     {numberFormatter(walletBalance ? walletBalance : 0)}
                   </div>
@@ -687,48 +714,69 @@ export const LpModal: React.FC<LpModalProps> = ({
 
               {/* Position Card (shown when user has LP) */}
               {lpShares !== null && lpShares > 0 && (
-                <div className="p-4 rounded-xl bg-[rgba(167,139,250,0.05)] border border-[rgba(167,139,250,0.10)] space-y-3">
+                <div
+                  className="p-4 rounded-xl 
+                bg-[#1FD6A3]/5 
+                border border-[#1FD6A3]/20 
+                space-y-3"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-[#c4b5fd] uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-[#1FD6A3] uppercase tracking-wider">
                       Your Position
                     </span>
-                    <span className="text-[10px] font-mono font-semibold text-trade-up px-2 py-0.5 rounded-full bg-trade-up/10">
+
+                    <span
+                      className="text-[10px] font-mono font-semibold 
+                     text-[#1FD6A3] 
+                     px-2 py-0.5 
+                     rounded-full 
+                     bg-[#1FD6A3]/15 
+                     border border-[#1FD6A3]/30"
+                    >
                       +1.6%
                     </span>
                   </div>
+
                   <div className="grid grid-cols-2 gap-3">
+                    {/* Deposited */}
                     <div>
-                      <div className="text-[9px] text-[#5C5A66] uppercase tracking-wider mb-0.5">
+                      <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">
                         Deposited
                       </div>
-                      <div className="text-xs font-mono font-semibold text-[#BAB8C4]">
+                      <div className="text-xs font-mono font-semibold text-white/70">
                         ${numberFormatter(lpShares * 1.0)}
                       </div>
                     </div>
+
+                    {/* Value Now */}
                     <div>
-                      <div className="text-[9px] text-[#5C5A66] uppercase tracking-wider mb-0.5">
+                      <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">
                         Value Now
                       </div>
                       <div className="text-xs font-mono font-semibold text-white">
                         ${numberFormatter(lpShares * sharePrice)}
                       </div>
                     </div>
+
+                    {/* Pool Share */}
                     <div>
-                      <div className="text-[9px] text-[#5C5A66] uppercase tracking-wider mb-0.5">
+                      <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">
                         Pool Share
                       </div>
-                      <div className="text-xs font-mono font-semibold text-[#BAB8C4]">
+                      <div className="text-xs font-mono font-semibold text-white/80">
                         {tvl > 0
                           ? (((lpShares * sharePrice) / tvl) * 100).toFixed(3)
                           : "0.000"}
                         %
                       </div>
                     </div>
+
+                    {/* Cooldown */}
                     <div>
-                      <div className="text-[9px] text-[#5C5A66] uppercase tracking-wider mb-0.5">
+                      <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">
                         Cooldown
                       </div>
-                      <div className="text-xs font-semibold text-trade-up">
+                      <div className="text-xs font-semibold text-[#1FD6A3]">
                         Met
                       </div>
                     </div>
@@ -755,7 +803,13 @@ export const LpModal: React.FC<LpModalProps> = ({
                 <button
                   disabled={amount === 0 || loading}
                   onClick={handleDeposit}
-                  className="w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.15em] transition-all active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#c4b5fd] text-white shadow-lg shadow-[rgba(167,139,250,0.22)] hover:shadow-[rgba(167,139,250,0.40)] flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
+               transition-all active:scale-[0.98] cursor-pointer
+               disabled:cursor-not-allowed disabled:opacity-40
+               bg-[#1FD6A3] hover:bg-[#19c495]
+               text-black
+               shadow-lg shadow-[#1FD6A3]/20 hover:shadow-[#1FD6A3]/40
+               flex items-center justify-center gap-2"
                 >
                   {loading
                     ? "Depositing..."

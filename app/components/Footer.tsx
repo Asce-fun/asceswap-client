@@ -18,20 +18,21 @@ export const Footer: React.FC = () => {
               className="inline-flex items-center gap-2.5 mb-4 group"
             >
               <div
-                className="relative flex items-center justify-center w-8 h-8 rounded-full
-    bg-[#8b5cf6]/10
-    text-[#8b5cf6]
-    ring-1 ring-[#8b5cf6]/20
-    group-hover:bg-[#8b5cf6] group-hover:text-white
-    transition-all duration-300
-    shadow-[0_0_15px_rgba(167,139,250,0.22)]"
+                className="relative flex items-center justify-center w-8 h-8 rounded-full 
+  bg-[#14b8a6]/10 
+  text-[#14b8a6] 
+  ring-1 ring-[#14b8a6]/20 
+  group-hover:bg-[#14b8a6] 
+  group-hover:text-white 
+  transition-all duration-300 
+  shadow-[0_0_15px_rgba(94,234,212,0.20)]"
               >
                 <RefreshCw className="w-4 h-4 transition-transform duration-700 group-hover:rotate-180" />
               </div>
 
               <span className="text-xl font-bold tracking-tighter text-white">
                 ASCE
-                <span className="text-transparent bg-clip-text bg-linear-to-r from-[#a78bfa] via-[#8b5cf6] to-[#7c3aed]">
+                <span className="text-transparent bg-clip-text bg-linear-to-r from-[#14b8a6] via-[#5eead4] to-[#99f6e4]">
                   SWAP
                 </span>
               </span>
@@ -64,22 +65,29 @@ export const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="font-semibold text-white mb-4">
-              Platform
-            </h4>
+            <h4 className="font-semibold text-white mb-4">Platform</h4>
             <ul className="space-y-3 text-sm text-[#8A8894]">
               <li>
-                <a href="/markets" className="hover:text-[#a78bfa] transition-colors">
+                <a
+                  href="/markets"
+                  className="hover:text-[#5eead4] transition-colors"
+                >
                   Markets
                 </a>
               </li>
               <li>
-                <a href="/positions" className="hover:text-[#a78bfa] transition-colors">
+                <a
+                  href="/positions"
+                  className="hover:text-[#5eead4] transition-colors"
+                >
                   Portfolio
                 </a>
               </li>
               <li>
-                <a href="/liquidity" className="hover:text-[#a78bfa] transition-colors">
+                <a
+                  href="/liquidity"
+                  className="hover:text-[#5eead4] transition-colors"
+                >
                   Earn
                 </a>
               </li>
@@ -87,22 +95,20 @@ export const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="font-semibold text-white mb-4">
-              Support
-            </h4>
+            <h4 className="font-semibold text-white mb-4">Support</h4>
             <ul className="space-y-3 text-sm text-[#8A8894]">
               <li>
-                <a href="#" className="hover:text-[#a78bfa] transition-colors">
+                <a href="#" className="hover:text-[#5eead4] transition-colors">
                   Documentation
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#a78bfa] transition-colors">
+                <a href="#" className="hover:text-[#5eead4] transition-colors">
                   Help Center
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#a78bfa] transition-colors">
+                <a href="#" className="hover:text-[#5eead4] transition-colors">
                   Status
                 </a>
               </li>
@@ -110,22 +116,26 @@ export const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="font-semibold text-white mb-4">
-              Legal
-            </h4>
+            <h4 className="font-semibold text-white mb-4">Legal</h4>
             <ul className="space-y-3 text-sm text-[#8A8894]">
               <li>
-                <a href="/privacy" className="hover:text-[#a78bfa] transition-colors">
+                <a
+                  href="/privacy"
+                  className="hover:text-[#5eead4] transition-colors"
+                >
                   Privacy
                 </a>
               </li>
               <li>
-                <a href="/terms" className="hover:text-[#a78bfa] transition-colors">
+                <a
+                  href="/terms"
+                  className="hover:text-[#5eead4] transition-colors"
+                >
                   Terms
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#a78bfa] transition-colors">
+                <a href="#" className="hover:text-[#5eead4] transition-colors">
                   Risks
                 </a>
               </li>

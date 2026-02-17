@@ -38,14 +38,14 @@ export const PositionCard: React.FC<PositionCardProps> = ({
       className="
         group relative cursor-pointer rounded-2xl p-px
         bg-linear-to-br from-white/10 via-white/5 to-transparent
-        hover:from-[#8b5cf6]/30 hover:via-[#a78bfa]/20
+        hover:from-[#10b981]/30 hover:via-[#34d399]/20
         transition-all duration-300
       "
     >
       <div
         className="
           relative rounded-2xl p-6
-          bg-[#111114]
+          bg-[#0f1115]
           backdrop-blur-xl
           border border-white/5
           shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)]
@@ -60,7 +60,7 @@ export const PositionCard: React.FC<PositionCardProps> = ({
           className={`
             absolute inset-x-0 top-0 h-24
             bg-linear-to-b
-            ${isFixed ? "from-[#a090d4]/10" : "from-[#8b7bc8]/10"}
+            ${isFixed ? "from-[#10b981]/10" : "from-[#34d399]/10"}
             to-transparent
             pointer-events-none
           `}
@@ -75,8 +75,8 @@ export const PositionCard: React.FC<PositionCardProps> = ({
                   p-2.5 rounded-xl
                   ${
                     isFixed
-                      ? "bg-[#a090d4]/10 text-[#a090d4]"
-                      : "bg-[#8b7bc8]/10 text-[#8b7bc8]"
+                      ? "bg-[#10b981]/10 text-[#10b981]"
+                      : "bg-[#34d399]/10 text-[#34d399]"
                   }
                 `}
               >
@@ -88,10 +88,10 @@ export const PositionCard: React.FC<PositionCardProps> = ({
               </div>
 
               <div>
-                <p className="text-[10px] font-bold text-[#8A8894] uppercase tracking-widest">
+                <p className="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest">
                   {position.side} SIDE
                 </p>
-                <p className="text-sm font-semibold text-[#BAB8C4]">
+                <p className="text-sm font-semibold text-[#C7D2FE]">
                   #{position.swapId}
                 </p>
               </div>
@@ -104,24 +104,23 @@ export const PositionCard: React.FC<PositionCardProps> = ({
 
           {/* RATE */}
           <div className="flex justify-between items-baseline mb-2">
-            <span className="text-[#8A8894] text-sm">
+            <span className="text-[#6B7280] text-sm">
               {isFixed ? "Rate" : "Current APR"}
             </span>
-            <span className="text-3xl font-medium text-white">16</span>
+            <span className="text-3xl font-medium text-white">16%</span>
           </div>
 
           {/* PNL */}
           <div className="flex justify-between items-center mb-6">
-            <span className="text-[#8A8894] text-sm">Unrealized P&L</span>
+            <span className="text-[#6B7280] text-sm">Unrealized P&L</span>
             <span className={`text-lg font-semibold ${pnlColor}`}>
-              {position.pnl >= 0 ? "+" : ""}$
-              {position.pnl}
+              {position.pnl >= 0 ? "+" : ""}${position.pnl}
             </span>
           </div>
 
           {/* PROGRESS */}
           <div className="space-y-2">
-            <div className="flex justify-between text-[10px] text-[#5C5A66] font-bold uppercase tracking-wider">
+            <div className="flex justify-between text-[10px] text-[#4B5563] font-bold uppercase tracking-wider">
               <span>Progress</span>
               <span>{position.remainingDays}d left</span>
             </div>
@@ -132,8 +131,8 @@ export const PositionCard: React.FC<PositionCardProps> = ({
                   h-full rounded-full transition-all duration-1000
                   ${
                     isFixed
-                      ? "bg-linear-to-r from-[#a090d4] to-[#c4b5fd]"
-                      : "bg-linear-to-r from-[#8b7bc8] to-[#a78bfa]"
+                      ? "bg-linear-to-r from-[#10b981] to-[#34d399]"
+                      : "bg-linear-to-r from-[#34d399] to-[#6ee7b7]"
                   }
                 `}
                 style={{ width: `${timeProgressPct}%` }}
@@ -147,7 +146,7 @@ export const PositionCard: React.FC<PositionCardProps> = ({
           className={`
             absolute -right-6 -bottom-6 w-24 h-24
             blur-3xl opacity-20 group-hover:opacity-40 transition-opacity
-            ${isFixed ? "bg-[#a090d4]" : "bg-[#8b7bc8]"}
+            ${isFixed ? "bg-[#10b981]" : "bg-[#34d399]"}
           `}
         />
       </div>

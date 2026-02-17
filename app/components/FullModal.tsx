@@ -47,13 +47,21 @@ export const FullModal: React.FC<FullModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+        className="absolute inset-0 bg-black/75 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
       />
 
       {/* Container */}
       <div
-        className="relative w-full bg-[#111114] border border-white/[0.06] rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5),0_0_20px_rgba(167,139,250,0.22)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 ease-out flex flex-col"
+        className="relative w-full bg-[#0F1115]
+                   border border-[#1FD6A3]/20
+                   rounded-2xl
+                   overflow-hidden
+                   animate-in zoom-in-95 fade-in duration-300 ease-out
+                   flex flex-col
+                   shadow-[0_0_80px_-20px_rgba(31,214,163,0.45),
+                           0_0_120px_-40px_rgba(31,214,163,0.25),
+                           0_30px_60px_-20px_rgba(0,0,0,0.9)]"
         style={{
           maxWidth,
           maxHeight: "calc(100vh - 48px)",
@@ -62,7 +70,13 @@ export const FullModal: React.FC<FullModalProps> = ({
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute cursor-pointer top-4 right-4 p-2 text-[#8A8894] hover:text-white hover:bg-white/5 rounded-full transition-all z-20"
+          className="absolute top-4 right-4 p-2 rounded-full
+                     text-white/40
+                     hover:text-[#1FD6A3]
+                     hover:bg-[#1FD6A3]/15
+                     transition-all
+                     cursor-pointer
+                     z-20"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />

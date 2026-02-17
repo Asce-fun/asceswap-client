@@ -36,7 +36,7 @@ export const NetworkStatusBar: React.FC = () => {
     blockNumber: null,
     rpcLatency: null,
     gasLevel: "Low",
-    strkPrice: 0.42,
+    strkPrice: 0.042,
     tvl: 2_412_500,
   });
 
@@ -121,17 +121,15 @@ export const NetworkStatusBar: React.FC = () => {
         </div>
 
         {/* STRK Price */}
-        <div className="flex items-center gap-2 px-4 border-r border-[rgba(180,175,200,0.06)] shrink-0">
+        <div className="flex items-center gap-2 px-4 border-r border-[rgba(94,234,212,0.06)] shrink-0">
           <span className="text-[#5C5A66]">STRK</span>
-          <span className="text-[#a78bfa]">
-            ${status.strkPrice.toFixed(4)}
-          </span>
+          <span className="text-[#5eead4]">${status.strkPrice.toFixed(4)}</span>
         </div>
 
         {/* TVL */}
         <div className="flex items-center gap-2 px-4 shrink-0">
           <span className="text-[#5C5A66]">TVL</span>
-          <span className="text-[#a78bfa]">{formatTvl(status.tvl)}</span>
+          <span className="text-[#5eead4]">{formatTvl(status.tvl)}</span>
         </div>
       </div>
     </div>

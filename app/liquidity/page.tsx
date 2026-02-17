@@ -64,10 +64,10 @@ export default function LiquidityPage() {
   }, [address, Object.keys(marketDetailsMap).length]);
 
   const selectedMarket = selectedMarketId
-    ? MARKETS.find((m) => m.id === selectedMarketId) ?? null
+    ? (MARKETS.find((m) => m.id === selectedMarketId) ?? null)
     : null;
   const selectedDetails = selectedMarketId
-    ? marketDetailsMap[selectedMarketId] ?? null
+    ? (marketDetailsMap[selectedMarketId] ?? null)
     : null;
 
   return (
@@ -75,12 +75,14 @@ export default function LiquidityPage() {
       <div>
         {/* Page Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-2.5 mb-2">
-            <span className="w-2 h-2 rounded-full bg-[#a78bfa]" />
-            <h2 className="font-semibold text-white text-2xl md:text-3xl tracking-tight">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+
+            <h2 className="font-semibold text-2xl md:text-3xl tracking-tight text-white">
               Liquidity Pools
             </h2>
           </div>
+
           <p className="text-sm text-[#8A8894] ml-[18px]">
             Supply liquidity to earn swap fees and trader PnL
           </p>

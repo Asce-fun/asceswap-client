@@ -67,15 +67,25 @@ export const Hero: React.FC = () => {
   return (
     <div className="text-center py-16">
       {/* Live Badge */}
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#8b5cf6]/10 border border-[#8b5cf6]/15 text-[#a78bfa] text-xs font-semibold uppercase tracking-widest mb-8">
-        <span className="w-2 h-2 rounded-full bg-[#a78bfa] animate-pulse" />
+      <div
+        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full 
+  bg-[#14b8a6]/10 
+  border border-[#14b8a6]/20 
+  text-[#5eead4] 
+  text-xs font-semibold uppercase tracking-widest mb-8"
+      >
+        <span className="w-2 h-2 rounded-full bg-[#5eead4] animate-pulse" />
         Live on Starknet
       </div>
 
       {/* Heading — Instrument Serif */}
-      <h1 className="font-serif font-normal text-white mb-6 leading-[1.05] tracking-[-0.03em]" style={{ fontSize: 'clamp(48px, 7vw, 88px)' }}>
-        Derivatives for<br />
-        <em className="italic text-transparent bg-clip-text bg-linear-to-br from-[#b0a0e0] to-[#6d5aad]">
+      <h1
+        className="font-serif font-normal text-white mb-6 leading-[1.05] tracking-[-0.03em]"
+        style={{ fontSize: "clamp(48px, 7vw, 88px)" }}
+      >
+        Derivatives for
+        <br />
+        <em className="italic text-transparent bg-clip-text bg-gradient-to-br from-[#99f6e4] to-[#2dd4bf]">
           Yield Markets
         </em>
       </h1>
@@ -89,11 +99,19 @@ export const Hero: React.FC = () => {
       <div className="flex items-center justify-center gap-4 flex-wrap">
         <Link
           href="/markets"
-          className="inline-flex items-center gap-2.5 px-9 py-4 rounded-[20px] bg-linear-to-br from-[#b0a0e0] to-[#6d5aad] text-[#0A0A0C] font-semibold text-[15px] transition-all duration-300 shadow-lg shadow-[rgba(167,139,250,0.22)] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[rgba(167,139,250,0.40)] group"
+          className="inline-flex items-center gap-2.5 px-9 py-4 rounded-[20px] 
+  bg-gradient-to-br from-[#99f6e4] to-[#2dd4bf] 
+  text-[#0A0A0C] font-semibold text-[15px] 
+  transition-all duration-300 
+  shadow-lg shadow-[rgba(94,234,212,0.20)] 
+  hover:-translate-y-0.5 
+  hover:shadow-xl hover:shadow-[rgba(94,234,212,0.38)] 
+  group"
         >
           Start Trading
           <ArrowRight className="w-[18px] h-[18px] group-hover:translate-x-0.5 transition-transform" />
         </Link>
+
         <a
           href="https://docs.asceswap.com"
           target="_blank"

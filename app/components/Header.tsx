@@ -91,12 +91,22 @@ export const Header: React.FC = () => {
             className="flex items-center cursor-pointer gap-3 group"
             onClick={() => router.push("/")}
           >
-            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#8b5cf6]/10 text-[#8b5cf6] ring-1 ring-[#8b5cf6]/20 group-hover:bg-[#8b5cf6] group-hover:text-white transition-all duration-300 shadow-[0_0_15px_rgba(167,139,250,0.22)]">
+            <div
+              className="relative flex items-center justify-center w-8 h-8 rounded-full 
+  bg-[#14b8a6]/10 
+  text-[#14b8a6] 
+  ring-1 ring-[#14b8a6]/20 
+  group-hover:bg-[#14b8a6] 
+  group-hover:text-white 
+  transition-all duration-300 
+  shadow-[0_0_15px_rgba(94,234,212,0.20)]"
+            >
               <RefreshCw className="w-4 h-4 transition-transform duration-700 group-hover:rotate-180" />
             </div>
+
             <span className="text-xl font-bold tracking-tighter text-white">
               ASCE
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-[#a78bfa] via-[#8b5cf6] to-[#7c3aed]">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-[#14b8a6] via-[#5eead4] to-[#99f6e4]">
                 SWAP
               </span>
             </span>
@@ -106,20 +116,23 @@ export const Header: React.FC = () => {
         {/* ===== CENTER: Nav Links (desktop) ===== */}
         <div className="hidden md:flex items-center gap-1 bg-white/[0.02] rounded-xl p-1 border border-white/[0.03]">
           {NAV_LINKS.map((link) => {
-            const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+            const isActive =
+              pathname === link.href || pathname.startsWith(link.href + "/");
+
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 className={`relative px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   isActive
-                    ? "text-white bg-[#8b5cf6]/10"
-                    : "text-[#8A8894] hover:text-[#BAB8C4] hover:bg-white/5"
+                    ? "text-white bg-[#14b8a6]/10"
+                    : "text-[#8A8894] hover:text-[#99f6e4] hover:bg-[#14b8a6]/5"
                 }`}
               >
                 {link.label}
+
                 {isActive && (
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full bg-[#a78bfa]" />
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full bg-[#5eead4]" />
                 )}
               </Link>
             );
@@ -129,7 +142,7 @@ export const Header: React.FC = () => {
         {/* ===== RIGHT: Actions (desktop) ===== */}
         <div className="hidden md:flex items-center gap-2">
           {/* Theme */}
-          <button
+          {/* <button
             onClick={toggleTheme}
             className="p-2 cursor-pointer rounded-xl hover:bg-white/5 transition-colors"
           >
@@ -138,16 +151,18 @@ export const Header: React.FC = () => {
             ) : (
               <Moon className="w-4 h-4 text-[#8A8894]" />
             )}
-          </button>
+          </button> */}
 
           {/* Mint icon button */}
           {isLoggedIn && (
             <button
               onClick={() => setShowMint(true)}
-              className="p-2 cursor-pointer rounded-xl hover:bg-white/5 transition-colors"
+              className="p-2 cursor-pointer rounded-xl 
+             hover:bg-[#1FD6A3]/10 
+             transition-all duration-200"
               title="Mint Test Tokens"
             >
-              <Droplet className="w-4 h-4 text-[#a78bfa]" />
+              <Droplet className="w-4 h-4 text-[#1FD6A3]" />
             </button>
           )}
 
@@ -155,7 +170,10 @@ export const Header: React.FC = () => {
           {!isLoggedIn ? (
             <button
               onClick={() => setShowAuthFlow(true)}
-              className="px-6 cursor-pointer py-2 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-[#7c3aed] to-[#8b5cf6] hover:opacity-90 transition-opacity"
+              className="px-6 cursor-pointer py-2 rounded-xl text-sm font-semibold text-white 
+  bg-gradient-to-r from-[#5eead4] to-[#14b8a6]
+  hover:from-[#2dd4bf] hover:to-[#0d9488]
+  transition-all duration-300"
             >
               Log in
             </button>
@@ -181,7 +199,7 @@ export const Header: React.FC = () => {
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#BAB8C4] hover:bg-white/5 transition-colors cursor-pointer"
                   >
-                    <Droplet className="w-4 h-4 text-[#a78bfa]" />
+                    <Droplet className="w-4 h-4 text-[#1FD6A3]" />
                     Mint Test Tokens
                   </button>
                   <div className="border-t border-white/5" />
@@ -207,7 +225,8 @@ export const Header: React.FC = () => {
         <div className="md:hidden border-t border-[rgba(180,175,200,0.06)] bg-[#0A0A0C] px-4 py-4 space-y-1">
           {/* Nav Links */}
           {NAV_LINKS.map((link) => {
-            const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+            const isActive =
+              pathname === link.href || pathname.startsWith(link.href + "/");
             const Icon = link.icon;
             return (
               <Link
@@ -234,14 +253,17 @@ export const Header: React.FC = () => {
                 setMobileOpen(false);
                 setShowMint(true);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#8A8894] hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
+             text-emerald-300/70 hover:text-emerald-400
+             hover:bg-emerald-500/10
+             transition-all duration-200 cursor-pointer"
             >
-              <Droplet className="w-4 h-4 text-[#a78bfa]" />
+              <Droplet className="w-4 h-4 text-emerald-400" />
               Mint Test Tokens
             </button>
           )}
 
-          <button
+          {/* <button
             onClick={toggleTheme}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#8A8894] hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
           >
@@ -251,7 +273,7 @@ export const Header: React.FC = () => {
               <Moon className="w-4 h-4" />
             )}
             Toggle Theme
-          </button>
+          </button> */}
 
           <div className="border-t border-white/5 my-2" />
 
@@ -272,7 +294,9 @@ export const Header: React.FC = () => {
                 setMobileOpen(false);
                 setShowAuthFlow(true);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-[#7c3aed] to-[#8b5cf6] cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-white 
+  bg-gradient-to-r from-[#5eead4] to-[#14b8a6] 
+  cursor-pointer"
             >
               Log in
             </button>

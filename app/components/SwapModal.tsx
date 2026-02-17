@@ -400,124 +400,78 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             </div>
 
             {/* Static SVG Chart */}
-            <div className="relative rounded-xl bg-white/[0.015] border border-white/[0.04] overflow-hidden">
-              <svg
-                ref={chartRef}
-                viewBox="0 0 600 255"
-                className="w-full"
-                style={{ height: 255 }}
-                onMouseMove={handleChartMouseMove}
-                onMouseLeave={handleChartMouseLeave}
-              >
-                <defs>
-                  <linearGradient
-                    id="chartGradient"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#a78bfa" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                {/* Grid lines */}
-                {[60, 110, 160, 210].map((y) => (
-                  <line
-                    key={y}
-                    x1="40"
-                    y1={y}
-                    x2="580"
-                    y2={y}
-                    stroke="rgba(255,255,255,0.03)"
-                    strokeDasharray="4 4"
-                  />
-                ))}
-                {/* Y-axis labels */}
-                {[
-                  { y: 60, label: "8%" },
-                  { y: 110, label: "6%" },
-                  { y: 160, label: "4%" },
-                  { y: 210, label: "2%" },
-                ].map((item) => (
-                  <text
-                    key={item.y}
-                    x="32"
-                    y={item.y + 4}
-                    fill="rgba(255,255,255,0.2)"
-                    fontSize="9"
-                    fontFamily="IBM Plex Mono, monospace"
-                    textAnchor="end"
-                  >
-                    {item.label}
-                  </text>
-                ))}
-                {/* X-axis labels */}
-                {[
-                  { x: 80, label: "Week 1" },
-                  { x: 210, label: "Week 2" },
-                  { x: 340, label: "Week 3" },
-                  { x: 470, label: "Week 4" },
-                ].map((item) => (
-                  <text
-                    key={item.x}
-                    x={item.x}
-                    y="245"
-                    fill="rgba(255,255,255,0.15)"
-                    fontSize="9"
-                    fontFamily="IBM Plex Mono, monospace"
-                    textAnchor="middle"
-                  >
-                    {item.label}
-                  </text>
-                ))}
-                {/* Area fill */}
-                <path
-                  d="M60,150 C100,140 140,155 180,130 C220,105 260,120 300,100 C340,80 380,95 420,85 C460,75 500,90 540,70 L540,230 L60,230 Z"
-                  fill="url(#chartGradient)"
-                />
-                {/* Line */}
-                <path
-                  d="M60,150 C100,140 140,155 180,130 C220,105 260,120 300,100 C340,80 380,95 420,85 C460,75 500,90 540,70"
-                  fill="none"
-                  stroke="#a78bfa"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                {/* Pulsing dot at end */}
-                <circle cx="540" cy="70" r="5" fill="#a78bfa" opacity="0.3">
-                  <animate
-                    attributeName="r"
-                    values="5;8;5"
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="opacity"
-                    values="0.3;0.1;0.3"
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-                <circle cx="540" cy="70" r="3" fill="#a78bfa" />
-              </svg>
-              {/* CSS Tooltip */}
-              {tooltipPos.visible && (
-                <div
-                  className="absolute pointer-events-none bg-[#1a1a22] border border-white/10 rounded-lg px-3 py-2 shadow-lg z-10"
-                  style={{
-                    left: Math.min(tooltipPos.x + 12, 500),
-                    top: Math.max(tooltipPos.y - 50, 0),
-                  }}
+            <div className="relative rounded-xl bg-white/[0.015] border border-[#1FD6A3]/10 overflow-hidden">
+              {/* Chart (dimmed but visible) */}
+              <div className="opacity-60 pointer-events-none select-none">
+                <svg
+                  viewBox="0 0 600 255"
+                  className="w-full"
+                  style={{ height: 255 }}
                 >
-                  <div className="text-[9px] text-[#8A8894] uppercase tracking-wider">
-                    Rate
-                  </div>
-                  <div className="text-sm font-mono font-bold text-white">
-                    {currentRate.toFixed(2)}%
-                  </div>
+                  <defs>
+                    <linearGradient
+                      id="chartGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="#1FD6A3"
+                        stopOpacity="0.35"
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="#1FD6A3"
+                        stopOpacity="0.05"
+                      />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Grid */}
+                  {[60, 110, 160, 210].map((y) => (
+                    <line
+                      key={y}
+                      x1="40"
+                      y1={y}
+                      x2="580"
+                      y2={y}
+                      stroke="rgba(31,214,163,0.08)"
+                      strokeDasharray="4 4"
+                    />
+                  ))}
+
+                  {/* Area */}
+                  <path
+                    d="M60,150 C100,140 140,155 180,130 C220,105 260,120 300,100 C340,80 380,95 420,85 C460,75 500,90 540,70 L540,230 L60,230 Z"
+                    fill="url(#chartGradient)"
+                  />
+
+                  {/* Line */}
+                  <path
+                    d="M60,150 C100,140 140,155 180,130 C220,105 260,120 300,100 C340,80 380,95 420,85 C460,75 500,90 540,70"
+                    fill="none"
+                    stroke="#1FD6A3"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    opacity="0.9"
+                  />
+                </svg>
+              </div>
+
+              {/* Subtle Dark Overlay */}
+              <div className="absolute inset-0 bg-black/45" />
+
+              {/* Centered Label */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+                  Performance Chart
                 </div>
-              )}
+                <div className="mt-2 text-lg font-semibold text-[#1FD6A3]">
+                  Coming Soon
+                </div>
+              </div>
             </div>
 
             {/* Info Tabs — pill style */}
@@ -766,14 +720,17 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             <div className="p-5 space-y-4 flex-1">
               {/* Curator */}
               <div className="flex items-center justify-between">
-                <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#5C5A66]">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">
                   Curator
                 </span>
+
                 <a
                   href="https://x.com/asceswap"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[10px] font-semibold text-[#a78bfa]/70 hover:text-[#a78bfa] transition-colors"
+                  className="flex items-center gap-1.5 text-[10px] font-medium 
+               text-[#1FD6A3]/70 hover:text-[#1FD6A3] 
+               transition-colors"
                 >
                   <svg
                     className="w-3 h-3"
@@ -783,52 +740,65 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
                   @asceswap
-                  <ExternalLink className="w-2.5 h-2.5 opacity-40" />
+                  <ExternalLink className="w-2.5 h-2.5 opacity-40 group-hover:opacity-70" />
                 </a>
               </div>
 
               {/* Side Selector */}
               <div className="grid grid-cols-2 gap-2">
+                {/* FIXED */}
                 <button
                   onClick={() => setActiveSide("FIXED")}
-                  className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-xl transition-all cursor-pointer border ${
-                    activeSide === "FIXED"
-                      ? "bg-white/[0.08] border-white/[0.12] text-white shadow-lg"
-                      : "bg-white/[0.02] border-white/[0.04] text-[#8A8894] hover:text-[#BAB8C4] hover:bg-white/[0.04]"
-                  }`}
+                  className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-xl 
+                transition-all cursor-pointer border ${
+                  activeSide === "FIXED"
+                    ? "bg-[#1FD6A3]/10 border-[#1FD6A3]/30 text-[#1FD6A3]"
+                    : "bg-white/[0.02] border-white/[0.05] text-white/50 hover:text-white/70 hover:bg-white/[0.04]"
+                }`}
                 >
                   <ArrowDown
-                    className={`w-5 h-5 ${activeSide === "FIXED" ? "text-white" : "text-[#8A8894]"}`}
+                    className={`w-5 h-5 ${
+                      activeSide === "FIXED"
+                        ? "text-[#1FD6A3]"
+                        : "text-white/40"
+                    }`}
                   />
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">
                     Fixed
                   </span>
-                  <span className="text-[9px] text-[#8A8894] font-medium">
+                  <span className="text-[9px] text-white/40 font-medium">
                     Rates go down
                   </span>
                 </button>
+
+                {/* FLOATING */}
                 <button
                   onClick={() => setActiveSide("FLOATING")}
-                  className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-xl transition-all cursor-pointer border ${
-                    activeSide === "FLOATING"
-                      ? "bg-[#a78bfa]/10 border-[#a78bfa]/20 text-[#a78bfa] shadow-lg"
-                      : "bg-white/[0.02] border-white/[0.04] text-[#8A8894] hover:text-[#BAB8C4] hover:bg-white/[0.04]"
-                  }`}
+                  className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-xl 
+                transition-all cursor-pointer border ${
+                  activeSide === "FLOATING"
+                    ? "bg-[#1FD6A3]/10 border-[#1FD6A3]/30 text-[#1FD6A3]"
+                    : "bg-white/[0.02] border-white/[0.05] text-white/50 hover:text-white/70 hover:bg-white/[0.04]"
+                }`}
                 >
                   <ArrowUp
-                    className={`w-5 h-5 ${activeSide === "FLOATING" ? "text-[#a78bfa]" : "text-[#8A8894]"}`}
+                    className={`w-5 h-5 ${
+                      activeSide === "FLOATING"
+                        ? "text-[#1FD6A3]"
+                        : "text-white/40"
+                    }`}
                   />
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">
                     Float
                   </span>
-                  <span className="text-[9px] text-[#8A8894] font-medium">
+                  <span className="text-[9px] text-white/40 font-medium">
                     Rates go up
                   </span>
                 </button>
               </div>
 
               {/* Notional Slider Card */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-3">
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-[#1FD6A3]/10 space-y-3">
                 <div className="text-[10px] font-semibold text-[#8A8894] uppercase tracking-wider">
                   Notional Amount
                 </div>
@@ -867,8 +837,18 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     <span>Min: ${numberFormatter(minNotional)}</span>
                     <span>max :${numberFormatter(maxNotional)}</span>
                   </div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-colors hover:bg-indigo-500/20 cursor-default">
-                    <Wallet className="w-2 h-2" />
+                  <div
+                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full 
+                bg-[#1FD6A3]/10 
+                border border-[#1FD6A3]/20 
+                text-[10px] font-semibold 
+                text-[#1FD6A3] 
+                uppercase tracking-widest 
+                transition-colors 
+                hover:bg-[#1FD6A3]/20 
+                cursor-default"
+                  >
+                    <Wallet className="w-3 h-3 text-[#1FD6A3]" />
                     Wallet: $
                     {numberFormatter(walletBalance ? walletBalance : 0)}
                   </div>
@@ -894,7 +874,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               </div>
 
               {/* Quote Card */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-2">
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-[#1FD6A3]/10 space-y-2">
                 <QuoteRow
                   label="Fixed Rate Locked"
                   value={`${lockedRate.toFixed(2)}%`}
@@ -918,36 +898,40 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               </div>
 
               {/* P&L Scenario Card */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-3">
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-[#1FD6A3]/10 space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-1 h-4 rounded-full bg-[#a78bfa]" />
-                  <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                  <div className="w-1 h-4 rounded-full bg-[#1FD6A3]" />
+                  <span className="text-[10px] font-semibold text-white uppercase tracking-wider">
                     P&L at Expiry
                   </span>
                 </div>
+
                 <div className="grid grid-cols-3 gap-2">
                   {pnlScenarios.map((s) => (
                     <div
                       key={s.label}
-                      className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] text-center"
+                      className="p-2.5 rounded-xl bg-white/[0.015] border border-white/[0.05] text-center"
                     >
-                      <div className="text-[9px] font-semibold text-[#8A8894] uppercase tracking-wider mb-1">
+                      <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1">
                         {s.label}
                       </div>
-                      <div className="text-[10px] font-mono text-[#8A8894] mb-1">
+
+                      <div className="text-[10px] font-mono text-white/60 mb-1">
                         {s.rate}
                       </div>
+
                       <div
                         className={`text-sm font-mono font-bold ${
-                          s.pnl >= 0 ? "text-[#34d399]" : "text-[#f43f5e]"
+                          s.pnl >= 0 ? "text-[#1FD6A3]" : "text-red-400"
                         }`}
                       >
                         {s.pnl >= 0 ? "+" : ""}$
                         {numberFormatter(Math.abs(s.pnl))}
                       </div>
+
                       <div
                         className={`text-[9px] font-mono ${
-                          s.pct >= 0 ? "text-[#34d399]/70" : "text-[#f43f5e]/70"
+                          s.pct >= 0 ? "text-[#1FD6A3]/70" : "text-red-400/70"
                         }`}
                       >
                         {s.pct >= 0 ? "+" : ""}
@@ -986,7 +970,13 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               <button
                 disabled={notional === 0 || loading}
                 onClick={handleExecute}
-                className="w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.15em] transition-all active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#c4b5fd] text-white shadow-lg shadow-[rgba(167,139,250,0.22)] hover:shadow-[rgba(167,139,250,0.40)] flex items-center justify-center gap-2"
+                className="w-full py-4 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
+               transition-all active:scale-[0.98] cursor-pointer
+               disabled:cursor-not-allowed disabled:opacity-40
+               bg-[#1FD6A3] hover:bg-[#19c495]
+               text-black
+               shadow-lg shadow-[#1FD6A3]/20 hover:shadow-[#1FD6A3]/40
+               flex items-center justify-center gap-2"
               >
                 {loading ? "Executing..." : "Execute Swap"}
                 <ArrowRight className="w-4 h-4" />
@@ -1016,26 +1006,36 @@ function QuoteRow({
 
   return (
     <div className="flex items-center justify-between py-1 relative">
-      <span className="flex items-center gap-1 text-[11px] text-[#8A8894]">
+      <span className="flex items-center gap-1 text-[11px] text-white/50">
         {label}
+
         {tooltip && (
           <span
             className="relative cursor-help"
             onMouseEnter={() => setShowTip(true)}
             onMouseLeave={() => setShowTip(false)}
           >
-            <Info className="w-3 h-3 text-[#5C5A66]" />
+            <Info className="w-3 h-3 text-white/30 hover:text-[#1FD6A3] transition-colors" />
+
             {showTip && (
-              <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-[#1a1a22] border border-white/10 rounded-lg px-3 py-2 text-[10px] text-[#BAB8C4] whitespace-nowrap z-30 shadow-lg">
+              <span
+                className="absolute left-full ml-2 top-1/2 -translate-y-1/2 
+                               bg-[#0e1110] 
+                               border border-[#1FD6A3]/20 
+                               rounded-lg px-3 py-2 
+                               text-[10px] text-white/70 
+                               whitespace-nowrap z-30 shadow-xl"
+              >
                 {tooltip}
               </span>
             )}
           </span>
         )}
       </span>
+
       <span
         className={`text-[11px] font-mono font-semibold ${
-          highlight ? "text-[#a78bfa]" : "text-[#BAB8C4]"
+          highlight ? "text-[#1FD6A3]" : "text-white/70"
         }`}
       >
         {value}
