@@ -116,7 +116,19 @@ export const Hero: React.FC = () => {
           href="https://docs.asceswap.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-8 py-4 rounded-[20px] border border-white/10 text-[#8A8894] hover:text-white hover:border-white/18 hover:bg-[#8b5cf6]/8 font-medium text-[15px] transition-all duration-200"
+          className="
+    inline-flex items-center gap-2
+    px-8 py-4 rounded-[20px]
+    border border-[#10b981]/20
+    text-[#34d399]
+    bg-[#10b981]/5
+    hover:bg-[#10b981]/10
+    hover:border-[#10b981]/40
+    hover:text-[#6ee7b7]
+    font-medium text-[15px]
+    transition-all duration-200
+    backdrop-blur-sm
+  "
         >
           <BookOpen className="w-4 h-4" />
           Read Docs

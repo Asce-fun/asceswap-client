@@ -169,12 +169,29 @@ input[type=range]::-webkit-slider-runnable-track {
   background: rgba(255,255,255,0.06);
 }
 /* Scrollbar Refinement */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: rgba(167, 139, 250, 0.15);
-  border-radius: 10px;
+/* Scrollbar width */
+::-webkit-scrollbar {
+  width: 6px;
 }
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Thumb */
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.25); /* emerald */
+  border-radius: 10px;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Hover */
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
 
 @keyframes floatY {
   0% {
