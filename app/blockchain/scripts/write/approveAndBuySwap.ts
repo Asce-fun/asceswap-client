@@ -70,7 +70,7 @@ export async function approveAndBuySwap({
      - NEVER use Date.now()
      - Use chain timestamp to avoid u64 overflow
   */
-  const block = await account.getBlock("latest");
+  const block = await account.provider.getBlock("latest");
   const chainTimestamp = Number(block.timestamp);
 
   // Same rate as tests (5% = 500 bps)
