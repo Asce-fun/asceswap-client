@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  RefreshCw,
   Sun,
   Moon,
   ChevronDown,
@@ -70,7 +69,7 @@ export const Header: React.FC = () => {
   }, [pathname]);
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-[rgba(180,175,200,0.06)] bg-[#0A0A0C]/80 backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 w-full border-b border-[#1e1e2a] bg-[rgba(12,12,18,0.5)] backdrop-blur-[20px]">
       <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
         {/* ===== LEFT: Logo ===== */}
         <div className="flex items-center gap-3">
@@ -91,22 +90,29 @@ export const Header: React.FC = () => {
             className="flex items-center cursor-pointer gap-3 group"
             onClick={() => router.push("/")}
           >
-            <div
-              className="relative flex items-center justify-center w-8 h-8 rounded-full 
-  bg-[#14b8a6]/10 
-  text-[#14b8a6] 
-  ring-1 ring-[#14b8a6]/20 
-  group-hover:bg-[#14b8a6] 
-  group-hover:text-white 
-  transition-all duration-300 
-  shadow-[0_0_15px_rgba(94,234,212,0.20)]"
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 140 150"
+              fill="none"
+              className="logo-a"
             >
-              <RefreshCw className="w-4 h-4 transition-transform duration-700 group-hover:rotate-180" />
-            </div>
+              <defs>
+                <linearGradient id="headerLogoG" x1="105" y1="130" x2="40" y2="20" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="#064e3b"/>
+                  <stop offset="0.35" stopColor="#059669"/>
+                  <stop offset="0.65" stopColor="#34d399"/>
+                  <stop offset="1" stopColor="#6ee7b7"/>
+                </linearGradient>
+              </defs>
+              <path d="M 105 130 L 105 45 A 42 42 0 1 0 105 112" stroke="url(#headerLogoG)" strokeWidth="16" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="105" cy="130" r="6" fill="#064e3b"/>
+              <circle cx="105" cy="130" r="2.5" fill="#0e0e13"/>
+            </svg>
 
-            <span className="text-xl font-bold tracking-tighter text-white">
+            <span className="text-xl font-bold tracking-tighter text-[#e8e6ee]">
               ASCE
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-[#14b8a6] via-[#5eead4] to-[#99f6e4]">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-[#34d399] to-[#6ee7b7]">
                 SWAP
               </span>
             </span>
@@ -114,7 +120,7 @@ export const Header: React.FC = () => {
         </div>
 
         {/* ===== CENTER: Nav Links (desktop) ===== */}
-        <div className="hidden md:flex items-center gap-1 bg-white/[0.02] rounded-xl p-1 border border-white/[0.03]">
+        <div className="hidden md:flex items-center gap-1 bg-[rgba(12,12,18,0.5)] rounded-xl p-1 border border-[#1e1e2a]">
           {NAV_LINKS.map((link) => {
             const isActive =
               pathname === link.href || pathname.startsWith(link.href + "/");
@@ -125,14 +131,14 @@ export const Header: React.FC = () => {
                 href={link.href}
                 className={`relative px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   isActive
-                    ? "text-white bg-[#14b8a6]/10"
-                    : "text-[#8A8894] hover:text-[#99f6e4] hover:bg-[#14b8a6]/5"
+                    ? "text-[#e8e6ee] bg-[#34d399]/10"
+                    : "text-[#9896a3] hover:text-[#6ee7b7] hover:bg-[#34d399]/5"
                 }`}
               >
                 {link.label}
 
                 {isActive && (
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full bg-[#5eead4]" />
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full bg-[#34d399]" />
                 )}
               </Link>
             );
@@ -147,9 +153,9 @@ export const Header: React.FC = () => {
             className="p-2 cursor-pointer rounded-xl hover:bg-white/5 transition-colors"
           >
             {isDark ? (
-              <Sun className="w-4 h-4 text-[#8A8894]" />
+              <Sun className="w-4 h-4 text-[#9896a3]" />
             ) : (
-              <Moon className="w-4 h-4 text-[#8A8894]" />
+              <Moon className="w-4 h-4 text-[#9896a3]" />
             )}
           </button> */}
 
@@ -158,11 +164,11 @@ export const Header: React.FC = () => {
             <button
               onClick={() => setShowMint(true)}
               className="p-2 cursor-pointer rounded-xl 
-             hover:bg-[#1FD6A3]/10 
+             hover:bg-[#34d399]/10 
              transition-all duration-200"
               title="Mint Test Tokens"
             >
-              <Droplet className="w-4 h-4 text-[#1FD6A3]" />
+              <Droplet className="w-4 h-4 text-[#34d399]" />
             </button>
           )}
 
@@ -170,9 +176,9 @@ export const Header: React.FC = () => {
           {!isLoggedIn ? (
             <button
               onClick={() => setShowAuthFlow(true)}
-              className="px-6 cursor-pointer py-2 rounded-xl text-sm font-semibold text-white 
-  bg-gradient-to-r from-[#5eead4] to-[#14b8a6]
-  hover:from-[#2dd4bf] hover:to-[#0d9488]
+              className="px-6 cursor-pointer py-2 rounded-xl text-sm font-semibold text-[#030305]
+  bg-gradient-to-r from-[#6ee7b7] to-[#34d399]
+  hover:from-[#34d399] hover:to-[#059669]
   transition-all duration-300"
             >
               Log in
@@ -181,28 +187,28 @@ export const Header: React.FC = () => {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpen((v) => !v)}
-                className="flex cursor-pointer items-center gap-2 px-4 py-2 rounded-xl bg-[#111114]/60 border border-[rgba(180,175,200,0.08)] hover:border-[rgba(180,175,200,0.15)] transition-colors"
+                className="flex cursor-pointer items-center gap-2 px-4 py-2 rounded-xl bg-[#0c0c12]/60 border border-[#1e1e2a] hover:border-[rgba(52,211,153,0.15)] transition-colors"
               >
                 <STRKLogo height={16} width={16} />
                 <span className="text-sm">{shortAddress}</span>
                 <ChevronDown
-                  className={`w-4 h-4 text-[#8A8894] transition-transform ${open ? "rotate-180" : ""}`}
+                  className={`w-4 h-4 text-[#9896a3] transition-transform ${open ? "rotate-180" : ""}`}
                 />
               </button>
 
               {open && (
-                <div className="absolute right-0 mt-2 w-52 rounded-xl bg-[#111114] border border-[rgba(180,175,200,0.08)] shadow-xl shadow-black/40 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-52 rounded-xl bg-[rgba(12,12,18,0.7)] backdrop-blur-[16px] border border-[#1e1e2a] shadow-xl shadow-black/40 overflow-hidden">
                   <button
                     onClick={() => {
                       setOpen(false);
                       setShowMint(true);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#BAB8C4] hover:bg-white/5 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#9896a3] hover:bg-[#16161e] transition-colors cursor-pointer"
                   >
-                    <Droplet className="w-4 h-4 text-[#1FD6A3]" />
+                    <Droplet className="w-4 h-4 text-[#34d399]" />
                     Mint Test Tokens
                   </button>
-                  <div className="border-t border-white/5" />
+                  <div className="border-t border-[#1e1e2a]" />
                   <button
                     onClick={() => {
                       setOpen(false);
@@ -222,7 +228,7 @@ export const Header: React.FC = () => {
 
       {/* ===== MOBILE DRAWER ===== */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-[rgba(180,175,200,0.06)] bg-[#0A0A0C] px-4 py-4 space-y-1">
+        <div className="md:hidden border-t border-[#1e1e2a] bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px] px-4 py-4 space-y-1">
           {/* Nav Links */}
           {NAV_LINKS.map((link) => {
             const isActive =
@@ -234,8 +240,8 @@ export const Header: React.FC = () => {
                 href={link.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
                   isActive
-                    ? "text-white bg-[#8b5cf6]/10"
-                    : "text-[#8A8894] hover:text-white hover:bg-white/5"
+                    ? "text-[#e8e6ee] bg-[#34d399]/10"
+                    : "text-[#9896a3] hover:text-[#e8e6ee] hover:bg-[#16161e]"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -244,7 +250,7 @@ export const Header: React.FC = () => {
             );
           })}
 
-          <div className="border-t border-white/5 my-2" />
+          <div className="border-t border-[#1e1e2a] my-2" />
 
           {/* Actions */}
           {isLoggedIn && (
@@ -254,18 +260,18 @@ export const Header: React.FC = () => {
                 setShowMint(true);
               }}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
-             text-emerald-300/70 hover:text-emerald-400
-             hover:bg-emerald-500/10
+             text-[#34d399]/70 hover:text-[#34d399]
+             hover:bg-[#34d399]/10
              transition-all duration-200 cursor-pointer"
             >
-              <Droplet className="w-4 h-4 text-emerald-400" />
+              <Droplet className="w-4 h-4 text-[#34d399]" />
               Mint Test Tokens
             </button>
           )}
 
           {/* <button
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#8A8894] hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#9896a3] hover:text-[#e8e6ee] hover:bg-[#16161e] transition-colors cursor-pointer"
           >
             {isDark ? (
               <Sun className="w-4 h-4" />
@@ -275,7 +281,7 @@ export const Header: React.FC = () => {
             Toggle Theme
           </button> */}
 
-          <div className="border-t border-white/5 my-2" />
+          <div className="border-t border-[#1e1e2a] my-2" />
 
           {isLoggedIn ? (
             <button
@@ -283,7 +289,7 @@ export const Header: React.FC = () => {
                 setMobileOpen(false);
                 handleLogOut();
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#f87171] hover:bg-[#f87171]/10 transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               Disconnect
@@ -294,8 +300,8 @@ export const Header: React.FC = () => {
                 setMobileOpen(false);
                 setShowAuthFlow(true);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-white 
-  bg-gradient-to-r from-[#5eead4] to-[#14b8a6] 
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#030305]
+  bg-gradient-to-r from-[#6ee7b7] to-[#34d399]
   cursor-pointer"
             >
               Log in
