@@ -4,6 +4,7 @@ import React from "react";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { NetworkStatusBar } from "./NetworkStatusBar";
+import { SpaceBackground } from "./SpaceBackground";
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -15,9 +16,9 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   showFooter = true,
 }) => {
   return (
-    <div className="min-h-screen font-sans text-[#E4E2E8] transition-colors duration-500 bg-[#0A0A0C]">
-      {/* Grid Background — subtle lavender-tinted */}
-      <div className="fixed inset-0 z-0 bg-grid pointer-events-none opacity-50" />
+    <div className="min-h-screen font-sans text-[#e8e6ee] transition-colors duration-500 bg-[#030305]">
+      {/* Space Background */}
+      <SpaceBackground />
       <div className="relative z-10 flex flex-col">
         <Header />
 
