@@ -26,12 +26,12 @@ export interface MarketData {
   maturityTimestamp: number;
 }
 
-export type TokenSymbol = "STRK" | "USDC" | "ETH" | "BTC" | "USDT"; 
+export type TokenSymbol = "STRK" | "USDC" | "ETH" | "BTC" | "USDT" | "mockBTC" | "mockSTRK" | "mockUSDC";
 
 export type SwapDirection = 'FIXED' | 'FLOATING';
 
 // interface/types.ts
-export type ProtocolSymbol = "Ekubo" | "Vesu" | "Nostra" | "Asceswap";
+export type ProtocolSymbol = "Ekubo" | "Vesu" | "Nostra" | "Asceswap" | "Paradex" | "Endure.Fi" | "Troves" | "US";
 
 // interface/formattedMarket.ts
 
@@ -239,5 +239,30 @@ export type SwapDetail = {
   };
 };
 
+export type RateEntry = {
+  rateBps: number;
+  ratePct: number;
+  timestamp: number;
+  date: Date;
+};
 
+export type MarketsPageData = any; // Raw response from analytics.get_markets_page()
 
+export type LpPageData = any; // Raw response from analytics.get_lp_page()
+
+export type SwapQuoteResult = {
+  baseRateBps: bigint;
+  imbalanceAdjustmentBps: bigint;
+  adjustmentIsPositive: boolean;
+  feeSpreadBps: bigint;
+  finalRateBps: bigint;
+  requiredCollateral: bigint;
+  lpCollateralToLock: bigint;
+};
+
+export type PnLScenario = {
+  label: string;
+  rateBps: number;
+  pnl: number;
+  pnlPct: number;
+};
