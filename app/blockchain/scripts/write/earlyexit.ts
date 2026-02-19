@@ -1,16 +1,7 @@
-// earlyExitSwap.ts
-
-import { Contract, uint256, Account } from "starknet";
-import AsceSwapABI from "../../abis/AsceSwap.json";
-import { Wallet } from "@dynamic-labs/sdk-react-core";
+import { uint256 } from "starknet";
 
 function toU256(value: number) {
   return uint256.bnToUint256(BigInt(value));
-}
-
-function toU256Array(value: number): string[] {
-  const u = uint256.bnToUint256(BigInt(value));
-  return [u.low.toString(), u.high.toString()];
 }
 
 /**
@@ -18,11 +9,11 @@ function toU256Array(value: number): string[] {
  */
 export async function earlyExitSwap({
   asceSwapAddress,
-  oracleAddress,
+  pairId,
   swapId,
 }: {
   asceSwapAddress: string;
-  oracleAddress: string;
+  pairId: number;
   swapId: number; // swap_id (u256)
 }) {
   // 1️⃣ Get Starknet account
@@ -52,24 +43,13 @@ export async function earlyExitSwap({
 
   // 2️⃣ Convert swapId → u256
   const swapIdU256 = toU256(swapId);
-  const oracleRateArr = toU256Array(500);
-  const block = await account.getBlock("latest");
-  const chainTimestamp = Number(block.timestamp);
-  // 3️⃣ Contract instance
-  const asceSwap = new Contract({
-    abi: AsceSwapABI,
-    address: asceSwapAddress,
-    providerOrAccount: account,
-  });
 
+  // 3️⃣ Multicall: poke rate index + early exit
   const calls = [
     {
-      contractAddress: oracleAddress,
-      entrypoint: "set_rate",
-      calldata: [
-        ...oracleRateArr, // u256 rate
-        chainTimestamp.toString(), // u64 timestamp (SAFE)
-      ],
+      contractAddress: asceSwapAddress,
+      entrypoint: "poke_rate_index",
+      calldata: [String(pairId)],
     },
     {
       contractAddress: asceSwapAddress,
@@ -77,7 +57,8 @@ export async function earlyExitSwap({
       calldata: [swapIdU256],
     },
   ];
-  // 5️⃣ Execute
+
+  // 4️⃣ Execute
   const tx = await account.execute(calls);
   return tx.transaction_hash;
 }
