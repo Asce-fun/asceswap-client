@@ -5,39 +5,41 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Frosted Obsidian — Surface palette */
-  --surface-0: #0A0A0C;
-  --surface-1: #111114;
-  --surface-2: #18181C;
-  --surface-3: #202024;
+  /* Background Layers */
+  --bg-base: #030305;
+  --bg-card: rgba(12, 12, 18, 0.6);
+  --bg-elevated: rgba(17, 17, 24, 0.7);
+  --bg-surface: rgba(22, 22, 30, 0.8);
 
-  /* Text — Obsidian theme (warm purple-gray tones, NOT blue-gray slate) */
-  --text-primary: #E4E2E8;
-  --text-mid: #BAB8C4;
-  --text-soft: #8A8894;
-  --text-muted: #5C5A66;
+  /* Borders */
+  --border-default: #1e1e2a;
+  --border-hover: rgba(52, 211, 153, 0.15);
+  --border-active: rgba(52, 211, 153, 0.35);
 
-  /* Borders — neutral cool gray, NOT purple-tinted */
-  --border-subtle: rgba(180, 175, 200, 0.06);
-  --border-hover: rgba(180, 175, 200, 0.12);
+  /* Text Hierarchy */
+  --text-primary: #e8e6ee;
+  --text-secondary: #9896a3;
+  --text-muted: #5c5a66;
+  --text-dim: #3a3844;
 
-  /* Accent — Lavender */
-  --accent-primary: #8b5cf6;
-  --accent-secondary: #a78bfa;
-  --accent-light: #c4b5fd;
-  --accent-gradient: linear-gradient(135deg, #8b5cf6, #a78bfa, #c4b5fd);
-  --accent-dim: rgba(167, 139, 250, 0.10);
-  --accent-dim-border: rgba(167, 139, 250, 0.22);
-  --accent-glow: rgba(167, 139, 250, 0.22);
-  --accent-glow-strong: rgba(167, 139, 250, 0.40);
+  /* Mint Accent */
+  --mint: #34d399;
+  --mint-light: #6ee7b7;
+  --mint-dark: #059669;
+  --mint-deep: #064e3b;
+  --mint-glow: rgba(52, 211, 153, 0.08);
+  --mint-text: rgba(52, 211, 153, 0.7);
 
-  /* Shadows */
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.22);
+  /* Semantic */
+  --positive: #34d399;
+  --positive-bg: rgba(52, 211, 153, 0.12);
+  --negative: #f87171;
+  --negative-bg: rgba(248, 113, 113, 0.12);
+  --neutral: #a78bfa;
+  --neutral-bg: rgba(167, 139, 250, 0.12);
 
-  /* Grid — neutral, barely visible */
-  --grid-color: rgba(139, 92, 246, 0.035);
+  /* Grid */
+  --grid-color: rgba(52, 211, 153, 0.025);
 
   /* Shadcn tokens — light (kept for future light mode) */
   --background: oklch(1 0 0);
@@ -75,7 +77,7 @@
 }
 
 .dark {
-  --grid-color: rgba(139, 92, 246, 0.035);
+  --grid-color: rgba(52, 211, 153, 0.025);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -138,21 +140,21 @@ input[type=range]::-webkit-slider-thumb {
   height: 18px;
   width: 18px;
   border-radius: 50%;
-  background: #0F1115;
+  background: #030305;
   cursor: pointer;
   margin-top: -7px;
-  border: 3px solid #1FD6A3;
+  border: 3px solid #34d399;
   box-shadow:
-    0 0 10px rgba(31, 214, 163, 0.6),
-    0 0 20px rgba(31, 214, 163, 0.3);
+    0 0 10px rgba(52, 211, 153, 0.6),
+    0 0 20px rgba(52, 211, 153, 0.3);
   transition: all 0.2s ease;
 }
 
 input[type=range]::-webkit-slider-thumb:hover {
   transform: scale(1.1);
   box-shadow:
-    0 0 18px rgba(31, 214, 163, 0.8),
-    0 0 30px rgba(31, 214, 163, 0.4);
+    0 0 18px rgba(52, 211, 153, 0.8),
+    0 0 30px rgba(52, 211, 153, 0.4);
 }
 
 /* TRACK */
@@ -181,15 +183,15 @@ input[type=range]::-webkit-slider-runnable-track {
 
 /* Thumb */
 ::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.25); /* emerald */
+  background: rgba(52, 211, 153, 0.25); /* emerald */
   border-radius: 10px;
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.45);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  background: rgba(52, 211, 153, 0.45);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.4);
 }
 
 
@@ -268,3 +270,27 @@ input[type=range]::-webkit-slider-runnable-track {
     box-shadow: 0 0 45px rgba(167,139,250,0.9);
   }
 }
+
+/* AsceSwap 'a' mark — 3D hinge spin on hover */
+@keyframes spinLogo {
+  0%   { transform: perspective(600px) rotateY(0deg); }
+  100% { transform: perspective(600px) rotateY(360deg); }
+}
+
+.logo-a {
+  cursor: pointer;
+  transform-origin: 75% center;
+  transform-style: preserve-3d;
+}
+
+.group:hover .logo-a {
+  animation: spinLogo 1s linear infinite;
+}
+
+/* Twinkle animations for space background stars */
+@keyframes twinkle1 { 0%,100%{opacity:0.5} 50%{opacity:0.2} }
+@keyframes twinkle2 { 0%,100%{opacity:0.35} 50%{opacity:0.6} }
+@keyframes twinkle3 { 0%,100%{opacity:0.4} 50%{opacity:0.15} }
+.tw1 { animation: twinkle1 4s ease-in-out infinite; }
+.tw2 { animation: twinkle2 5s ease-in-out infinite; }
+.tw3 { animation: twinkle3 6s ease-in-out infinite; }
