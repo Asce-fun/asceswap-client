@@ -52,5 +52,32 @@ export const TOKEN_LOGOS: Record<TokenSymbol, React.FC<{ size?: number }>> = {
       })}
     />
   ),
+
+  mockBTC: ({ size = 16 }) => (
+    <BTCLogo
+      {...({ height: size, width: size } as {
+        height: number;
+        width: number;
+      })}
+    />
+  ),
+
+  mockSTRK: ({ size = 16 }) => (
+    <STRKLogo
+      {...({ height: size, width: size } as {
+        height: number;
+        width: number;
+      })}
+    />
+  ),
+
+  mockUSDC: ({ size = 16 }) => (
+    <USDCLogo
+      {...({ height: size, width: size } as {
+        height: number;
+        width: number;
+      })}
+    />
+  ),
 };
 
