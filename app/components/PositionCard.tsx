@@ -12,7 +12,7 @@ export const PositionCard: React.FC<PositionCardProps> = ({
   onClick,
 }) => {
   const isFixed = position.side === PositionSide.FIXED;
-  const pnlColor = position.pnl >= 0 ? "text-[#34d399]" : "text-[#f43f5e]";
+  const pnlColor = position.pnl >= 0 ? "text-[#34d399]" : "text-[#f87171]";
 
   const remainingSeconds = position.remainingSeconds ?? 0;
   const financialProgressBps =
@@ -38,16 +38,16 @@ export const PositionCard: React.FC<PositionCardProps> = ({
       className="
         group relative cursor-pointer rounded-2xl p-px
         bg-linear-to-br from-white/10 via-white/5 to-transparent
-        hover:from-[#10b981]/30 hover:via-[#34d399]/20
+        hover:from-[#34d399]/30 hover:via-[#34d399]/20
         transition-all duration-300
       "
     >
       <div
         className="
           relative rounded-2xl p-6
-          bg-[#0f1115]
+          bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px]
           backdrop-blur-xl
-          border border-white/5
+          border border-[#1e1e2a]
           shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)]
           hover:-translate-y-0.5
           hover:shadow-[0_30px_80px_-25px_rgba(0,0,0,1)]
@@ -60,7 +60,7 @@ export const PositionCard: React.FC<PositionCardProps> = ({
           className={`
             absolute inset-x-0 top-0 h-24
             bg-linear-to-b
-            ${isFixed ? "from-[#10b981]/10" : "from-[#34d399]/10"}
+            ${isFixed ? "from-[#34d399]/10" : "from-[#34d399]/10"}
             to-transparent
             pointer-events-none
           `}
@@ -75,7 +75,7 @@ export const PositionCard: React.FC<PositionCardProps> = ({
                   p-2.5 rounded-xl
                   ${
                     isFixed
-                      ? "bg-[#10b981]/10 text-[#10b981]"
+                      ? "bg-[#34d399]/10 text-[#34d399]"
                       : "bg-[#34d399]/10 text-[#34d399]"
                   }
                 `}
@@ -107,7 +107,7 @@ export const PositionCard: React.FC<PositionCardProps> = ({
             <span className="text-[#6B7280] text-sm">
               {isFixed ? "Rate" : "Current APR"}
             </span>
-            <span className="text-3xl font-medium text-white">16%</span>
+            <span className="text-3xl font-medium text-[#e8e6ee]">16%</span>
           </div>
 
           {/* PNL */}
@@ -131,7 +131,7 @@ export const PositionCard: React.FC<PositionCardProps> = ({
                   h-full rounded-full transition-all duration-1000
                   ${
                     isFixed
-                      ? "bg-linear-to-r from-[#10b981] to-[#34d399]"
+                      ? "bg-linear-to-r from-[#34d399] to-[#34d399]"
                       : "bg-linear-to-r from-[#34d399] to-[#6ee7b7]"
                   }
                 `}
@@ -146,7 +146,7 @@ export const PositionCard: React.FC<PositionCardProps> = ({
           className={`
             absolute -right-6 -bottom-6 w-24 h-24
             blur-3xl opacity-20 group-hover:opacity-40 transition-opacity
-            ${isFixed ? "bg-[#10b981]" : "bg-[#34d399]"}
+            ${isFixed ? "bg-[#34d399]" : "bg-[#34d399]"}
           `}
         />
       </div>
