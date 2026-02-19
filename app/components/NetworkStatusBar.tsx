@@ -2,28 +2,16 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { provider } from "../blockchain/scripts/asceswapContract";
+import { getMarketsPage } from "../blockchain/scripts/analytics";
 
 interface NetworkStatus {
   blockNumber: number | null;
   rpcLatency: number | null;
   gasLevel: "Low" | "Med" | "High";
-  strkPrice: number;
   tvl: number;
 }
 
 const POLL_INTERVAL = 30_000;
-
-// Mock STRK price with small drift
-function mockStrkPrice(prev: number): number {
-  const drift = (Math.random() - 0.48) * 0.008;
-  return Math.max(0.1, parseFloat((prev + drift).toFixed(4)));
-}
-
-// Mock TVL with small drift
-function mockTvl(prev: number): number {
-  const drift = (Math.random() - 0.48) * 12_000;
-  return Math.max(100_000, Math.round(prev + drift));
-}
 
 function formatTvl(val: number): string {
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(2)}M`;
@@ -36,8 +24,7 @@ export const NetworkStatusBar: React.FC = () => {
     blockNumber: null,
     rpcLatency: null,
     gasLevel: "Low",
-    strkPrice: 0.042,
-    tvl: 2_412_500,
+    tvl: 0,
   });
 
   const fetchStatus = useCallback(async () => {
@@ -55,11 +42,10 @@ export const NetworkStatusBar: React.FC = () => {
       else if (latency > 400) gasLevel = "Med";
 
       setStatus((prev) => ({
+        ...prev,
         blockNumber,
         rpcLatency: latency,
         gasLevel,
-        strkPrice: mockStrkPrice(prev.strkPrice),
-        tvl: mockTvl(prev.tvl),
       }));
     } catch {
       setStatus((prev) => ({
@@ -70,32 +56,52 @@ export const NetworkStatusBar: React.FC = () => {
     }
   }, []);
 
+  // Fetch real TVL from analytics batch call
+  const fetchTvl = useCallback(async () => {
+    try {
+      const raw = await getMarketsPage(['1', '2', '3', '4', '5', '6']);
+      if (raw && typeof raw === 'object') {
+        // Try to extract total TVL from the batch response
+        const totalTvl = Number(raw.total_protocol_tvl ?? raw.totalProtocolTvl ?? 0);
+        if (totalTvl > 0) {
+          setStatus((prev) => ({ ...prev, tvl: totalTvl }));
+        }
+      }
+    } catch {
+      // TVL fetch failed, keep previous value
+    }
+  }, []);
+
   useEffect(() => {
     fetchStatus();
-    const id = setInterval(fetchStatus, POLL_INTERVAL);
+    fetchTvl();
+    const id = setInterval(() => {
+      fetchStatus();
+      fetchTvl();
+    }, POLL_INTERVAL);
     return () => clearInterval(id);
-  }, [fetchStatus]);
+  }, [fetchStatus, fetchTvl]);
 
   const gasColor =
     status.gasLevel === "Low"
       ? "#34d399"
       : status.gasLevel === "Med"
         ? "#fbbf24"
-        : "#f43f5e";
+        : "#f87171";
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 h-8 bg-[#0A0A0C] border-t border-[rgba(180,175,200,0.06)] flex items-center px-4 select-none">
+    <div className="fixed bottom-0 left-0 right-0 z-40 h-8 bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px] border-t border-[rgba(180,175,200,0.06)] flex items-center px-4 select-none">
       <div className="max-w-full mx-auto w-full flex items-center gap-0 text-[11px] font-mono overflow-x-auto">
         {/* Network */}
         <div className="flex items-center gap-2 px-4 border-r border-[rgba(180,175,200,0.06)] shrink-0">
           <span className="w-[6px] h-[6px] rounded-full bg-[#34d399] animate-pulse" />
-          <span className="text-[#BAB8C4]">Starknet Sepolia</span>
+          <span className="text-[#9896a3]">Starknet Sepolia</span>
         </div>
 
         {/* RPC Latency */}
         <div className="flex items-center gap-2 px-4 border-r border-[rgba(180,175,200,0.06)] shrink-0">
           <span className="text-[#5C5A66]">RPC</span>
-          <span className="text-[#8A8894]">
+          <span className="text-[#9896a3]">
             {status.rpcLatency !== null ? `${status.rpcLatency}ms` : "--"}
           </span>
         </div>
@@ -103,7 +109,7 @@ export const NetworkStatusBar: React.FC = () => {
         {/* Block Number */}
         <div className="flex items-center gap-2 px-4 border-r border-[rgba(180,175,200,0.06)] shrink-0">
           <span className="text-[#5C5A66]">Block</span>
-          <span className="text-[#8A8894]">
+          <span className="text-[#9896a3]">
             {status.blockNumber !== null
               ? `#${status.blockNumber.toLocaleString()}`
               : "--"}
@@ -117,19 +123,13 @@ export const NetworkStatusBar: React.FC = () => {
             className="w-[6px] h-[6px] rounded-full"
             style={{ backgroundColor: gasColor }}
           />
-          <span className="text-[#8A8894]">{status.gasLevel}</span>
-        </div>
-
-        {/* STRK Price */}
-        <div className="flex items-center gap-2 px-4 border-r border-[rgba(94,234,212,0.06)] shrink-0">
-          <span className="text-[#5C5A66]">STRK</span>
-          <span className="text-[#5eead4]">${status.strkPrice.toFixed(4)}</span>
+          <span className="text-[#9896a3]">{status.gasLevel}</span>
         </div>
 
         {/* TVL */}
         <div className="flex items-center gap-2 px-4 shrink-0">
           <span className="text-[#5C5A66]">TVL</span>
-          <span className="text-[#5eead4]">{formatTvl(status.tvl)}</span>
+          <span className="text-[#6ee7b7]">{status.tvl > 0 ? formatTvl(status.tvl) : "--"}</span>
         </div>
       </div>
     </div>
