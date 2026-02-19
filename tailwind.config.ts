@@ -12,7 +12,7 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-sans)', 'sans-serif'],
         mono: ['var(--font-mono)', 'monospace'],
-        serif: ['var(--font-instrument-serif)', 'serif'],
+        serif: ['var(--font-sora)', 'sans-serif'],
       },
       colors: {
         brand: {
@@ -26,7 +26,7 @@ const config: Config = {
         },
         trade: {
           up: '#34d399',
-          down: '#f43f5e',
+          down: '#f87171',
         },
         accent: {
           400: '#a78bfa',
