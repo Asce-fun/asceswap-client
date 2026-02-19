@@ -20,5 +20,20 @@ export async function getSwapDetail(swapId: string) {
   return formatSwapDetail(raw,6);
 }
 
+export async function getMarketsPage(pairIds: string[]) {
+  const raw = await analytics.get_markets_page(pairIds);
+  return raw;
+}
 
+export async function getLpPage(userAddress: string, pairIds: string[]) {
+  const raw = await analytics.get_lp_page(userAddress, pairIds);
+  return raw;
+}
 
+export async function getSwapScenarios(swapId: string, ratesBps: number[]) {
+  const raw = await analytics.get_swap_scenarios(
+    swapId,
+    ratesBps.map((r) => uint256.bnToUint256(BigInt(r)))
+  );
+  return raw;
+}
