@@ -1,18 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Info, Wallet, ArrowRight, AlertTriangle } from "lucide-react";
+import { Info, Wallet, ArrowRight, AlertTriangle, Check, Copy, ExternalLink } from "lucide-react";
 import { FormattedMarket, MarketData } from "../interface/types";
 import { MARKET_META } from "../constants/markets";
 import { FullModal } from "./FullModal";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { getTokenBalance } from "../blockchain/scripts/tokenBalance";
-import { getLpPosition } from "../blockchain/scripts/markets";
+import { getLpPosition, getExchangeRateForLp } from "../blockchain/scripts/markets";
 import { approveAndSupplyLp } from "../blockchain/scripts/write/approveAndSupplyLp";
 import { withdrawLpLiquidity } from "../blockchain/scripts/write/withdrawLiquidity";
 import numberFormatter from "../blockchain/utils/numberFormatter";
 import { extractTokensFromName } from "../lib/helpers/helpers";
 import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
+import { getProtocolLogo } from "./SwapCard";
 
 interface LpModalProps {
   isOpen: boolean;
@@ -37,8 +38,9 @@ export const LpModal: React.FC<LpModalProps> = ({
     oracleSource: market.protocol,
     termLabel: "30d",
   };
-  const { primaryWallet } = useDynamicContext();
+  const { primaryWallet, setShowAuthFlow } = useDynamicContext();
   const address = primaryWallet?.address;
+  const isConnected = !!address;
 
   const [actionTab, setActionTab] = useState<ActionTab>("deposit");
   const [infoTab, setInfoTab] = useState<InfoTab>("fees");
@@ -46,14 +48,16 @@ export const LpModal: React.FC<LpModalProps> = ({
   const [amountStr, setAmountStr] = useState("");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [lpShares, setLpShares] = useState<number | null>(null);
+  const [lastDepositTime, setLastDepositTime] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copiedTx, setCopiedTx] = useState(false);
 
   // Market data
   const tvl = marketDetails?.pool?.totalCollateral ?? 0;
-  const lockedTotal = marketDetails
-    ? marketDetails.pool.lockedFixed + marketDetails.pool.lockedFloating
+  const lockedTotal = marketDetails?.pool
+    ? (marketDetails.pool.lockedFixed ?? 0) + (marketDetails.pool.lockedFloating ?? 0)
     : 0;
   const available = tvl - lockedTotal;
   const utilization = tvl > 0 ? (lockedTotal / tvl) * 100 : 0;
@@ -68,12 +72,36 @@ export const LpModal: React.FC<LpModalProps> = ({
     ? (swapFeeBps * utilizationFraction * (365 / termDays)) / 10000
     : 0;
 
-  // Mock PnL APY
-  const pnlApy = 0.018;
-  const totalApy = feeApy + pnlApy;
+  // Share price state (fetched from chain)
+  const [sharePrice, setSharePrice] = useState(1.0);
 
-  // Mock share price
-  const sharePrice = 1.016;
+  const decimals = MARKET_META[market.id]?.decimals ?? marketDetails?.decimals ?? 6;
+
+  // Fetch real exchange rate
+  useEffect(() => {
+    if (!isOpen || !marketDetails?.pairId) return;
+    let cancelled = false;
+
+    async function fetchSharePrice() {
+      try {
+        const rawRate = await getExchangeRateForLp(String(marketDetails!.pairId));
+        if (!cancelled) {
+          // Exchange rate is in 1e18 precision per spec (1e18 = 1.0 per share)
+          const rate = Number(rawRate) / 1e18;
+          setSharePrice(rate > 0 ? rate : 1.0);
+        }
+      } catch {
+        // fallback to 1.0
+      }
+    }
+
+    fetchSharePrice();
+    return () => { cancelled = true; };
+  }, [isOpen, marketDetails?.pairId, decimals]);
+
+  // PnL component: lifetime share price gain (not annualized — would need time data)
+  const pnlReturn = sharePrice > 1.0 ? (sharePrice - 1.0) : 0;
+  const totalApy = feeApy + pnlReturn;
 
   // Exposure breakdown
   const fixedNotional = marketDetails?.pool?.lockedFixed ?? 0;
@@ -92,7 +120,7 @@ export const LpModal: React.FC<LpModalProps> = ({
   const maxLpshares = lpShares ?? 0;
   // Fetch balances
   useEffect(() => {
-    if (!address || !isOpen) return;
+    if (!address || !isOpen || !marketDetails?.collateralToken || !marketDetails?.pairId) return;
     let cancelled = false;
 
     async function fetchWalletBalance() {
@@ -114,7 +142,8 @@ export const LpModal: React.FC<LpModalProps> = ({
           address as string,
         );
         if (!cancelled) {
-          setLpShares(Number(res.shares) / 10 ** 6);
+          setLpShares(Number(res.shares) / 10 ** decimals);
+          setLastDepositTime(Number(res.last_deposit_time));
         }
       } catch {
         if (!cancelled) setLpShares(null);
@@ -202,7 +231,7 @@ export const LpModal: React.FC<LpModalProps> = ({
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
         pairId: String(marketDetails?.pairId),
         shares: Number(amount),
-        shareDecimals: 6,
+        shareDecimals: decimals,
       });
       setTxHash(hash);
     } catch (e: any) {
@@ -231,23 +260,23 @@ export const LpModal: React.FC<LpModalProps> = ({
         {/* ========== MODAL HEADER ========== */}
         <div className="px-6 pt-5 pb-4 border-b border-white/[0.04] shrink-0">
           <div className="flex items-center gap-3 pr-10">
-            <div className="flex items-center gap-1">
-              {tokens.map((token) => {
-                const Logo = TOKEN_LOGOS[token];
-                return <Logo key={token} size={40} />;
-              })}
-            </div>
+            {(() => { const PL = getProtocolLogo(market.protocol); return <PL size={40} />; })()}
             <div>
-              <h2 className="text-lg font-semibold text-white tracking-tight">
-                {market.name} — Liquidity Pool
+              <h2 className="text-lg font-semibold text-[#e8e6ee] tracking-tight">
+                {market.protocol} — Liquidity Pool
               </h2>
-              <p className="text-[11px] text-[#8A8894]">
-                {meta?.oracleSource} · {meta?.termLabel} Term
+              <p className="text-[11px] text-[#9896a3] flex items-center gap-1">
+                {market.name}
+                {extractTokensFromName((meta?.collateralSymbol ?? "USDC")).map((token) => {
+                  const Logo = TOKEN_LOGOS[token];
+                  return <Logo key={token} size={14} />;
+                })}
+                {(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")} · {termDays}d Term
               </p>
             </div>
-            <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 mr-8">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
+            <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#34d399]/20 bg-[#34d399]/5 mr-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
+              <span className="text-[10px] font-semibold text-[#34d399] uppercase tracking-wider">
                 Live
               </span>
             </div>
@@ -255,10 +284,10 @@ export const LpModal: React.FC<LpModalProps> = ({
         </div>
 
         {/* ========== APY STRIP ========== */}
-        <div className="px-6 py-4 border-b border-white/[0.04] flex flex-wrap items-center justify-between gap-4 shrink-0 bg-[#0d0d10]">
+        <div className="px-6 py-4 border-b border-white/[0.04] flex flex-wrap items-center justify-between gap-4 shrink-0 bg-[rgba(12,12,18,0.5)]">
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-[10px] font-semibold text-[#8A8894] uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-[#9896a3] uppercase tracking-wider">
                 Estimated APY
               </span>
               <Info className="w-3 h-3 text-[#5C5A66] cursor-help" />
@@ -267,67 +296,86 @@ export const LpModal: React.FC<LpModalProps> = ({
               <span className="font-mono text-3xl font-bold text-trade-up tracking-tighter">
                 {(totalApy * 100).toFixed(1)}%
               </span>
-              <span className="text-[11px] text-[#8A8894]">
+              <span className="text-[11px] text-[#9896a3]">
                 Fees +{(feeApy * 100).toFixed(1)}% · PnL +
-                {(pnlApy * 100).toFixed(1)}%
+                {(pnlReturn * 100).toFixed(1)}%
               </span>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] font-semibold text-[#8A8894] uppercase tracking-wider mb-1">
+            <div className="text-[10px] font-semibold text-[#9896a3] uppercase tracking-wider mb-1">
               Share Price
             </div>
-            <div className="font-mono text-lg font-bold text-white">
+            <div className="font-mono text-lg font-bold text-[#e8e6ee]">
               {sharePrice.toFixed(4)}{" "}
-              <span className="text-[#8A8894] text-xs">USDC</span>
+              <span className="text-[#9896a3] text-xs">USDC</span>
             </div>
             <div className="text-[10px] text-trade-up">
-              +1.6% since inception
+              +{((sharePrice - 1.0) * 100).toFixed(1)}% since inception
             </div>
           </div>
         </div>
 
+        {/* ========== STAT ROW ========== */}
+        <div className="flex gap-px bg-[#1e1e2a] rounded-xl overflow-hidden mx-6 mb-5 mt-5 shrink-0">
+          {[
+            { label: "Total TVL", value: `$${numberFormatter(tvl)}` },
+            { label: "Available", value: `$${numberFormatter(available > 0 ? available : 0)}` },
+            { label: "Utilization", value: `${utilization.toFixed(1)}%` },
+            { label: "Active Swaps", value: String(activeSwaps) },
+          ].map((s) => (
+            <div key={s.label} className="flex-1 bg-[rgba(17,17,24,0.7)] p-3.5 first:rounded-l-xl last:rounded-r-xl">
+              <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">{s.label}</div>
+              <div className="font-mono font-bold text-[0.9rem] text-[#e8e6ee]">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
         {/* ========== TWO-COLUMN BODY ========== */}
-        <div className="flex-1 overflow-hidden grid grid-cols-1 min-[960px]:grid-cols-[1fr_360px]">
+        <div className="relative flex-1 overflow-hidden grid grid-cols-1 min-[960px]:grid-cols-[1fr_360px]">
+          {/* Wallet Gate Overlay */}
+          {!isConnected && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-md bg-black/40">
+              <div className="flex flex-col items-center gap-4 p-8 rounded-2xl bg-[#0c0c12]/90 border border-[rgba(52,211,153,0.15)] shadow-2xl max-w-xs text-center">
+                <div className="w-14 h-14 rounded-full bg-[#34d399]/10 border border-[#34d399]/20 flex items-center justify-center">
+                  <Wallet className="w-7 h-7 text-[#6ee7b7]" />
+                </div>
+                <h3 className="text-[#e8e6ee] font-bold text-base tracking-tight">
+                  Connect Your Wallet
+                </h3>
+                <p className="text-[#9896a3] text-xs leading-relaxed">
+                  Connect your wallet to view pool details, deposit liquidity, and manage your LP positions.
+                </p>
+                <button
+                  onClick={() => setShowAuthFlow(true)}
+                  className="w-full py-3 rounded-xl font-semibold text-sm
+                    bg-gradient-to-br from-[#6ee7b7] to-[#34d399]
+                    text-[#030305]
+                    shadow-lg shadow-[rgba(52,211,153,0.20)]
+                    hover:shadow-xl hover:shadow-[rgba(52,211,153,0.38)]
+                    transition-all duration-300
+                    cursor-pointer"
+                >
+                  Connect Wallet
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ===== LEFT COLUMN ===== */}
           <div className="overflow-y-auto p-6 space-y-5 border-r border-white/[0.04]">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: "Total TVL", value: `$${numberFormatter(tvl)}` },
-                {
-                  label: "Available",
-                  value: `$${numberFormatter(available > 0 ? available : 0)}`,
-                },
-                { label: "Utilization", value: `${utilization.toFixed(1)}%` },
-                { label: "Active Swaps", value: String(activeSwaps) },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
-                >
-                  <div className="text-[9px] font-semibold text-[#5C5A66] uppercase tracking-wider mb-1">
-                    {s.label}
-                  </div>
-                  <div className="text-sm font-mono font-bold text-white">
-                    {s.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-
             {/* Exposure Breakdown */}
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-3">
+            <div className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[14px] p-[18px] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">
+                <span className="font-mono text-[0.6rem] tracking-[0.1em] uppercase text-[#5c5a66]">
                   Exposure Breakdown
                 </span>
 
                 <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                  className={`text-[0.6rem] px-2 py-0.5 rounded font-mono font-bold ${
                     isNetShort
-                      ? "bg-[#1FD6A3]/10 text-[#1FD6A3] border-[#1FD6A3]/30"
-                      : "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                      ? "bg-[#34d399]/10 text-[#34d399] border border-[#34d399]/30"
+                      : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
                   }`}
                 >
                   {isNetShort ? "Net Short Rates" : "Net Long Rates"}
@@ -335,9 +383,9 @@ export const LpModal: React.FC<LpModalProps> = ({
               </div>
 
               {/* Stacked bar */}
-              <div className="h-3 rounded-full overflow-hidden flex bg-white/[0.05]">
+              <div className="h-1.5 rounded-sm overflow-hidden flex bg-white/[0.05]">
                 <div
-                  className="bg-[#1FD6A3]/80 transition-all duration-500"
+                  className="bg-[#34d399]/80 transition-all duration-500"
                   style={{ width: `${fixedPct}%` }}
                 />
                 <div
@@ -349,7 +397,7 @@ export const LpModal: React.FC<LpModalProps> = ({
               <div className="flex items-center justify-between text-[11px]">
                 {/* Fixed */}
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#1FD6A3]" />
+                  <span className="w-2 h-2 rounded-full bg-[#34d399]" />
                   <span className="text-white/50">Fixed</span>
                   <span className="font-mono font-semibold text-white/80">
                     {fixedPct.toFixed(0)}%
@@ -372,7 +420,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                 </div>
               </div>
 
-              <p className="text-[10px] text-white/30 leading-relaxed">
+              <p className="text-[0.75rem] text-[#5c5a66] leading-relaxed mt-3">
                 The pool takes the opposite side of every swap. When more
                 traders are fixed, the pool is net short rates (profits when
                 rates fall).
@@ -381,7 +429,7 @@ export const LpModal: React.FC<LpModalProps> = ({
 
             {/* Info Tabs */}
             <div>
-              <div className="flex gap-1 mb-3 p-0.5 rounded-lg bg-white/[0.02] border border-white/[0.04] w-fit">
+              <div className="flex gap-1 p-1 bg-[rgba(17,17,24,0.7)] rounded-[10px] border border-[#1e1e2a] w-fit mb-3">
                 {(
                   [
                     { key: "fees", label: "Fees & Params" },
@@ -392,10 +440,10 @@ export const LpModal: React.FC<LpModalProps> = ({
                   <button
                     key={t.key}
                     onClick={() => setInfoTab(t.key)}
-                    className={`px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`px-4 py-2 rounded-lg font-semibold text-[0.75rem] transition-all cursor-pointer ${
                       infoTab === t.key
-                        ? "bg-white/[0.06] text-white"
-                        : "text-[#8A8894] hover:text-[#BAB8C4]"
+                        ? "bg-[rgba(255,255,255,0.06)] text-[#e8e6ee]"
+                        : "text-[#9896a3] hover:text-[#e8e6ee]"
                     }`}
                   >
                     {t.label}
@@ -443,12 +491,12 @@ export const LpModal: React.FC<LpModalProps> = ({
                   ].map((p) => (
                     <div
                       key={p.label}
-                      className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+                      className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5"
                     >
-                      <div className="text-[9px] font-semibold text-[#5C5A66] uppercase tracking-wider mb-0.5">
+                      <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">
                         {p.label}
                       </div>
-                      <div className="text-xs font-mono font-semibold text-[#BAB8C4]">
+                      <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">
                         {p.value}
                       </div>
                     </div>
@@ -457,9 +505,9 @@ export const LpModal: React.FC<LpModalProps> = ({
               )}
 
               {infoTab === "how" && (
-                <div className="space-y-3 text-[12px] text-[#8A8894] leading-relaxed">
+                <div className="space-y-3 text-[12px] text-[#9896a3] leading-relaxed">
                   <p>
-                    <span className="text-white font-semibold">
+                    <span className="text-[#e8e6ee] font-semibold">
                       Share-based accounting.
                     </span>{" "}
                     When you deposit USDC, you receive LP shares proportional to
@@ -467,7 +515,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                     earns swap fees and trader losses.
                   </p>
                   <p>
-                    <span className="text-white font-semibold">
+                    <span className="text-[#e8e6ee] font-semibold">
                       Counterparty role.
                     </span>{" "}
                     As an LP, you take the opposite side of every swap. You earn
@@ -475,7 +523,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                     positions. When traders lose, LPs gain — and vice versa.
                   </p>
                   <p>
-                    <span className="text-white font-semibold">
+                    <span className="text-[#e8e6ee] font-semibold">
                       Withdrawals.
                     </span>{" "}
                     You can redeem shares for the underlying USDC at the current
@@ -486,11 +534,11 @@ export const LpModal: React.FC<LpModalProps> = ({
               )}
 
               {infoTab === "risks" && (
-                <div className="space-y-3 text-[12px] text-[#8A8894] leading-relaxed">
+                <div className="space-y-3 text-[12px] text-[#9896a3] leading-relaxed">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
                     <p>
-                      <span className="text-white font-semibold">
+                      <span className="text-[#e8e6ee] font-semibold">
                         Directional risk.
                       </span>{" "}
                       If the majority of traders are profitable, LP share price
@@ -501,7 +549,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
                     <p>
-                      <span className="text-white font-semibold">
+                      <span className="text-[#e8e6ee] font-semibold">
                         Utilization lock.
                       </span>{" "}
                       When pool utilization is high, you may not be able to
@@ -512,7 +560,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
                     <p>
-                      <span className="text-white font-semibold">
+                      <span className="text-[#e8e6ee] font-semibold">
                         Cooldown period.
                       </span>{" "}
                       After depositing, there is a minimum hold period before
@@ -526,16 +574,16 @@ export const LpModal: React.FC<LpModalProps> = ({
           </div>
 
           {/* ===== RIGHT COLUMN ===== */}
-          <div className="flex flex-col overflow-y-auto bg-gradient-to-b from-[#0f0f14] to-transparent">
-            <div className="p-5 space-y-4 flex-1">
+          <div className="flex flex-col overflow-y-auto bg-gradient-to-b from-[rgba(12,12,18,0.7)] to-transparent">
+            <div className="p-5 space-y-4 flex-1 flex flex-col">
               {/* Action Tabs */}
               <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.04]">
                 <button
                   onClick={() => setActionTab("deposit")}
-                  className={`py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider 
+                  className={`py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider
               transition-all cursor-pointer ${
                 actionTab === "deposit"
-                  ? "bg-[#1FD6A3] text-black shadow-[0_0_20px_-5px_rgba(31,214,163,0.6)]"
+                  ? "bg-[#34d399] text-black shadow-[0_0_20px_-5px_rgba(52,211,153,0.6)]"
                   : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
               }`}
                 >
@@ -547,47 +595,47 @@ export const LpModal: React.FC<LpModalProps> = ({
                   className={`py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
                     actionTab === "withdraw"
                       ? "bg-rose-600 text-white shadow-lg"
-                      : "text-[#8A8894] hover:text-[#BAB8C4]"
+                      : "text-[#9896a3] hover:text-[#9896a3]"
                   }`}
                 >
                   Withdraw
                 </button>
               </div>
 
-              {/* Input Card */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-3">
+              {/* Input Section */}
+              <div className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[14px] p-[18px] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-[#8A8894] uppercase tracking-wider">
+                  <span className="font-mono text-[0.6rem] tracking-[0.1em] uppercase text-[#5c5a66]">
                     {actionTab === "deposit"
                       ? "Deposit Amount"
                       : "Withdraw Amount"}
                   </span>
-                  <div className="flex items-center gap-1.5 text-[10px] text-[#8A8894]">
+                  <button
+                    onClick={() => setPresetAmount(actionTab === "deposit" ? maxAmount : maxLpshares)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[rgba(52,211,153,0.2)] bg-[rgba(52,211,153,0.06)] font-mono text-[0.6rem] font-bold text-[#34d399] cursor-pointer hover:bg-[rgba(52,211,153,0.12)]"
+                  >
                     <Wallet className="w-3 h-3" />
                     {actionTab === "deposit"
                       ? `${numberFormatter(walletBalance ?? 0)} USDC`
                       : `${numberFormatter(lpShares ?? 0)} Shares`}
-                  </div>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-xl font-mono font-bold text-[#8A8894]">
-                    $
-                  </span>
                   <input
                     type="text"
                     inputMode="decimal"
                     value={amount}
                     onChange={(e) => handleAmountChange(e.target.value)}
                     placeholder="0"
-                    className="bg-transparent border-none outline-none text-3xl font-mono font-bold text-white tracking-tighter w-full focus:ring-0 placeholder:opacity-20"
+                    className="bg-transparent border-none outline-none font-serif font-bold text-[1.8rem] text-[#e8e6ee] tracking-tighter w-full focus:ring-0 placeholder:opacity-20"
                   />
-                  <span className="px-2 py-1 rounded-md bg-[#2775ca]/10 text-[10px] font-bold text-[#2775ca] uppercase shrink-0">
-                    USDC
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[rgba(52,211,153,0.08)] border border-[rgba(52,211,153,0.15)] font-mono font-bold text-[0.75rem] text-[#34d399] shrink-0">
+                    {(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")}
                   </span>
                 </div>
 
-                {/* Preset Buttons */}
+                {/* Slider */}
                 {actionTab === "deposit" ? (
                   <input
                     type="range"
@@ -596,12 +644,13 @@ export const LpModal: React.FC<LpModalProps> = ({
                     step={maxAmount > 100 ? maxAmount / 100 : 0.01}
                     value={Math.min(amount, maxAmount)}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full h-2 
-             bg-white/10 
-             rounded-full 
-             appearance-none 
-             cursor-pointer 
-             accent-[#1FD6A3]"
+                    className="w-full h-2
+             bg-white/10
+             rounded-full
+             appearance-none
+             cursor-pointer
+             accent-[#34d399]"
+                    style={{ borderWidth: "3px", borderColor: "#0c0c12" }}
                   />
                 ) : (
                   <input
@@ -611,68 +660,36 @@ export const LpModal: React.FC<LpModalProps> = ({
                     step={maxLpshares > 100 ? maxLpshares / 100 : 0.01}
                     value={Math.min(amount, maxLpshares)}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full h-2 
-             bg-white/10 
-             rounded-full 
-             appearance-none 
-             cursor-pointer 
-             accent-[#1FD6A3]"
+                    className="w-full h-2
+             bg-white/10
+             rounded-full
+             appearance-none
+             cursor-pointer
+             accent-[#34d399]"
+                    style={{ borderWidth: "3px", borderColor: "#0c0c12" }}
                   />
                 )}
-                <div className="flex justify-between text-[9px] font-mono text-[#5C5A66]">
+                <div className="flex justify-between items-center text-[9px] font-mono text-[#5C5A66]">
                   {actionTab === "deposit" ? (
-                    <div className="flex flex-col">
-                      <span>Min: ${numberFormatter(minNotional)}</span>
-                      <span>max :${numberFormatter(maxNotional)}</span>
+                    <div className="flex items-center gap-3">
+                      <span>Min: {numberFormatter(minNotional)}</span>
+                      <span>Max: {numberFormatter(maxNotional)}</span>
                     </div>
                   ) : (
-                    <div className="flex flex-col"></div>
+                    <div />
                   )}
-                  <div
-                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full 
-                bg-[#1FD6A3]/10 
-                border border-[#1FD6A3]/20 
-                text-[10px] font-semibold 
-                text-[#1FD6A3] 
-                uppercase tracking-widest 
-                transition-colors 
-                hover:bg-[#1FD6A3]/20 
-                cursor-default"
+                  <button
+                    onClick={() => setPresetAmount(actionTab === "deposit" ? maxAmount : maxLpshares)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[rgba(52,211,153,0.2)] bg-[rgba(52,211,153,0.06)] font-mono text-[0.6rem] font-bold text-[#34d399] cursor-pointer hover:bg-[rgba(52,211,153,0.12)]"
                   >
-                    <Wallet className="w-3 h-3 text-[#1FD6A3]" />
-                    Wallet: $
-                    {numberFormatter(walletBalance ? walletBalance : 0)}
-                  </div>
-                </div>
-
-                {/* Preset Buttons */}
-                <div className="flex gap-2 mt-2">
-                  {[25, 50, 75, 100].map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => {
-                        if (actionTab === "deposit") {
-                          if (walletBalance !== null) {
-                            const value = (walletBalance * p) / 100;
-                            setAmount(Number(value.toFixed(2)));
-                          }
-                        } else {
-                          if (lpShares !== null) {
-                            const value = (lpShares * p) / 100;
-                            setAmount(Number(value.toFixed(2)));
-                          }
-                        }
-                      }}
-                      className="px-2 cursor-pointer py-1 text-[9px] font-black rounded-md bg-white/5 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400"
-                    >
-                      {p}%
-                    </button>
-                  ))}
+                    <Wallet className="w-3 h-3 text-[#34d399]" />
+                    Wallet: {numberFormatter(walletBalance ? walletBalance : 0)}
+                  </button>
                 </div>
               </div>
 
-              {/* Preview Card */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] space-y-2">
+              {/* Summary Rows */}
+              <div>
                 {actionTab === "deposit" ? (
                   <>
                     <PreviewRow
@@ -712,58 +729,151 @@ export const LpModal: React.FC<LpModalProps> = ({
                 )}
               </div>
 
+              {/* Error */}
+              {error && (
+                <div className="text-red-400 text-xs p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+                  {error}
+                </div>
+              )}
+
+              {/* Success */}
+              {txHash && (
+                <div className="p-4 rounded-xl bg-[#34d399]/[0.04] border border-[#34d399]/20 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#34d399]/10 border border-[#34d399]/20 flex items-center justify-center shrink-0">
+                      <Check className="w-4 h-4 text-[#34d399]" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-[#e8e6ee]">
+                        {actionTab === "deposit" ? "Liquidity Deposited" : "Withdrawal Complete"}
+                      </p>
+                      <p className="text-[10px] text-white/40">
+                        {actionTab === "deposit"
+                          ? `${numberFormatter(amount)} ${(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")} supplied to pool`
+                          : `${numberFormatter(amount)} shares redeemed`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                    <span className="font-mono text-[10px] text-white/50 truncate">
+                      {`${txHash.slice(0, 10)}...${txHash.slice(-8)}`}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(txHash);
+                          setCopiedTx(true);
+                          setTimeout(() => setCopiedTx(false), 2000);
+                        }}
+                        className="p-1 rounded-md hover:bg-white/[0.05] text-white/40 hover:text-white transition-colors cursor-pointer"
+                      >
+                        {copiedTx ? <Check className="w-3 h-3 text-[#34d399]" /> : <Copy className="w-3 h-3" />}
+                      </button>
+                      <a
+                        href={`https://sepolia.voyager.online/tx/${txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 rounded-md hover:bg-white/[0.05] text-white/40 hover:text-[#34d399] transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`https://sepolia.voyager.online/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg
+                      bg-[#34d399]/10 border border-[#34d399]/20
+                      text-[#34d399] text-[10px] font-semibold uppercase tracking-wider
+                      hover:bg-[#34d399]/20 transition-colors"
+                  >
+                    View on Explorer
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
+
+              {/* CTA Button - pinned at bottom with mt-auto */}
+              <div className="mt-auto pt-2">
+                {txHash ? (
+                  <button
+                    onClick={onClose}
+                    className="w-full py-4 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
+                     transition-all active:scale-[0.98] cursor-pointer
+                     bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08]
+                     text-[#e8e6ee]
+                     flex items-center justify-center gap-2"
+                  >
+                    Close
+                  </button>
+                ) : actionTab === "deposit" ? (
+                  <button
+                    disabled={amount === 0 || loading}
+                    onClick={handleDeposit}
+                    className="w-full py-4 rounded-xl bg-[#34d399] text-[#060608] font-bold text-[0.95rem] hover:bg-[#6ee7b7] active:bg-[#059669] disabled:bg-[rgba(17,17,24,0.7)] disabled:text-[#5c5a66] disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading
+                      ? "Depositing..."
+                      : `Deposit ${amount > 0 ? `${numberFormatter(amount)}` : ""} ${(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")}`}
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    disabled={amount === 0 || loading}
+                    onClick={handleWithdraw}
+                    className="w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.15em] transition-all active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 border-2 border-rose-500/40 text-rose-400 hover:bg-rose-500/10 flex items-center justify-center gap-2"
+                  >
+                    {loading
+                      ? "Withdrawing..."
+                      : `Withdraw ${amount > 0 ? `${numberFormatter(amount)}` : ""} ${(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")}`}
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
               {/* Position Card (shown when user has LP) */}
               {lpShares !== null && lpShares > 0 && (
-                <div
-                  className="p-4 rounded-xl 
-                bg-[#1FD6A3]/5 
-                border border-[#1FD6A3]/20 
-                space-y-3"
-                >
+                <div className="bg-[rgba(17,17,24,0.7)] border border-[rgba(52,211,153,0.2)] rounded-[14px] p-[18px] space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-[#1FD6A3] uppercase tracking-wider">
+                    <span className="font-serif font-bold text-[0.78rem] text-[#34d399] tracking-[0.05em]">
                       Your Position
                     </span>
 
-                    <span
-                      className="text-[10px] font-mono font-semibold 
-                     text-[#1FD6A3] 
-                     px-2 py-0.5 
-                     rounded-full 
-                     bg-[#1FD6A3]/15 
-                     border border-[#1FD6A3]/30"
-                    >
-                      +1.6%
+                    <span className="text-[0.72rem] px-2.5 py-1 rounded-md bg-[rgba(52,211,153,0.12)] text-[#34d399] font-mono font-bold">
+                      +{((sharePrice - 1.0) * 100).toFixed(1)}%
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {/* Deposited */}
                     <div>
-                      <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">
+                      <div className="font-mono text-[0.5rem] tracking-[0.08em] uppercase text-[#5c5a66] mb-1">
                         Deposited
                       </div>
-                      <div className="text-xs font-mono font-semibold text-white/70">
+                      <div className="font-serif font-bold text-[0.95rem] text-[#e8e6ee]">
                         ${numberFormatter(lpShares * 1.0)}
                       </div>
                     </div>
 
                     {/* Value Now */}
                     <div>
-                      <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">
+                      <div className="font-mono text-[0.5rem] tracking-[0.08em] uppercase text-[#5c5a66] mb-1">
                         Value Now
                       </div>
-                      <div className="text-xs font-mono font-semibold text-white">
+                      <div className="font-serif font-bold text-[0.95rem] text-[#e8e6ee]">
                         ${numberFormatter(lpShares * sharePrice)}
                       </div>
                     </div>
 
                     {/* Pool Share */}
                     <div>
-                      <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">
+                      <div className="font-mono text-[0.5rem] tracking-[0.08em] uppercase text-[#5c5a66] mb-1">
                         Pool Share
                       </div>
-                      <div className="text-xs font-mono font-semibold text-white/80">
+                      <div className="font-serif font-bold text-[0.95rem] text-[#e8e6ee]">
                         {tvl > 0
                           ? (((lpShares * sharePrice) / tvl) * 100).toFixed(3)
                           : "0.000"}
@@ -773,60 +883,30 @@ export const LpModal: React.FC<LpModalProps> = ({
 
                     {/* Cooldown */}
                     <div>
-                      <div className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">
+                      <div className="font-mono text-[0.5rem] tracking-[0.08em] uppercase text-[#5c5a66] mb-1">
                         Cooldown
                       </div>
-                      <div className="text-xs font-semibold text-[#1FD6A3]">
-                        Met
-                      </div>
+                      {(() => {
+                        const holdSeconds = (marketDetails?.params?.minHoldPeriodMinutes ?? 0) * 60;
+                        if (!lastDepositTime || holdSeconds === 0) {
+                          return <div className="font-serif font-bold text-[0.95rem] text-[#34d399]">Met</div>;
+                        }
+                        const nowSec = Math.floor(Date.now() / 1000);
+                        const unlockTime = lastDepositTime + holdSeconds;
+                        const remaining = unlockTime - nowSec;
+                        if (remaining <= 0) {
+                          return <div className="font-serif font-bold text-[0.95rem] text-[#34d399]">Met</div>;
+                        }
+                        const mins = Math.ceil(remaining / 60);
+                        return (
+                          <div className="font-serif font-bold text-[0.95rem] text-amber-400">
+                            {mins}m left
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* Error / Success */}
-              {error && (
-                <div className="text-red-400 text-xs p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-                  {error}
-                </div>
-              )}
-              {txHash && (
-                <div className="text-trade-up text-xs p-3 rounded-lg bg-trade-up/5 border border-trade-up/10 break-all">
-                  Transaction submitted: {txHash}
-                </div>
-              )}
-            </div>
-
-            {/* CTA Button */}
-            <div className="p-5 pt-0">
-              {actionTab === "deposit" ? (
-                <button
-                  disabled={amount === 0 || loading}
-                  onClick={handleDeposit}
-                  className="w-full py-4 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
-               transition-all active:scale-[0.98] cursor-pointer
-               disabled:cursor-not-allowed disabled:opacity-40
-               bg-[#1FD6A3] hover:bg-[#19c495]
-               text-black
-               shadow-lg shadow-[#1FD6A3]/20 hover:shadow-[#1FD6A3]/40
-               flex items-center justify-center gap-2"
-                >
-                  {loading
-                    ? "Depositing..."
-                    : `Deposit ${amount > 0 ? `$${numberFormatter(amount)}` : ""} USDC`}
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  disabled={amount === 0 || loading}
-                  onClick={handleWithdraw}
-                  className="w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.15em] transition-all active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 border-2 border-rose-500/40 text-rose-400 hover:bg-rose-500/10 flex items-center justify-center gap-2"
-                >
-                  {loading
-                    ? "Withdrawing..."
-                    : `Withdraw ${amount > 0 ? `$${numberFormatter(amount)}` : ""} USDC`}
-                  <ArrowRight className="w-4 h-4" />
-                </button>
               )}
             </div>
           </div>
@@ -846,10 +926,10 @@ function PreviewRow({
   highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-[11px] text-[#8A8894]">{label}</span>
+    <div className="flex items-center justify-between py-[11px] border-b border-[rgba(30,30,42,0.5)] last:border-b-0">
+      <span className="text-[0.8rem] text-[#9896a3]">{label}</span>
       <span
-        className={`text-[11px] font-mono font-semibold ${highlight ? "text-trade-up" : "text-[#BAB8C4]"}`}
+        className={`font-mono font-bold text-[0.8rem] ${highlight ? "text-[#34d399]" : "text-[#e8e6ee]"}`}
       >
         {value}
       </span>
