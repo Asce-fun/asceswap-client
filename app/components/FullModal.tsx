@@ -53,14 +53,14 @@ export const FullModal: React.FC<FullModalProps> = ({
 
       {/* Container */}
       <div
-        className="relative w-full bg-[#0F1115]
-                   border border-[#1FD6A3]/20
+        className="relative w-full bg-[rgba(12,12,18,0.7)] backdrop-blur-[20px]
+                   border border-[#34d399]/20
                    rounded-2xl
                    overflow-hidden
                    animate-in zoom-in-95 fade-in duration-300 ease-out
                    flex flex-col
-                   shadow-[0_0_80px_-20px_rgba(31,214,163,0.45),
-                           0_0_120px_-40px_rgba(31,214,163,0.25),
+                   shadow-[0_0_80px_-20px_rgba(52,211,153,0.45),
+                           0_0_120px_-40px_rgba(52,211,153,0.25),
                            0_30px_60px_-20px_rgba(0,0,0,0.9)]"
         style={{
           maxWidth,
@@ -72,8 +72,8 @@ export const FullModal: React.FC<FullModalProps> = ({
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-full
                      text-white/40
-                     hover:text-[#1FD6A3]
-                     hover:bg-[#1FD6A3]/15
+                     hover:text-[#34d399]
+                     hover:bg-[#34d399]/15
                      transition-all
                      cursor-pointer
                      z-20"
