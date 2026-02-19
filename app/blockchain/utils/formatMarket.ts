@@ -1,7 +1,7 @@
 import { uint256 } from "starknet";
 
-const feltToHexAddress = (v: bigint) =>
-  "0x" + v.toString(16);
+const feltToHexAddress = (v: bigint | string) =>
+  "0x" + BigInt(v).toString(16);
 
 const u256ToBigInt = (v: any) =>
   uint256.uint256ToBN(v);
