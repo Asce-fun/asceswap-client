@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { FormattedMarket } from "../interface/types";
-import { MARKETS } from "../constants/markets";
-import { getMarket, getLpPosition } from "../blockchain/scripts/markets";
+import { MARKETS, MARKET_META } from "../constants/markets";
+import { getMarket, getLpPosition, getExchangeRateForLp } from "../blockchain/scripts/markets";
+import { getMarketsPage } from "../blockchain/scripts/analytics";
+import { formatMarket } from "../blockchain/utils/formatMarket";
 import { PageLayout } from "../components/PageLayout";
 import { LpCard } from "../components/LpCard";
 import { LpModal } from "../components/LpModal";
@@ -21,47 +23,100 @@ export default function LiquidityPage() {
     Record<string, { shares: number; value: number }>
   >({});
 
-  // Fetch market details
+  // Fetch all market details in a single batch (or parallel fallback)
   useEffect(() => {
-    MARKETS.forEach(async (market) => {
+    const fetchAll = async () => {
       try {
-        const res = await getMarket(market.id);
-        if (res) {
-          setMarketDetailsMap((prev) => ({
-            ...prev,
-            [market.id]: res as FormattedMarket,
-          }));
+        // Try batch analytics call first
+        const pairIds = MARKETS.map(m => m.id);
+        const batchData = await getMarketsPage(pairIds);
+        if (batchData && typeof batchData === 'object') {
+          const markets = batchData.markets ?? batchData;
+          if (Array.isArray(markets) && markets.length > 0) {
+            const map: Record<string, FormattedMarket> = {};
+            markets.forEach((m: any, i: number) => {
+              if (m && pairIds[i]) {
+                try {
+                  map[pairIds[i]] = formatMarket(m) as FormattedMarket;
+                } catch {
+                  // skip malformed entries
+                }
+              }
+            });
+            if (Object.keys(map).length > 0) {
+              setMarketDetailsMap(map);
+              return;
+            }
+          }
         }
-      } catch (err) {
-        console.error(`Failed to fetch market ${market.id}`, err);
+      } catch {
+        // Batch call failed, fall through
       }
-    });
+
+      // Fallback: individual calls in parallel
+      const results = await Promise.all(
+        MARKETS.map(async (market) => {
+          try {
+            const res = await getMarket(market.id);
+            return { id: market.id, data: res as FormattedMarket };
+          } catch {
+            return { id: market.id, data: null };
+          }
+        })
+      );
+
+      const map: Record<string, FormattedMarket> = {};
+      results.forEach(({ id, data }) => {
+        if (data) map[id] = data;
+      });
+      setMarketDetailsMap(map);
+    };
+
+    fetchAll();
   }, []);
 
-  // Fetch LP positions when wallet connected
+  // Fetch all LP positions in parallel when wallet connected and market data available
   useEffect(() => {
     if (!address) {
       setLpPositionsMap({});
       return;
     }
 
-    MARKETS.forEach(async (market) => {
-      try {
-        const details = marketDetailsMap[market.id];
-        if (!details) return;
-        const res = await getLpPosition(String(details.pairId), address);
-        const shares = Number(res.shares) / 10 ** 6;
-        if (shares > 0) {
-          setLpPositionsMap((prev) => ({
-            ...prev,
-            [market.id]: { shares, value: shares * 1.016 },
-          }));
-        }
-      } catch {
-        // No LP position or fetch failed
-      }
-    });
-  }, [address, Object.keys(marketDetailsMap).length]);
+    const marketIds = Object.keys(marketDetailsMap);
+    if (marketIds.length === 0) return;
+
+    const fetchAllLp = async () => {
+      const results = await Promise.all(
+        MARKETS.map(async (market) => {
+          try {
+            const details = marketDetailsMap[market.id];
+            if (!details) return { id: market.id, data: null };
+            const decimals = MARKET_META[market.id]?.decimals ?? (details as any).decimals ?? 6;
+            const [res, exchangeRate] = await Promise.all([
+              getLpPosition(String(details.pairId), address),
+              getExchangeRateForLp(String(details.pairId)).catch(() => BigInt(10 ** decimals)),
+            ]);
+            const shares = Number(res.shares) / 10 ** decimals;
+            const sharePrice = Number(exchangeRate) / 10 ** decimals;
+            if (shares > 0) {
+              return { id: market.id, data: { shares, value: shares * sharePrice } };
+            }
+            return { id: market.id, data: null };
+          } catch {
+            return { id: market.id, data: null };
+          }
+        })
+      );
+
+      const map: Record<string, { shares: number; value: number }> = {};
+      results.forEach(({ id, data }) => {
+        if (data) map[id] = data;
+      });
+      setLpPositionsMap(map);
+    };
+
+    fetchAllLp();
+  }, [address, marketDetailsMap]);
 
   const selectedMarket = selectedMarketId
     ? (MARKETS.find((m) => m.id === selectedMarketId) ?? null)
@@ -76,14 +131,14 @@ export default function LiquidityPage() {
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#34d399]" />
 
-            <h2 className="font-semibold text-2xl md:text-3xl tracking-tight text-white">
+            <h2 className="font-semibold text-2xl md:text-3xl tracking-tight text-[#e8e6ee]">
               Liquidity Pools
             </h2>
           </div>
 
-          <p className="text-sm text-[#8A8894] ml-[18px]">
+          <p className="text-sm text-[#9896a3] ml-[18px]">
             Supply liquidity to earn swap fees and trader PnL
           </p>
         </div>
