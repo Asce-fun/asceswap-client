@@ -27,6 +27,9 @@ import { approveAndBuySwap } from "../blockchain/scripts/write/approveAndBuySwap
 import numberFormatter from "../blockchain/utils/numberFormatter";
 import { extractTokensFromName } from "../lib/helpers/helpers";
 import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
+import { getOracleRateHistory } from "../blockchain/scripts/oracleContract";
+import { compute24hChange, compute7dRange } from "../blockchain/utils/utils";
+import { getProtocolLogo } from "./SwapCard";
 
 /* ─────────────────────── Types ─────────────────────── */
 
@@ -57,8 +60,9 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     termLabel: "30d",
   };
 
-  const { primaryWallet } = useDynamicContext();
+  const { primaryWallet, setShowAuthFlow } = useDynamicContext();
   const address = primaryWallet?.address;
+  const isConnected = !!address;
 
   /* ── State ── */
   const [activeSide, setActiveSide] = useState<SwapDirection>(direction);
@@ -124,25 +128,33 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   /* ── Derived values ── */
   const minNotional = marketDetails?.params?.minNotional ?? 0;
   const maxNotional = marketDetails?.params?.maxNotional ?? 1000000;
-  const initialMarginPct =
+  const initialMarginMultiplierPct =
     marketDetails?.params?.initialMarginMultiplierPct ?? 100;
-  const maxAmount = walletBalance ?? 0;
-  const collateral = useMemo(
-    () => (notional * 100) / initialMarginPct,
-    [notional, initialMarginPct],
-  );
-
-  const effectiveLeverage = useMemo(
-    () => initialMarginPct / 100,
-    [initialMarginPct],
-  );
 
   const currentRate = marketDetails?.rate?.currentPct ?? 0;
   const feeSpread = marketDetails?.params?.feeSpreadPct ?? 0;
   const lockedRate = currentRate + feeSpread;
+  const termDays = marketDetails?.params?.swapTermDays ?? 30;
+
+  // Required collateral per on-chain SwapManager + HealthCalculator:
+  // max_exposure = notional × rate × term / (BPS × YEAR)
+  // required_margin = ceil(max_exposure × multiplier / BPS)
+  // No floor at entry — min_margin_floor_bps only applies to ongoing health checks
+  const collateral = useMemo(() => {
+    if (notional <= 0 || lockedRate <= 0) return 0;
+    const termFraction = termDays / 365;
+    const maxExposure = notional * (lockedRate / 100) * termFraction;
+    return maxExposure * (initialMarginMultiplierPct / 100);
+  }, [notional, lockedRate, termDays, initialMarginMultiplierPct]);
+
+  const effectiveLeverage = useMemo(
+    () => (collateral > 0 ? notional / collateral : 0),
+    [notional, collateral],
+  );
+
   const entryFee = useMemo(
-    () => (notional * (marketDetails?.params?.swapFeePct ?? 0)) / 100,
-    [notional, marketDetails?.params?.swapFeePct],
+    () => collateral * ((marketDetails?.params?.swapFeePct ?? 0) / 100),
+    [collateral, marketDetails?.params?.swapFeePct],
   );
 
   const settlementDate = useMemo(() => {
@@ -156,12 +168,10 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     });
   }, [marketDetails?.params?.swapTermDays]);
 
-  const termDays = marketDetails?.params?.swapTermDays ?? 30;
-
   /* ── Pool stats ── */
   const tvl = marketDetails?.pool?.totalCollateral ?? 0;
-  const lockedTotal = marketDetails
-    ? marketDetails.pool.lockedFixed + marketDetails.pool.lockedFloating
+  const lockedTotal = marketDetails?.pool
+    ? (marketDetails.pool.lockedFixed ?? 0) + (marketDetails.pool.lockedFloating ?? 0)
     : 0;
   const available = tvl - lockedTotal;
   const utilization = tvl > 0 ? (lockedTotal / tvl) * 100 : 0;
@@ -266,12 +276,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     const parsed = Number(clean);
     if (Number.isNaN(parsed)) return;
 
-    if (walletBalance === null) {
-      setNotional(parsed);
-      return;
-    }
-
-    setNotional(Math.min(parsed, walletBalance));
+    setNotional(Math.min(parsed, maxNotional));
   };
 
   /* ── Execute Swap ── */
@@ -280,16 +285,18 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     try {
       setLoading(true);
       setError(null);
+      console.log("[SwapModal] tokenAddress:", marketDetails.collateralToken);
+      console.log("[SwapModal] asceSwapAddress:", process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS);
+      console.log("[SwapModal] collateral:", collateral, "approveAmount:", collateral + entryFee, "notional:", notional);
       const hash = await approveAndBuySwap({
         tokenAddress: marketDetails.collateralToken,
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
-        oracleAddress: marketDetails.oracle,
         pairId: String(marketDetails.pairId),
         side: activeSide,
         notional: notional,
-        collateral: collateral,
-        maxRateBps: 900,
-        decimals: 6,
+        collateral: (collateral + entryFee) * 2,
+        maxRateBps: 100_000,
+        decimals: MARKET_META[market.id]?.decimals ?? marketDetails.decimals,
       });
       setTxHash(hash);
     } catch (e: any) {
@@ -299,13 +306,51 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     }
   };
 
-  /* ── Mock 24h change ── */
-  const dayChange = useMemo(() => {
-    const seed = Number(market.id) * 0.17;
-    return parseFloat(((seed % 0.8) - 0.3).toFixed(2));
-  }, [market.id]);
+  /* ── Real 24h change + 7d range from oracle history ── */
+  const [dayChange, setDayChange] = useState(0);
+  const [rateRange, setRateRange] = useState<{ minPct: number; maxPct: number } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const oracleAddr = MARKET_META[market.id]?.oracleAddress;
+    if (!oracleAddr) return;
+    let cancelled = false;
+
+    async function fetchHistory() {
+      try {
+        const [h24, h7d] = await Promise.all([
+          getOracleRateHistory(oracleAddr, 24).catch(() => []),
+          getOracleRateHistory(oracleAddr, 168).catch(() => []),
+        ]);
+        if (cancelled) return;
+        const currentBps = currentRate * 100;
+        if (h24.length > 0) {
+          setDayChange(parseFloat(compute24hChange(h24, currentBps).toFixed(2)));
+        }
+        if (h7d.length > 0) {
+          setRateRange(compute7dRange(h7d));
+        }
+      } catch {
+        // oracle history unavailable
+      }
+    }
+
+    fetchHistory();
+    return () => { cancelled = true; };
+  }, [isOpen, market.id, currentRate]);
+
   const tokens = extractTokensFromName(market.name);
-  const collateralTokens = extractTokensFromName("USDC");
+  const collateralTokens = extractTokensFromName(meta?.collateralSymbol ?? "USDC");
+  const tokenSymbol = (meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "");
+
+  // Smart formatter: shows enough sig figs for tiny IRS collateral/fee values
+  const formatAmount = (n: number): string => {
+    if (n === 0) return "0";
+    if (Math.abs(n) >= 0.01) return numberFormatter(n);
+    // For very small values, show 4 significant digits
+    return n.toPrecision(4);
+  };
+
   return (
     <FullModal isOpen={isOpen} onClose={onClose} maxWidth="1120px">
       <div
@@ -315,23 +360,23 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         {/* ========== A. MODAL HEADER ========== */}
         <div className="px-6 pt-5 pb-4 border-b border-white/4 shrink-0">
           <div className="flex items-center gap-3 pr-10">
-            <div className="flex items-center gap-1">
-              {tokens.map((token) => {
-                const Logo = TOKEN_LOGOS[token];
-                return <Logo key={token} size={40} />;
-              })}
-            </div>
+            {(() => { const PL = getProtocolLogo(market.protocol); return <PL size={40} />; })()}
             <div>
-              <h2 className="text-lg font-semibold text-white tracking-tight">
-                {market.name}
+              <h2 className="text-lg font-semibold text-[#e8e6ee] tracking-tight">
+                {market.protocol}
               </h2>
-              <p className="text-[11px] text-[#8A8894]">
-                {meta.oracleSource} · {termDays} Day Term
+              <p className="text-[11px] text-[#9896a3] flex items-center gap-1">
+                {market.name}
+                {collateralTokens.map((token) => {
+                  const Logo = TOKEN_LOGOS[token];
+                  return <Logo key={token} size={14} />;
+                })}
+                {tokenSymbol} · {termDays}d Term
               </p>
             </div>
-            <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 mr-8">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
+            <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#34d399]/20 bg-[#34d399]/5 mr-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
+              <span className="text-[10px] font-semibold text-[#34d399] uppercase tracking-wider">
                 Live
               </span>
             </div>
@@ -339,20 +384,20 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         </div>
 
         {/* ========== B. RATE STRIP ========== */}
-        <div className="px-6 py-4 border-b border-white/[0.04] flex items-center gap-4 shrink-0 bg-[#0d0d10]">
+        <div className="px-6 py-4 border-b border-white/[0.04] flex items-center gap-4 shrink-0 bg-[rgba(12,12,18,0.5)]">
           <div>
-            <div className="text-[10px] font-semibold text-[#8A8894] uppercase tracking-wider mb-1">
+            <div className="text-[10px] font-semibold text-[#9896a3] uppercase tracking-wider mb-1">
               Current Rate
             </div>
-            <span className="font-mono text-3xl font-bold text-white tracking-tighter">
+            <span className="font-mono text-3xl font-bold text-[#e8e6ee] tracking-tighter">
               {currentRate.toFixed(2)}%
             </span>
           </div>
           <span
             className={`text-xs font-mono font-semibold px-2.5 py-1 rounded-lg ${
               dayChange >= 0
-                ? "text-[#34d399] bg-[#34d399]/10"
-                : "text-[#f43f5e] bg-[#f43f5e]/10"
+                ? "text-[#34d399] bg-[rgba(52,211,153,0.12)]"
+                : "text-[#f87171] bg-[rgba(248,113,113,0.12)]"
             }`}
           >
             {dayChange >= 0 ? "+" : ""}
@@ -361,36 +406,79 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           </span>
         </div>
 
+        {/* ========== STAT ROW ========== */}
+        <div className="flex gap-px bg-[#1e1e2a] rounded-xl overflow-hidden mx-6 mb-5 shrink-0 mt-5">
+          {[
+            { label: "Oracle Source", value: meta.oracleSource },
+            { label: "Available Liq.", value: `${numberFormatter(available > 0 ? available : 0)} ${tokenSymbol}` },
+            { label: "Pool Util.", value: `${utilization.toFixed(1)}%` },
+            { label: "Active Swaps", value: String(activeSwaps) },
+          ].map((s) => (
+            <div key={s.label} className="flex-1 bg-[rgba(17,17,24,0.7)] p-3.5 first:rounded-l-xl last:rounded-r-xl">
+              <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">{s.label}</div>
+              <div className="font-mono font-bold text-[0.9rem] text-[#e8e6ee]">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
         {/* ========== C. TWO-COLUMN BODY ========== */}
-        <div className="flex-1 overflow-hidden grid grid-cols-1 min-[960px]:grid-cols-[1fr_360px]">
+        <div className="relative flex-1 overflow-hidden grid grid-cols-1 min-[960px]:grid-cols-[1fr_360px]">
+          {/* Wallet Gate Overlay */}
+          {!isConnected && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-md bg-black/40">
+              <div className="flex flex-col items-center gap-4 p-8 rounded-2xl bg-[#0c0c12]/90 border border-[rgba(52,211,153,0.15)] shadow-2xl max-w-xs text-center">
+                <div className="w-14 h-14 rounded-full bg-[#34d399]/10 border border-[#34d399]/20 flex items-center justify-center">
+                  <Wallet className="w-7 h-7 text-[#6ee7b7]" />
+                </div>
+                <h3 className="text-[#e8e6ee] font-bold text-base tracking-tight">
+                  Connect Your Wallet
+                </h3>
+                <p className="text-[#9896a3] text-xs leading-relaxed">
+                  Connect your wallet to view live charts, configure your trade, and execute swaps.
+                </p>
+                <button
+                  onClick={() => setShowAuthFlow(true)}
+                  className="w-full py-3 rounded-xl font-semibold text-sm
+                    bg-gradient-to-br from-[#6ee7b7] to-[#34d399]
+                    text-[#030305]
+                    shadow-lg shadow-[rgba(52,211,153,0.20)]
+                    hover:shadow-xl hover:shadow-[rgba(52,211,153,0.38)]
+                    transition-all duration-300
+                    cursor-pointer"
+                >
+                  Connect Wallet
+                </button>
+              </div>
+            </div>
+          )}
           {/* ===== C1. LEFT COLUMN ===== */}
           <div className="overflow-y-auto p-6 space-y-5 border-r border-white/[0.04]">
             {/* Chart Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex gap-1 p-0.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+              <div className="flex gap-1 p-1 bg-[rgba(17,17,24,0.7)] rounded-[10px] border border-[#1e1e2a] w-fit">
                 {["Rate", "TWA Rate"].map((t) => (
                   <button
                     key={t}
                     onClick={() => setChartRateType(t)}
-                    className={`px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`px-4 py-2 rounded-lg font-semibold text-[0.75rem] transition-all cursor-pointer ${
                       chartRateType === t
-                        ? "bg-white/[0.06] text-white"
-                        : "text-[#8A8894] hover:text-[#BAB8C4]"
+                        ? "bg-[rgba(255,255,255,0.06)] text-[#e8e6ee]"
+                        : "text-[#9896a3] hover:text-[#e8e6ee]"
                     }`}
                   >
                     {t}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1 p-0.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+              <div className="flex gap-1 p-1 bg-[rgba(17,17,24,0.7)] rounded-[10px] border border-[#1e1e2a] w-fit">
                 {["1W", "1M", "3M", "ALL"].map((t) => (
                   <button
                     key={t}
                     onClick={() => setChartTimeRange(t)}
-                    className={`px-2.5 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`px-4 py-2 rounded-lg font-semibold text-[0.75rem] transition-all cursor-pointer ${
                       chartTimeRange === t
-                        ? "bg-white/[0.06] text-white"
-                        : "text-[#8A8894] hover:text-[#BAB8C4]"
+                        ? "bg-[rgba(255,255,255,0.06)] text-[#e8e6ee]"
+                        : "text-[#9896a3] hover:text-[#e8e6ee]"
                     }`}
                   >
                     {t}
@@ -399,84 +487,15 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               </div>
             </div>
 
-            {/* Static SVG Chart */}
-            <div className="relative rounded-xl bg-white/[0.015] border border-[#1FD6A3]/10 overflow-hidden">
-              {/* Chart (dimmed but visible) */}
-              <div className="opacity-60 pointer-events-none select-none">
-                <svg
-                  viewBox="0 0 600 255"
-                  className="w-full"
-                  style={{ height: 255 }}
-                >
-                  <defs>
-                    <linearGradient
-                      id="chartGradient"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor="#1FD6A3"
-                        stopOpacity="0.35"
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="#1FD6A3"
-                        stopOpacity="0.05"
-                      />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Grid */}
-                  {[60, 110, 160, 210].map((y) => (
-                    <line
-                      key={y}
-                      x1="40"
-                      y1={y}
-                      x2="580"
-                      y2={y}
-                      stroke="rgba(31,214,163,0.08)"
-                      strokeDasharray="4 4"
-                    />
-                  ))}
-
-                  {/* Area */}
-                  <path
-                    d="M60,150 C100,140 140,155 180,130 C220,105 260,120 300,100 C340,80 380,95 420,85 C460,75 500,90 540,70 L540,230 L60,230 Z"
-                    fill="url(#chartGradient)"
-                  />
-
-                  {/* Line */}
-                  <path
-                    d="M60,150 C100,140 140,155 180,130 C220,105 260,120 300,100 C340,80 380,95 420,85 C460,75 500,90 540,70"
-                    fill="none"
-                    stroke="#1FD6A3"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    opacity="0.9"
-                  />
-                </svg>
-              </div>
-
-              {/* Subtle Dark Overlay */}
-              <div className="absolute inset-0 bg-black/45" />
-
-              {/* Centered Label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">
-                  Performance Chart
-                </div>
-                <div className="mt-2 text-lg font-semibold text-[#1FD6A3]">
-                  Coming Soon
-                </div>
-              </div>
-            </div>
+            {/* Rate History Chart */}
+            <OracleChart
+              oracleAddress={MARKET_META[market.id]?.oracleAddress ?? ''}
+              isOpen={isOpen}
+            />
 
             {/* Info Tabs — pill style */}
             <div>
-              <div className="flex gap-1 mb-3 p-0.5 rounded-lg bg-white/[0.02] border border-white/[0.04] w-fit">
+              <div className="flex gap-1 p-1 bg-[rgba(17,17,24,0.7)] rounded-[10px] border border-[#1e1e2a] w-fit mb-3">
                 {(
                   [
                     { key: "overview", label: "Overview" },
@@ -487,10 +506,10 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   <button
                     key={t.key}
                     onClick={() => setInfoTab(t.key)}
-                    className={`px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`px-4 py-2 rounded-lg font-semibold text-[0.75rem] transition-all cursor-pointer ${
                       infoTab === t.key
-                        ? "bg-white/[0.06] text-white"
-                        : "text-[#8A8894] hover:text-[#BAB8C4]"
+                        ? "bg-[rgba(255,255,255,0.06)] text-[#e8e6ee]"
+                        : "text-[#9896a3] hover:text-[#e8e6ee]"
                     }`}
                   >
                     {t.label}
@@ -501,11 +520,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               {/* Overview Tab */}
               {infoTab === "overview" && (
                 <div className="space-y-4">
-                  <p className="text-[12px] text-[#8A8894] leading-relaxed">
+                  <p className="text-[12px] text-[#9896a3] leading-relaxed">
                     {activeSide === "FIXED" ? (
                       <>
                         By taking the{" "}
-                        <span className="text-white font-semibold">Fixed</span>{" "}
+                        <span className="text-[#e8e6ee] font-semibold">Fixed</span>{" "}
                         side, you lock in the current rate. You profit when
                         floating rates fall below your locked rate, and lose
                         when rates rise above it. Your maximum loss is limited
@@ -514,7 +533,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     ) : (
                       <>
                         By taking the{" "}
-                        <span className="text-white font-semibold">Float</span>{" "}
+                        <span className="text-[#e8e6ee] font-semibold">Float</span>{" "}
                         side, you receive the floating rate and pay the fixed
                         rate. You profit when rates rise above the locked rate,
                         and lose when rates fall below it. Your maximum loss is
@@ -522,42 +541,6 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                       </>
                     )}
                   </p>
-
-                  {/* Detail Grid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: "Oracle Source", value: meta.oracleSource },
-                      {
-                        label: "Available Liq.",
-                        value: `$${numberFormatter(available > 0 ? available : 0)}`,
-                      },
-                      {
-                        label: "Pool Utilization",
-                        value: `${utilization.toFixed(1)}%`,
-                      },
-                      {
-                        label: "Active Swaps",
-                        value: String(activeSwaps),
-                      },
-                      {
-                        label: "Rate 7D Range",
-                        value: `${(currentRate - 0.5).toFixed(2)}% – ${(currentRate + 0.3).toFixed(2)}%`,
-                      },
-                      { label: "Expiry", value: settlementDate },
-                    ].map((p) => (
-                      <div
-                        key={p.label}
-                        className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
-                      >
-                        <div className="text-[9px] font-semibold text-[#5C5A66] uppercase tracking-wider mb-0.5">
-                          {p.label}
-                        </div>
-                        <div className="text-xs font-mono font-semibold text-[#BAB8C4]">
-                          {p.value}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
 
                   {/* Oracle addresses */}
                   <div className="space-y-2">
@@ -575,22 +558,22 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     ].map((row) => (
                       <div
                         key={row.field}
-                        className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+                        className="flex items-center justify-between bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5"
                       >
                         <div>
-                          <div className="text-[9px] font-semibold text-[#5C5A66] uppercase tracking-wider mb-0.5">
+                          <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">
                             {row.label}
                           </div>
-                          <div className="text-xs font-mono text-[#8A8894]">
+                          <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">
                             {truncHex(row.value)}
                           </div>
                         </div>
                         <button
                           onClick={() => handleCopy(row.value, row.field)}
-                          className="p-1.5 rounded-md hover:bg-white/[0.05] text-[#8A8894] hover:text-white transition-colors cursor-pointer"
+                          className="p-1.5 rounded-md hover:bg-white/[0.05] text-[#9896a3] hover:text-[#e8e6ee] transition-colors cursor-pointer"
                         >
                           {copiedField === row.field ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <Check className="w-3.5 h-3.5 text-[#34d399]" />
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
                           )}
@@ -623,11 +606,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     },
                     {
                       label: "Min Notional",
-                      value: `$${numberFormatter(marketDetails?.params?.minNotional ?? 0)}`,
+                      value: `${numberFormatter(marketDetails?.params?.minNotional ?? 0)} ${tokenSymbol}`,
                     },
                     {
                       label: "Max Notional",
-                      value: `$${numberFormatter(marketDetails?.params?.maxNotional ?? 0)}`,
+                      value: `${numberFormatter(marketDetails?.params?.maxNotional ?? 0)} ${tokenSymbol}`,
                     },
                     {
                       label: "Max Utilization",
@@ -648,12 +631,12 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   ].map((p) => (
                     <div
                       key={p.label}
-                      className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+                      className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5"
                     >
-                      <div className="text-[9px] font-semibold text-[#5C5A66] uppercase tracking-wider mb-0.5">
+                      <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">
                         {p.label}
                       </div>
-                      <div className="text-xs font-mono font-semibold text-[#BAB8C4]">
+                      <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">
                         {p.value}
                       </div>
                     </div>
@@ -663,11 +646,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
               {/* Risks Tab */}
               {infoTab === "risks" && (
-                <div className="space-y-3 text-[12px] text-[#8A8894] leading-relaxed">
+                <div className="space-y-3 text-[12px] text-[#9896a3] leading-relaxed">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
                     <p>
-                      <span className="text-white font-semibold">
+                      <span className="text-[#e8e6ee] font-semibold">
                         Liquidation risk.
                       </span>{" "}
                       If your position&apos;s health factor drops below the
@@ -680,7 +663,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
                     <p>
-                      <span className="text-white font-semibold">
+                      <span className="text-[#e8e6ee] font-semibold">
                         Early exit penalty.
                       </span>{" "}
                       Closing your swap before maturity incurs an early exit fee
@@ -691,7 +674,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
                     <p>
-                      <span className="text-white font-semibold">
+                      <span className="text-[#e8e6ee] font-semibold">
                         Max loss = collateral deposited.
                       </span>{" "}
                       Your maximum loss is limited to the collateral you
@@ -702,7 +685,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
                     <p>
-                      <span className="text-white font-semibold">
+                      <span className="text-[#e8e6ee] font-semibold">
                         Oracle risk.
                       </span>{" "}
                       Rates are sourced from on-chain oracles. Oracle
@@ -713,10 +696,55 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 </div>
               )}
             </div>
+
+            {/* P&L Scenario Card */}
+            <div className="p-4 rounded-xl bg-white/[0.02] border border-[#34d399]/10 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 rounded-full bg-[#34d399]" />
+                <span className="text-[10px] font-semibold text-[#e8e6ee] uppercase tracking-wider">
+                  P&L at Expiry
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {pnlScenarios.map((s) => (
+                  <div
+                    key={s.label}
+                    className="p-2.5 rounded-xl bg-white/[0.015] border border-white/[0.05] text-center"
+                  >
+                    <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1">
+                      {s.label}
+                    </div>
+
+                    <div className="text-[10px] font-mono text-white/60 mb-1">
+                      {s.rate}
+                    </div>
+
+                    <div
+                      className={`text-sm font-mono font-bold ${
+                        s.pnl >= 0 ? "text-[#34d399]" : "text-red-400"
+                      }`}
+                    >
+                      {s.pnl >= 0 ? "+" : "-"}
+                      {formatAmount(Math.abs(s.pnl))}
+                    </div>
+
+                    <div
+                      className={`text-[9px] font-mono ${
+                        s.pct >= 0 ? "text-[#34d399]/70" : "text-red-400/70"
+                      }`}
+                    >
+                      {s.pct >= 0 ? "+" : ""}
+                      {s.pct.toFixed(1)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* ===== C2. RIGHT COLUMN ===== */}
-          <div className="flex flex-col overflow-y-auto bg-gradient-to-b from-[#0f0f14] to-transparent">
+          <div className="flex flex-col overflow-y-auto bg-gradient-to-b from-[rgba(12,12,18,0.7)] to-transparent">
             <div className="p-5 space-y-4 flex-1">
               {/* Curator */}
               <div className="flex items-center justify-between">
@@ -728,8 +756,8 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   href="https://x.com/asceswap"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[10px] font-medium 
-               text-[#1FD6A3]/70 hover:text-[#1FD6A3] 
+                  className="flex items-center gap-1.5 text-[10px] font-medium
+               text-[#34d399]/70 hover:text-[#34d399]
                transition-colors"
                 >
                   <svg
@@ -745,61 +773,35 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               </div>
 
               {/* Side Selector */}
-              <div className="grid grid-cols-2 gap-2">
-                {/* FIXED */}
+              <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.04]">
                 <button
                   onClick={() => setActiveSide("FIXED")}
-                  className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-xl 
-                transition-all cursor-pointer border ${
-                  activeSide === "FIXED"
-                    ? "bg-[#1FD6A3]/10 border-[#1FD6A3]/30 text-[#1FD6A3]"
-                    : "bg-white/[0.02] border-white/[0.05] text-white/50 hover:text-white/70 hover:bg-white/[0.04]"
-                }`}
+                  className={`py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider
+              transition-all cursor-pointer ${
+                activeSide === "FIXED"
+                  ? "bg-[#34d399] text-black shadow-[0_0_20px_-5px_rgba(52,211,153,0.6)]"
+                  : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
+              }`}
                 >
-                  <ArrowDown
-                    className={`w-5 h-5 ${
-                      activeSide === "FIXED"
-                        ? "text-[#1FD6A3]"
-                        : "text-white/40"
-                    }`}
-                  />
-                  <span className="text-[11px] font-semibold uppercase tracking-wider">
-                    Fixed
-                  </span>
-                  <span className="text-[9px] text-white/40 font-medium">
-                    Rates go down
-                  </span>
+                  Fixed
                 </button>
 
-                {/* FLOATING */}
                 <button
                   onClick={() => setActiveSide("FLOATING")}
-                  className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-xl 
-                transition-all cursor-pointer border ${
-                  activeSide === "FLOATING"
-                    ? "bg-[#1FD6A3]/10 border-[#1FD6A3]/30 text-[#1FD6A3]"
-                    : "bg-white/[0.02] border-white/[0.05] text-white/50 hover:text-white/70 hover:bg-white/[0.04]"
-                }`}
+                  className={`py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider
+              transition-all cursor-pointer ${
+                activeSide === "FLOATING"
+                  ? "bg-[#34d399] text-black shadow-[0_0_20px_-5px_rgba(52,211,153,0.6)]"
+                  : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
+              }`}
                 >
-                  <ArrowUp
-                    className={`w-5 h-5 ${
-                      activeSide === "FLOATING"
-                        ? "text-[#1FD6A3]"
-                        : "text-white/40"
-                    }`}
-                  />
-                  <span className="text-[11px] font-semibold uppercase tracking-wider">
-                    Float
-                  </span>
-                  <span className="text-[9px] text-white/40 font-medium">
-                    Rates go up
-                  </span>
+                  Float
                 </button>
               </div>
 
-              {/* Notional Slider Card */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-[#1FD6A3]/10 space-y-3">
-                <div className="text-[10px] font-semibold text-[#8A8894] uppercase tracking-wider">
+              {/* Notional Input Section */}
+              <div className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[14px] p-[18px] space-y-3">
+                <div className="font-mono text-[0.6rem] tracking-[0.1em] uppercase text-[#5c5a66]">
                   Notional Amount
                 </div>
                 <div className="flex items-center gap-2">
@@ -809,72 +811,51 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     value={notional === 0 ? "" : notional}
                     onChange={(e) => handleAmountChange(e.target.value)}
                     placeholder="0"
-                    className="bg-transparent border-none outline-none text-5xl font-mono font-bold text-white tracking-tighter w-full focus:ring-0 placeholder:opacity-20"
+                    className="bg-transparent border-none outline-none font-serif font-bold text-[1.8rem] text-[#e8e6ee] tracking-tighter w-full focus:ring-0 placeholder:opacity-20"
                   />
-                  <span className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#2775ca]/10 text-[10px] font-bold text-[#2775ca] uppercase shrink-0">
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[rgba(52,211,153,0.08)] border border-[rgba(52,211,153,0.15)] font-mono font-bold text-[0.75rem] text-[#34d399] shrink-0">
                     <div className="flex items-center gap-1">
                       {collateralTokens.map((token) => {
                         const Logo = TOKEN_LOGOS[token];
                         return <Logo key={token} size={20} />;
                       })}
                     </div>
-                    USDC
+                    {(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")}
                   </span>
                 </div>
 
                 {/* Slider */}
                 <input
                   type="range"
-                  min={0}
-                  max={maxAmount}
-                  step={maxAmount > 100 ? maxAmount / 100 : 0.01}
-                  value={Math.min(notional, maxAmount)}
+                  min={minNotional}
+                  max={maxNotional}
+                  step={(maxNotional - minNotional) / 100 || 0.0001}
+                  value={Math.min(Math.max(notional, minNotional), maxNotional)}
                   onChange={(e) => setNotional(Number(e.target.value))}
-                  className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                  className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-indigo-500
+                    [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-[#0c0c12]"
                 />
-                <div className="flex justify-between text-[9px] font-mono text-[#5C5A66]">
-                  <div className="flex flex-col">
-                    <span>Min: ${numberFormatter(minNotional)}</span>
-                    <span>max :${numberFormatter(maxNotional)}</span>
+                <div className="flex justify-between items-center text-[9px] font-mono text-[#5C5A66]">
+                  <div className="flex items-center gap-3">
+                    <span>Min: {numberFormatter(minNotional)}</span>
+                    <span>Max: {numberFormatter(maxNotional)}</span>
                   </div>
-                  <div
-                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full 
-                bg-[#1FD6A3]/10 
-                border border-[#1FD6A3]/20 
-                text-[10px] font-semibold 
-                text-[#1FD6A3] 
-                uppercase tracking-widest 
-                transition-colors 
-                hover:bg-[#1FD6A3]/20 
-                cursor-default"
+                  <button
+                    onClick={() => walletBalance && setNotional(Math.min(walletBalance, maxNotional))}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md
+                      border border-[rgba(52,211,153,0.2)] bg-[rgba(52,211,153,0.06)]
+                      font-mono text-[0.6rem] font-bold text-[#34d399]
+                      cursor-pointer hover:bg-[rgba(52,211,153,0.12)]
+                      transition-colors"
                   >
-                    <Wallet className="w-3 h-3 text-[#1FD6A3]" />
-                    Wallet: $
-                    {numberFormatter(walletBalance ? walletBalance : 0)}
-                  </div>
-                </div>
-
-                {/* Preset Buttons */}
-                <div className="flex gap-2 mt-2">
-                  {[25, 50, 75, 100].map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => {
-                        if (walletBalance !== null) {
-                          const value = (walletBalance * p) / 100;
-                          setNotional(Number(value.toFixed(2)));
-                        }
-                      }}
-                      className="px-2 cursor-pointer py-1 text-[9px] font-black rounded-md bg-white/5 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400"
-                    >
-                      {p}%
-                    </button>
-                  ))}
+                    <Wallet className="w-3 h-3 text-[#34d399]" />
+                    Wallet: {numberFormatter(walletBalance ? walletBalance : 0)}
+                  </button>
                 </div>
               </div>
 
-              {/* Quote Card */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-[#1FD6A3]/10 space-y-2">
+              {/* Summary Rows */}
+              <div className="flex flex-col">
                 <QuoteRow
                   label="Fixed Rate Locked"
                   value={`${lockedRate.toFixed(2)}%`}
@@ -882,105 +863,145 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 />
                 <QuoteRow
                   label="Required Collateral"
-                  value={`$${numberFormatter(collateral)}`}
-                  tooltip="Collateral = Notional × 100 / Margin Multiplier"
+                  value={`${formatAmount(collateral)} ${tokenSymbol}`}
+                  tooltip="Collateral = maxExposure × margin multiplier (based on rate × term)"
                 />
                 <QuoteRow
                   label="Effective Leverage"
-                  value={`~${initialMarginPct.toFixed(0)}%`}
+                  value={`~${effectiveLeverage.toFixed(1)}x`}
                   highlight
                 />
                 <QuoteRow
                   label="Entry Fee"
-                  value={`$${numberFormatter(entryFee)}`}
+                  value={`${formatAmount(entryFee)} ${tokenSymbol}`}
                 />
                 <QuoteRow label="Market Maturity" value={settlementDate} />
               </div>
 
-              {/* P&L Scenario Card */}
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-[#1FD6A3]/10 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-4 rounded-full bg-[#1FD6A3]" />
-                  <span className="text-[10px] font-semibold text-white uppercase tracking-wider">
-                    P&L at Expiry
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  {pnlScenarios.map((s) => (
-                    <div
-                      key={s.label}
-                      className="p-2.5 rounded-xl bg-white/[0.015] border border-white/[0.05] text-center"
-                    >
-                      <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1">
-                        {s.label}
-                      </div>
-
-                      <div className="text-[10px] font-mono text-white/60 mb-1">
-                        {s.rate}
-                      </div>
-
-                      <div
-                        className={`text-sm font-mono font-bold ${
-                          s.pnl >= 0 ? "text-[#1FD6A3]" : "text-red-400"
-                        }`}
-                      >
-                        {s.pnl >= 0 ? "+" : ""}$
-                        {numberFormatter(Math.abs(s.pnl))}
-                      </div>
-
-                      <div
-                        className={`text-[9px] font-mono ${
-                          s.pct >= 0 ? "text-[#1FD6A3]/70" : "text-red-400/70"
-                        }`}
-                      >
-                        {s.pct >= 0 ? "+" : ""}
-                        {s.pct.toFixed(1)}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Slippage Row */}
               <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] text-[#8A8894] font-semibold">
+                <span className="text-[10px] text-[#9896a3] font-semibold">
                   Max Rate Tolerance
                 </span>
-                <span className="text-[11px] font-mono font-semibold text-[#BAB8C4] px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.04]">
-                  5.15%
+                <span className="text-[11px] font-mono font-semibold text-[#9896a3] px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.04]">
+                  {(lockedRate * 1.10).toFixed(2)}%
                 </span>
               </div>
 
-              {/* Error / Success */}
+              {/* Error */}
               {error && (
                 <div className="text-red-400 text-xs p-3 rounded-lg bg-red-500/5 border border-red-500/10">
                   {error}
                 </div>
               )}
+
+              {/* Success State */}
               {txHash && (
-                <div className="text-[#34d399] text-xs p-3 rounded-lg bg-[#34d399]/5 border border-[#34d399]/10 break-all">
-                  Transaction submitted: {txHash}
+                <div className="p-5 rounded-2xl bg-[#34d399]/[0.04] border border-[#34d399]/20 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {/* Success Header */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#34d399]/10 border border-[#34d399]/20 flex items-center justify-center shrink-0">
+                      <Check className="w-5 h-5 text-[#34d399]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#e8e6ee]">Swap Executed</p>
+                      <p className="text-[10px] text-white/50">Position NFT minted to your wallet</p>
+                    </div>
+                  </div>
+
+                  {/* Swap Summary */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                      <div className="text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-0.5">Side</div>
+                      <div className="text-[11px] font-semibold text-[#e8e6ee]">{activeSide === "FIXED" ? "Fixed" : "Float"}</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                      <div className="text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-0.5">Notional</div>
+                      <div className="text-[11px] font-mono font-semibold text-[#e8e6ee]">{formatAmount(notional)} {tokenSymbol}</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                      <div className="text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-0.5">Locked Rate</div>
+                      <div className="text-[11px] font-mono font-semibold text-[#e8e6ee]">{lockedRate.toFixed(2)}%</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                      <div className="text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-0.5">Collateral</div>
+                      <div className="text-[11px] font-mono font-semibold text-[#e8e6ee]">{formatAmount(collateral)} {tokenSymbol}</div>
+                    </div>
+                  </div>
+
+                  {/* Tx Hash */}
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+                    <div className="min-w-0">
+                      <div className="text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-0.5">Transaction</div>
+                      <div className="text-[11px] font-mono text-white/60 truncate">{`${txHash.slice(0, 10)}...${txHash.slice(-8)}`}</div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                      <button
+                        onClick={() => handleCopy(txHash, "txHash")}
+                        className="p-1.5 rounded-lg hover:bg-white/[0.05] text-white/40 hover:text-[#e8e6ee] transition-colors cursor-pointer"
+                      >
+                        {copiedField === "txHash" ? <Check className="w-3.5 h-3.5 text-[#34d399]" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                      <a
+                        href={`https://sepolia.voyager.online/tx/${txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg hover:bg-white/[0.05] text-white/40 hover:text-[#34d399] transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Explorer Button */}
+                  <a
+                    href={`https://sepolia.voyager.online/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl
+                      bg-[#34d399]/10 border border-[#34d399]/20
+                      text-[#34d399] text-[11px] font-semibold uppercase tracking-wider
+                      hover:bg-[#34d399]/20 transition-colors"
+                  >
+                    View on Explorer
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
               )}
             </div>
 
             {/* CTA Button — pinned bottom */}
             <div className="p-5 pt-0 mt-auto">
-              <button
-                disabled={notional === 0 || loading}
-                onClick={handleExecute}
-                className="w-full py-4 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
-               transition-all active:scale-[0.98] cursor-pointer
-               disabled:cursor-not-allowed disabled:opacity-40
-               bg-[#1FD6A3] hover:bg-[#19c495]
-               text-black
-               shadow-lg shadow-[#1FD6A3]/20 hover:shadow-[#1FD6A3]/40
-               flex items-center justify-center gap-2"
-              >
-                {loading ? "Executing..." : "Execute Swap"}
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {!txHash && walletBalance !== null && walletBalance < collateral + entryFee && notional > 0 && (
+                <div className="text-amber-400 text-[10px] p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 mb-2 text-center">
+                  Insufficient balance — need {formatAmount(collateral + entryFee)} {tokenSymbol}, wallet has {formatAmount(walletBalance)} {tokenSymbol}
+                </div>
+              )}
+              {txHash ? (
+                <button
+                  onClick={onClose}
+                  className="w-full py-4 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
+                   transition-all active:scale-[0.98] cursor-pointer
+                   bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08]
+                   text-[#e8e6ee]
+                   flex items-center justify-center gap-2"
+                >
+                  Close
+                </button>
+              ) : (
+                <button
+                  disabled={notional === 0 || loading || (walletBalance !== null && walletBalance < collateral + entryFee)}
+                  onClick={handleExecute}
+                  className="w-full py-4 rounded-xl bg-[#34d399] text-[#060608] font-bold text-[0.95rem]
+                   hover:bg-[#6ee7b7] active:bg-[#059669]
+                   disabled:bg-[rgba(17,17,24,0.7)] disabled:text-[#5c5a66] disabled:cursor-not-allowed
+                   transition-colors
+                   flex items-center justify-center gap-2"
+                >
+                  {loading ? "Executing..." : "Execute Swap"}
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -988,6 +1009,89 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     </FullModal>
   );
 };
+
+/* ─────────────────────── OracleChart ─────────────────────── */
+
+function OracleChart({ oracleAddress, isOpen }: { oracleAddress: string; isOpen: boolean }) {
+  const [points, setPoints] = useState<{ x: number; y: number; label: string; rate: number }[]>([]);
+
+  useEffect(() => {
+    if (!isOpen || !oracleAddress) return;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const history = await getOracleRateHistory(oracleAddress, 50);
+        if (cancelled || !history || history.length === 0) return;
+
+        const sorted = [...history].sort((a, b) => a.timestamp - b.timestamp);
+        const rates = sorted.map(h => h.rateBps / 100);
+        const minRate = Math.min(...rates);
+        const maxRate = Math.max(...rates);
+        const range = maxRate - minRate || 1;
+
+        const W = 600, H = 255, PAD_X = 60, PAD_Y = 30;
+        const plotW = W - PAD_X * 2;
+        const plotH = H - PAD_Y * 2;
+
+        const pts = sorted.map((entry, i) => {
+          const x = PAD_X + (i / Math.max(sorted.length - 1, 1)) * plotW;
+          const y = PAD_Y + plotH - ((entry.rateBps / 100 - minRate) / range) * plotH;
+          const d = new Date(entry.timestamp * 1000);
+          return {
+            x, y,
+            label: `${d.getMonth() + 1}/${d.getDate()}`,
+            rate: entry.rateBps / 100,
+          };
+        });
+
+        if (!cancelled) setPoints(pts);
+      } catch {
+        // History unavailable
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [oracleAddress, isOpen]);
+
+  if (points.length === 0) {
+    return (
+      <div className="relative rounded-xl bg-white/[0.015] border border-[#34d399]/10 overflow-hidden flex items-center justify-center" style={{ height: 255 }}>
+        <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+          Loading chart...
+        </div>
+      </div>
+    );
+  }
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const areaPath = linePath + ` L${points[points.length - 1].x},230 L${points[0].x},230 Z`;
+
+  return (
+    <div className="relative rounded-xl bg-white/[0.015] border border-[#34d399]/10 overflow-hidden">
+      <svg viewBox="0 0 600 255" className="w-full" style={{ height: 255 }}>
+        <defs>
+          <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#34d399" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#34d399" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+
+        {[60, 110, 160, 210].map((y) => (
+          <line key={y} x1="40" y1={y} x2="580" y2={y} stroke="rgba(52,211,153,0.08)" strokeDasharray="4 4" />
+        ))}
+
+        <path d={areaPath} fill="url(#chartGradient)" />
+        <path d={linePath} fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" opacity="0.9" />
+
+        {points.length > 0 && (
+          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="4" fill="#34d399" />
+        )}
+      </svg>
+    </div>
+  );
+}
 
 /* ─────────────────────── QuoteRow ─────────────────────── */
 
@@ -1005,8 +1109,8 @@ function QuoteRow({
   const [showTip, setShowTip] = useState(false);
 
   return (
-    <div className="flex items-center justify-between py-1 relative">
-      <span className="flex items-center gap-1 text-[11px] text-white/50">
+    <div className="flex items-center justify-between py-[11px] border-b border-[rgba(30,30,42,0.5)] last:border-b-0 relative">
+      <span className="flex items-center gap-1 text-[0.8rem] text-[#9896a3]">
         {label}
 
         {tooltip && (
@@ -1015,15 +1119,15 @@ function QuoteRow({
             onMouseEnter={() => setShowTip(true)}
             onMouseLeave={() => setShowTip(false)}
           >
-            <Info className="w-3 h-3 text-white/30 hover:text-[#1FD6A3] transition-colors" />
+            <Info className="w-3 h-3 text-white/30 hover:text-[#34d399] transition-colors" />
 
             {showTip && (
               <span
-                className="absolute left-full ml-2 top-1/2 -translate-y-1/2 
-                               bg-[#0e1110] 
-                               border border-[#1FD6A3]/20 
-                               rounded-lg px-3 py-2 
-                               text-[10px] text-white/70 
+                className="absolute left-full ml-2 top-1/2 -translate-y-1/2
+                               bg-[#0c0c12]
+                               border border-[#34d399]/20
+                               rounded-lg px-3 py-2
+                               text-[10px] text-white/70
                                whitespace-nowrap z-30 shadow-xl"
               >
                 {tooltip}
@@ -1034,8 +1138,8 @@ function QuoteRow({
       </span>
 
       <span
-        className={`text-[11px] font-mono font-semibold ${
-          highlight ? "text-[#1FD6A3]" : "text-white/70"
+        className={`font-mono font-bold text-[0.8rem] ${
+          highlight ? "text-[#34d399]" : "text-[#e8e6ee]"
         }`}
       >
         {value}
