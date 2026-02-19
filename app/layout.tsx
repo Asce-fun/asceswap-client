@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
+import { Plus_Jakarta_Sans, Sora, Space_Mono } from "next/font/google";
 
 import "./globals.css";
 import { ThemeProvider } from "./components/theme-provider";
@@ -7,17 +7,16 @@ import Web3Provider from "./providers/web3-provider";
 
 const plusJakartaSans = Plus_Jakarta_Sans({subsets:['latin'],variable:'--font-sans'});
 
-const ibmPlexMono = IBM_Plex_Mono({
+const sora = Sora({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-mono",
+  weight: ["400", "600", "700", "800"],
+  variable: "--font-sora",
 });
 
-const instrumentSerif = Instrument_Serif({
+const spaceMono = Space_Mono({
   subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-instrument-serif",
+  weight: ["400", "700"],
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -32,7 +31,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning className={plusJakartaSans.variable}>
-      <body className={`${plusJakartaSans.variable} ${ibmPlexMono.variable} ${instrumentSerif.variable} antialiased`}>
+      <body className={`${plusJakartaSans.variable} ${spaceMono.variable} ${sora.variable} antialiased`}>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
