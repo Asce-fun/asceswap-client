@@ -10,7 +10,7 @@ export default function TermsPage() {
     <PageLayout>
       <div className="max-w-4xl mx-auto">
         <button
-          className="flex cursor-pointer items-center gap-2 text-[#8A8894] hover:text-white transition-colors mb-8 group"
+          className="flex cursor-pointer items-center gap-2 text-[#9896a3] hover:text-[#e8e6ee] transition-colors mb-8 group"
           onClick={() => {
             router.push("/");
           }}
@@ -26,21 +26,21 @@ export default function TermsPage() {
             <div className="p-3 rounded-2xl bg-[#8b5cf6]/10 border border-[#8b5cf6]/20 text-[#8b5cf6]">
               <Scale className="w-6 h-6" />
             </div>
-            <h1 className="text-4xl font-bold tracking-tighter text-white leading-none">
+            <h1 className="text-4xl font-bold tracking-tighter text-[#e8e6ee] leading-none">
               Terms of Service
             </h1>
           </div>
-          <p className="text-[#8A8894] text-sm font-bold uppercase tracking-widest">
+          <p className="text-[#9896a3] text-sm font-bold uppercase tracking-widest">
             Last Updated: January 2025
           </p>
         </header>
 
         <div className="space-y-12 pb-24">
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-3">
+            <h2 className="text-xl font-bold text-[#e8e6ee] flex items-center gap-3">
               <span className="text-[#8b5cf6]">01.</span> Acceptance of Terms
             </h2>
-            <p className="text-[#8A8894] leading-relaxed">
+            <p className="text-[#9896a3] leading-relaxed">
               By accessing or using the Asceswap Protocol ("Asceswap", "we",
               "us"), you agree to be bound by these Terms of Service. If you do
               not agree to these terms, you must immediately cease all access to
@@ -49,16 +49,16 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-3">
+            <h2 className="text-xl font-bold text-[#e8e6ee] flex items-center gap-3">
               <span className="text-[#8b5cf6]">02.</span> Risk Disclosure
             </h2>
             <div className="p-6 bg-orange-500/[0.03] border border-orange-500/10 rounded-3xl flex gap-4">
               <ShieldAlert className="w-6 h-6 text-orange-500 shrink-0" />
               <div className="space-y-3">
-                <p className="text-[#BAB8C4] font-bold text-sm">
+                <p className="text-[#9896a3] font-bold text-sm">
                   Interest rate swaps involve significant financial risk.
                 </p>
-                <p className="text-[#8A8894] text-sm leading-relaxed">
+                <p className="text-[#9896a3] text-sm leading-relaxed">
                   The use of leverage can result in the rapid loss of your
                   collateral. Past performance of protocol yields is not
                   indicative of future results. You acknowledge that you are
@@ -69,10 +69,10 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-3">
+            <h2 className="text-xl font-bold text-[#e8e6ee] flex items-center gap-3">
               <span className="text-[#8b5cf6]">03.</span> No Fiduciary Duty
             </h2>
-            <p className="text-[#8A8894] leading-relaxed">
+            <p className="text-[#9896a3] leading-relaxed">
               Asceswap is a non-custodial decentralized application. We do not
               have access to your private keys, nor do we act as your broker,
               agent, or advisor. You are solely responsible for the custody of
@@ -81,13 +81,13 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-3">
+            <h2 className="text-xl font-bold text-[#e8e6ee] flex items-center gap-3">
               <span className="text-[#8b5cf6]">04.</span> Prohibited
               Jurisdictions
             </h2>
-            <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex gap-4">
-              <Globe className="w-6 h-6 text-[#8A8894] shrink-0" />
-              <p className="text-[#8A8894] text-sm leading-relaxed">
+            <div className="p-6 bg-white/[0.02] border border-[#1e1e2a] rounded-3xl flex gap-4">
+              <Globe className="w-6 h-6 text-[#9896a3] shrink-0" />
+              <p className="text-[#9896a3] text-sm leading-relaxed">
                 Users from the United States, North Korea, Iran, and other
                 sanctioned regions are strictly prohibited from interacting with
                 the protocol. By using this site, you represent that you are not
@@ -97,10 +97,10 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-3">
+            <h2 className="text-xl font-bold text-[#e8e6ee] flex items-center gap-3">
               <span className="text-[#8b5cf6]">05.</span> Protocol Fees
             </h2>
-            <p className="text-[#8A8894] leading-relaxed">
+            <p className="text-[#9896a3] leading-relaxed">
               Asceswap charges a 2% fee on all swaps. 80% of these fees are
               distributed to liquidity providers, and 20% are retained by the
               protocol for security and maintenance. Fees are subject to change
