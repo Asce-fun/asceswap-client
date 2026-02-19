@@ -64,18 +64,18 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
   if (showSuccess) {
     return (
       <div
-        className={`p-12 text-center space-y-6 ${isDark ? "bg-[#111114]" : "bg-white"}`}
+        className={`p-12 text-center space-y-6 ${isDark ? "bg-[rgba(12,12,18,0.6)]" : "bg-white"}`}
       >
-        <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto border border-emerald-500/50">
-          <Send className="w-10 h-10 text-emerald-500" />
+        <div className="w-20 h-20 bg-[#34d399]/20 rounded-full flex items-center justify-center mx-auto border border-[#34d399]/50">
+          <Send className="w-10 h-10 text-[#34d399]" />
         </div>
         <div className="space-y-2">
           <h2
-            className={`text-2xl font-black tracking-tighter ${isDark ? "text-white" : "text-slate-900"}`}
+            className={`text-2xl font-black tracking-tighter ${isDark ? "text-[#e8e6ee]" : "text-slate-900"}`}
           >
             Transfer Initiated
           </h2>
-          <p className="text-sm text-[#8A8894] font-medium">
+          <p className="text-sm text-[#9896a3] font-medium">
             Position NFT #{tokenId} is being moved to {recipient.slice(0, 6)}...
           </p>
         </div>
@@ -85,23 +85,23 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
 
   return (
     <div
-      className={`flex flex-col transition-colors duration-300 ${isDark ? "bg-[#111114] text-[#E4E2E8]" : "bg-white text-slate-900"}`}
+      className={`flex flex-col transition-colors duration-300 ${isDark ? "bg-[rgba(12,12,18,0.6)] text-[#E4E2E8]" : "bg-white text-slate-900"}`}
     >
       {/* Header Section */}
       <div
-        className={`p-8 pb-10 border-b bg-linear-to-br from-[#8b5cf6]/10 via-transparent to-transparent ${isDark ? "border-white/5" : "border-slate-100"}`}
+        className={`p-8 pb-10 border-b bg-linear-to-br from-[#8b5cf6]/10 via-transparent to-transparent ${isDark ? "border-[#1e1e2a]" : "border-slate-100"}`}
       >
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-8 rounded-full bg-[#8b5cf6] shadow-lg shadow-[rgba(167,139,250,0.40)]" />
             <h2
-              className={`text-3xl font-black tracking-tighter leading-none ${isDark ? "text-white" : "text-slate-900"}`}
+              className={`text-3xl font-black tracking-tighter leading-none ${isDark ? "text-[#e8e6ee]" : "text-slate-900"}`}
             >
               Transfer Position
             </h2>
           </div>
           <p
-            className={`text-[10px] font-black uppercase tracking-[0.25em] ml-4 ${isDark ? "text-[#8A8894]" : "text-[#8A8894]"}`}
+            className={`text-[10px] font-black uppercase tracking-[0.25em] ml-4 ${isDark ? "text-[#9896a3]" : "text-[#9896a3]"}`}
           >
             NFT OWNERSHIP MIGRATION <span className="mx-2 opacity-20">•</span>{" "}
             {market.name}
@@ -110,25 +110,25 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
 
         <div className="grid grid-cols-2 gap-4 mt-8">
           <div
-            className={`p-4 rounded-2xl border ${isDark ? "bg-black/40 border-white/5" : "bg-slate-50 border-slate-100"}`}
+            className={`p-4 rounded-2xl border ${isDark ? "bg-black/40 border-[#1e1e2a]" : "bg-slate-50 border-slate-100"}`}
           >
-            <div className="text-[9px] font-black text-[#8A8894] uppercase tracking-widest mb-1 flex items-center gap-1">
+            <div className="text-[9px] font-black text-[#9896a3] uppercase tracking-widest mb-1 flex items-center gap-1">
               <Hash className="w-3 h-3" /> Swap ID
             </div>
             <div
-              className={`text-lg font-mono font-bold ${isDark ? "text-white" : "text-slate-800"}`}
+              className={`text-lg font-mono font-bold ${isDark ? "text-[#e8e6ee]" : "text-slate-800"}`}
             >
               #{tokenId}
             </div>
           </div>
           <div
-            className={`p-4 rounded-2xl border ${isDark ? "bg-black/40 border-white/5" : "bg-slate-50 border-slate-100"}`}
+            className={`p-4 rounded-2xl border ${isDark ? "bg-black/40 border-[#1e1e2a]" : "bg-slate-50 border-slate-100"}`}
           >
-            <div className="text-[9px] font-black text-[#8A8894] uppercase tracking-widest mb-1 flex items-center gap-1">
+            <div className="text-[9px] font-black text-[#9896a3] uppercase tracking-widest mb-1 flex items-center gap-1">
               <Box className="w-3 h-3" /> Asset
             </div>
             <div
-              className={`text-lg font-mono font-bold ${isDark ? "text-white" : "text-slate-800"}`}
+              className={`text-lg font-mono font-bold ${isDark ? "text-[#e8e6ee]" : "text-slate-800"}`}
             >
               <div className="flex items-center gap-1">
                 {tokens.map((token) => {
@@ -150,14 +150,14 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
         {/* Recipient Input */}
         <div className="space-y-3">
           <label
-            className={`text-[10px] font-black uppercase tracking-[0.2em] block ml-1 ${isDark ? "text-[#8A8894]" : "text-[#8A8894]"}`}
+            className={`text-[10px] font-black uppercase tracking-[0.2em] block ml-1 ${isDark ? "text-[#9896a3]" : "text-[#9896a3]"}`}
           >
             Recipient Starknet Address
           </label>
           <div className={`relative group`}>
             <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
               <User
-                className={`w-5 h-5 ${isDark ? "text-[#5C5A66]" : "text-[#8A8894]"}`}
+                className={`w-5 h-5 ${isDark ? "text-[#5C5A66]" : "text-[#9896a3]"}`}
               />
             </div>
             <input
@@ -167,8 +167,8 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
               onChange={(e) => setRecipient(e.target.value)}
               className={`w-full py-5 pl-14 pr-6 rounded-2xl border font-mono text-sm transition-all focus:ring-0 outline-none ${
                 isDark
-                  ? "bg-white/2 border-white/5 focus:border-[#8b5cf6]/50 text-white placeholder:text-[#5C5A66]"
-                  : "bg-slate-50 border-slate-200 focus:border-[#8b5cf6] text-slate-900 placeholder:text-[#BAB8C4]"
+                  ? "bg-white/2 border-[#1e1e2a] focus:border-[#8b5cf6]/50 text-white placeholder:text-[#5C5A66]"
+                  : "bg-slate-50 border-slate-200 focus:border-[#8b5cf6] text-slate-900 placeholder:text-[#9896a3]"
               }`}
             />
           </div>
@@ -190,7 +190,7 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
               Critical Ownership Action
             </h4>
             <p
-              className={`text-[11px] leading-relaxed font-medium ${isDark ? "text-[#8A8894]" : "text-[#5C5A66]"}`}
+              className={`text-[11px] leading-relaxed font-medium ${isDark ? "text-[#9896a3]" : "text-[#5C5A66]"}`}
             >
               Transferring this position moves the underlying collateral and all
               future yield accruals to the new address. Ensure the recipient
@@ -205,17 +205,17 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
 
         {/* Details List */}
         <div
-          className={`p-5 rounded-2xl border space-y-3 ${isDark ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100"}`}
+          className={`p-5 rounded-2xl border space-y-3 ${isDark ? "bg-black/20 border-[#1e1e2a]" : "bg-slate-50 border-slate-100"}`}
         >
           <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
-            <span className="text-[#8A8894]">Gas Estimate</span>
-            <span className={isDark ? "text-[#BAB8C4]" : "text-slate-700"}>
+            <span className="text-[#9896a3]">Gas Estimate</span>
+            <span className={isDark ? "text-[#9896a3]" : "text-slate-700"}>
               ~0.00042 STRK
             </span>
           </div>
           <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
-            <span className="text-[#8A8894]">Platform Fee</span>
-            <span className="text-emerald-500">Free</span>
+            <span className="text-[#9896a3]">Platform Fee</span>
+            <span className="text-[#34d399]">Free</span>
           </div>
         </div>
 
@@ -223,7 +223,7 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
         <div className="flex gap-4 pt-2">
           <button
             onClick={onClose}
-            className={`flex-1 py-5 rounded-2xl font-black uppercase tracking-[0.25em] text-[10px] transition-all border ${isDark ? "text-[#8A8894] hover:text-white hover:bg-white/5 border-white/5" : "text-[#8A8894] hover:text-slate-900 hover:bg-slate-100 border-slate-100"}`}
+            className={`flex-1 py-5 rounded-2xl font-black uppercase tracking-[0.25em] text-[10px] transition-all border ${isDark ? "text-[#9896a3] hover:text-[#e8e6ee] hover:bg-white/5 border-[#1e1e2a]" : "text-[#9896a3] hover:text-slate-900 hover:bg-slate-100 border-slate-100"}`}
           >
             Cancel
           </button>
