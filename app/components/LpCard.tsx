@@ -7,6 +7,7 @@ import { MARKET_META } from "../constants/markets";
 import numberFormatter from "../blockchain/utils/numberFormatter";
 import { extractTokensFromName } from "../lib/helpers/helpers";
 import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
+import { getProtocolLogo } from "./SwapCard";
 
 interface LpCardProps {
   market: MarketData;
@@ -26,7 +27,7 @@ export const LpCard: React.FC<LpCardProps> = ({
   const meta = MARKET_META?.[market.id] ?? {
     letter: "?",
     colorClass: "",
-    iconColor: "#14b8a6",
+    iconColor: "#34d399",
     oracleSource: market.protocol,
     termLabel: "30d",
     collateralSymbol: "USDC",
@@ -37,8 +38,8 @@ export const LpCard: React.FC<LpCardProps> = ({
   const swapFeeBps = (marketDetails?.params?.swapFeePct ?? 0) * 100;
   const termDays = marketDetails?.params?.swapTermDays ?? 30;
 
-  const lockedTotal = marketDetails
-    ? marketDetails.pool.lockedFixed + marketDetails.pool.lockedFloating
+  const lockedTotal = marketDetails?.pool
+    ? (marketDetails.pool.lockedFixed ?? 0) + (marketDetails.pool.lockedFloating ?? 0)
     : 0;
 
   const utilization = tvl > 0 ? (lockedTotal / tvl) * 100 : 0;
@@ -56,20 +57,20 @@ export const LpCard: React.FC<LpCardProps> = ({
       onClick={onClick}
       className="relative w-full text-left group transition-all duration-300 hover:-translate-y-1"
     >
-      <div className="relative bg-[#0f1115] border border-white/5 rounded-2xl overflow-hidden flex flex-col transition-all duration-300 group-hover:border-[rgba(94,234,212,0.20)] group-hover:shadow-[0_10px_30px_rgba(94,234,212,0.20)]">
+      <div className="relative bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px] border border-[#1e1e2a] rounded-2xl overflow-hidden flex flex-col transition-all duration-300 group-hover:border-[rgba(52,211,153,0.20)] group-hover:shadow-[0_10px_30px_rgba(52,211,153,0.20)]">
 
         {/* Accent Line */}
         <div
           className="h-[2px] w-full opacity-80"
           style={{
             background:
-              "linear-gradient(90deg,#0d9488,#14b8a6,#0d9488)",
+              "linear-gradient(90deg,#059669,#34d399,#059669)",
           }}
         />
 
         {/* Your LP Badge */}
         {hasPosition && (
-          <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[rgba(94,234,212,0.08)] border border-[rgba(94,234,212,0.20)] text-[9px] font-bold text-[#5eead4] uppercase tracking-wider">
+          <div className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[rgba(52,211,153,0.08)] border border-[rgba(52,211,153,0.20)] text-[9px] font-bold text-[#6ee7b7] uppercase tracking-wider">
             Your LP
           </div>
         )}
@@ -78,26 +79,24 @@ export const LpCard: React.FC<LpCardProps> = ({
         <div className="px-5 pt-5">
           <div className="flex justify-between items-start">
             <div className="flex items-start gap-3">
-              <div className="flex items-center gap-1">
-                {tokens.map((token) => {
-                  const Logo = TOKEN_LOGOS[token];
-                  return <Logo key={token} size={38} />;
-                })}
-              </div>
-
+              {(() => { const PL = getProtocolLogo(market.protocol); return <PL size={38} />; })()}
               <div>
-                <h3 className="text-[17px] font-bold text-white tracking-tight leading-none">
-                  {market.name}
+                <h3 className="text-[17px] font-bold text-[#e8e6ee] tracking-tight leading-none">
+                  {market.protocol}
                 </h3>
-                <p className="text-[10px] text-[#6b7280] font-semibold tracking-[0.1em] mt-1.5">
-                  {meta?.oracleSource ?? market.protocol} ·{" "}
-                  {meta?.termLabel ?? ""} Term
+                <p className="text-[10px] text-[#6b7280] font-semibold tracking-[0.1em] mt-1.5 flex items-center gap-1">
+                  {market.name}
+                  {collateralTokens.map((token) => {
+                    const Logo = TOKEN_LOGOS[token];
+                    return <Logo key={token} size={12} />;
+                  })}
+                  {collateralSymbol.replace(/^mock/, '')}
                 </p>
               </div>
             </div>
 
             {!hasPosition && (
-              <span className="text-[9px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 rounded-md text-[#5eead4] border border-[rgba(94,234,212,0.20)] bg-[rgba(94,234,212,0.08)]">
+              <span className="text-[9px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 rounded-md text-[#6ee7b7] border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.08)]">
                 Live
               </span>
             )}
@@ -111,18 +110,18 @@ export const LpCard: React.FC<LpCardProps> = ({
           </div>
 
           <div className="flex items-baseline gap-2.5">
-            <span className="text-[40px] font-mono font-bold tracking-tighter leading-none text-[#14b8a6]">
+            <span className="text-[40px] font-mono font-bold tracking-tighter leading-none text-[#34d399]">
               {apy !== null ? (apy * 100).toFixed(1) : "—"}
             </span>
 
             {apy !== null && (
-              <span className="text-lg font-mono font-bold text-[#14b8a6]/40 -ml-1">
+              <span className="text-lg font-mono font-bold text-[#34d399]/40 -ml-1">
                 %
               </span>
             )}
 
             {hasPosition && positionValue !== undefined && (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md text-[#042f2e] bg-[#5eead4]">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md text-[#042f2e] bg-[#6ee7b7]">
                 ${numberFormatter(positionValue)}
               </span>
             )}
@@ -130,7 +129,7 @@ export const LpCard: React.FC<LpCardProps> = ({
         </div>
 
         {/* Duration + Collateral Strip */}
-        <div className="px-5 py-3 bg-black/30 border-y border-white/5 flex items-center justify-between">
+        <div className="px-5 py-3 bg-black/30 border-y border-[#1e1e2a] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#6b7280]">
               Duration
@@ -180,8 +179,8 @@ export const LpCard: React.FC<LpCardProps> = ({
             className="w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all"
             style={{
               background:
-                "linear-gradient(135deg,#5eead4,#14b8a6)",
-              color: "#0A0A0C",
+                "linear-gradient(135deg,#6ee7b7,#34d399)",
+              color: "#030305",
             }}
           >
             <span className="text-[12px] font-bold uppercase tracking-wider">
