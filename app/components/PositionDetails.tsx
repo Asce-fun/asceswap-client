@@ -9,14 +9,15 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { FormattedMarket, Position, PositionSide, SwapDetail } from "../interface/types";
-import { MOCK_CHART_DATA } from "../constants/constants";
+import { ChartData, FormattedMarket, Position, PositionSide, SwapDetail } from "../interface/types";
 import numberFormatter from "../blockchain/utils/numberFormatter";
 import { getSwapDetail } from "../blockchain/scripts/analytics";
 import { earlyExitSwap } from "../blockchain/scripts/write/earlyexit";
 import { Dialog } from "./Dialog";
 import { TransferDialogContent } from "./TranferDialogContent";
 import { getMarket } from "../blockchain/scripts/markets";
+import { MARKET_META } from "../constants/markets";
+import { getOracleRateHistory } from "../blockchain/scripts/oracleContract";
 
 interface PositionDetailsProps {
   position: Position;
@@ -36,9 +37,9 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
-    const [marketDetails, setMarketDetails] = useState<FormattedMarket | null>(
-      null,
-    );
+  const [marketDetails, setMarketDetails] = useState<FormattedMarket | null>(null);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+
   useEffect(() => {
     if (position?.swapId) {
       const fetchSwapDetail = async () => {
@@ -48,6 +49,36 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
       fetchSwapDetail();
     }
   }, [position?.swapId]);
+
+  // Fetch oracle rate history for chart
+  useEffect(() => {
+    const meta = MARKET_META[String(position.pairId)];
+    if (!meta?.oracleAddress) return;
+    let cancelled = false;
+
+    async function fetchChart() {
+      try {
+        const history = await getOracleRateHistory(meta.oracleAddress, 168);
+        if (cancelled || !history || history.length === 0) return;
+        const sorted = [...history].sort((a, b) => a.timestamp - b.timestamp);
+        const fixedRate = swapDetails?.fixedRatePct ?? 5.0;
+        const data: ChartData[] = sorted.map(entry => {
+          const d = new Date(entry.timestamp * 1000);
+          return {
+            time: `${d.getMonth() + 1}/${d.getDate()}`,
+            rate: entry.rateBps / 100,
+            fixed: fixedRate,
+          };
+        });
+        if (!cancelled) setChartData(data);
+      } catch {
+        // oracle history unavailable
+      }
+    }
+
+    fetchChart();
+    return () => { cancelled = true; };
+  }, [position.pairId, swapDetails?.fixedRatePct]);
 
   const formatDate = (date?: Date | null) => {
     if (!date || isNaN(date.getTime())) return "--";
@@ -67,7 +98,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
       setLoading(true);
       const txHash = await earlyExitSwap({
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
-        oracleAddress:marketDetails?.oracle as string,
+        pairId: position.pairId,
         swapId: position.swapId,
       });
 
@@ -95,13 +126,13 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <button
         onClick={onBack}
-        className="flex cursor-pointer items-center gap-2 text-[#8A8894] hover:text-white mb-8 group transition-colors"
+        className="flex cursor-pointer items-center gap-2 text-[#9896a3] hover:text-[#e8e6ee] mb-8 group transition-colors"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform cursor-pointer" />
         Back to Dashboard
       </button>
 
-      <div className="bg-[#111114] border border-white/5 rounded-2xl p-8 mb-8">
+      <div className="bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px] border border-[#1e1e2a] rounded-2xl p-8 mb-8">
         <div className="flex justify-between items-start mb-12">
           <div>
             <div className="flex items-center gap-4 mb-2">
@@ -112,16 +143,16 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
                 {position.status}
               </span>
             </div>
-            <p className="text-[#8A8894] text-sm">
+            <p className="text-[#9896a3] text-sm">
               Minted {formatDate(swapDetails?.time?.startTime as any)} •{" "}
               <span className="font-mono">{`${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}`}</span>
             </p>
           </div>
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/5 text-sm font-medium hover:bg-white/5 transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#1e1e2a] text-sm font-medium hover:bg-white/5 transition-colors">
               <Share2 className="w-4 h-4" /> Share
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/5 text-sm font-medium hover:bg-white/5 transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#1e1e2a] text-sm font-medium hover:bg-white/5 transition-colors">
               <RefreshCw className="w-4 h-4" /> Refresh
             </button>
           </div>
@@ -130,7 +161,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
         {/* Chart Section */}
         <div className="h-75 w-full mb-12 relative">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={MOCK_CHART_DATA}>
+            <AreaChart data={chartData.length > 0 ? chartData : [{ time: '--', rate: 0, fixed: 0 }]}>
               <defs>
                 <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1} />
@@ -146,7 +177,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
               <YAxis domain={[3, 7]} hide />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#111114",
+                  backgroundColor: "#0c0c12",
                   border: "1px solid rgba(255,255,255,0.1)",
                   borderRadius: "12px",
                 }}
@@ -169,22 +200,22 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
               />
             </AreaChart>
           </ResponsiveContainer>
-          <div className="absolute top-4 right-12 text-xs text-[#8A8894] flex gap-4">
+          <div className="absolute top-4 right-12 text-xs text-[#9896a3] flex gap-4">
             <div className="flex items-center gap-2">
               <span className="w-3 h-0.5 bg-[#8b5cf6]"></span> Current Float:
-              4.85%
+              {swapDetails?.floatingRatePct?.toFixed(2) ?? "—"}%
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-0.5 bg-zinc-600 border-dashed border-t"></span>{" "}
-              5.2% FIXED
+              {swapDetails?.fixedRatePct?.toFixed(2) ?? "—"}% FIXED
             </div>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-y-12 gap-x-8 pb-12 border-b border-white/5/50">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-y-12 gap-x-8 pb-12 border-b border-[#1e1e2a]/50">
           <div>
-            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#9896a3] text-xs font-bold uppercase tracking-widest mb-3">
               SIDE
             </p>
             <div className="flex items-center gap-2 text-xl font-medium">
@@ -193,7 +224,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </div>
           </div>
           <div>
-            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#9896a3] text-xs font-bold uppercase tracking-widest mb-3">
               LOCKED RATE
             </p>
             <p className="text-xl font-medium">
@@ -204,7 +235,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#9896a3] text-xs font-bold uppercase tracking-widest mb-3">
               YOUR P&L
             </p>
             <p
@@ -215,7 +246,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#9896a3] text-xs font-bold uppercase tracking-widest mb-3">
               Market Tvl
             </p>
             <p className="text-xl font-medium">
@@ -223,7 +254,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#9896a3] text-xs font-bold uppercase tracking-widest mb-3">
               NOTIONAL SIZE
             </p>
             <p className="text-xl font-medium">
@@ -231,7 +262,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#9896a3] text-xs font-bold uppercase tracking-widest mb-3">
               COLLATERAL
             </p>
             <p className="text-xl font-medium">
@@ -239,25 +270,22 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
             </p>
           </div>
           <div>
-            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#9896a3] text-xs font-bold uppercase tracking-widest mb-3">
               Leverage
             </p>
             <p className="text-xl font-medium">
-              {numberFormatter(
-                swapDetails?.leverage ? swapDetails?.leverage * 100 : 0,
-              )}
-              %
+              {swapDetails?.leverage ? `${swapDetails.leverage.toFixed(1)}x` : "—"}
             </p>
           </div>
           <div>
-            <p className="text-[#8A8894] text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[#9896a3] text-xs font-bold uppercase tracking-widest mb-3">
               HEALTH FACTOR
             </p>
             <div className="flex items-center gap-3">
               <div className="h-1.5 w-24 bg-white/5 rounded-full">
                 <div
                   className="h-full bg-green-500 rounded-full"
-                  style={{ width: "75%" }}
+                  style={{ width: `${Math.min(position.healthFactorPct, 100)}%` }}
                 />
               </div>
               <span className="text-xl font-medium text-green-500">
@@ -268,13 +296,13 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
         </div>
 
         {/* Progress Section */}
-        <div className="py-12 border-b border-white/5/50">
+        <div className="py-12 border-b border-[#1e1e2a]/50">
           <div className="flex justify-between items-end mb-4">
             <div>
               <p className="text-[#E4E2E8] font-medium mb-1">
                 Position Maturity
               </p>
-              <p className="text-[#8A8894] text-sm">
+              <p className="text-[#9896a3] text-sm">
                 {elapsedPctDisplay}% elapsed
               </p>
             </div>
