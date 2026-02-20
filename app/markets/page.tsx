@@ -71,7 +71,7 @@ export default function MarketsPage() {
             Available Markets
           </h2>
           <p className="text-sm text-[#9896a3]">
-            Select a market to trade interest rate swaps or provide liquidity
+            Predict where rates are headed. Go fixed, float, or provide liquidity.
           </p>
         </div>
 
