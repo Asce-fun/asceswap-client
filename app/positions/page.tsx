@@ -39,35 +39,35 @@ const PositionsPage: React.FC = () => {
   const { primaryWallet, setShowAuthFlow } = useDynamicContext();
   const address = primaryWallet?.address;
 
-  useEffect(() => {
-    if (address) {
-      const fetchDetails = async () => {
-        try {
-          setloadinguserDetails(true);
-          const res = await getUserDashboard(address);
+  const fetchPositions = React.useCallback(async () => {
+    if (!address) return;
+    try {
+      setloadinguserDetails(true);
+      const res = await getUserDashboard(address);
 
-          // Batch-fetch swap details to get fixedRatePct (not in dashboard API)
-          if (res?.swaps?.length) {
-            const details = await Promise.allSettled(
-              res.swaps.map((s: any) => getSwapDetail(String(s.swapId)))
-            );
-            details.forEach((result, i) => {
-              if (result.status === "fulfilled" && result.value?.fixedRatePct) {
-                res.swaps[i].fixedRatePct = result.value.fixedRatePct;
-              }
-            });
+      // Batch-fetch swap details to get fixedRatePct (not in dashboard API)
+      if (res?.swaps?.length) {
+        const details = await Promise.allSettled(
+          res.swaps.map((s: any) => getSwapDetail(String(s.swapId)))
+        );
+        details.forEach((result, i) => {
+          if (result.status === "fulfilled" && result.value?.fixedRatePct) {
+            res.swaps[i].fixedRatePct = result.value.fixedRatePct;
           }
+        });
+      }
 
-          setuserDetails(res);
-        } catch (error) {
-          // fetch failed
-        } finally {
-          setloadinguserDetails(false);
-        }
-      };
-      fetchDetails();
+      setuserDetails(res);
+    } catch (error) {
+      console.error("[PositionsPage] failed to fetch dashboard:", error);
+    } finally {
+      setloadinguserDetails(false);
     }
   }, [address]);
+
+  useEffect(() => {
+    fetchPositions();
+  }, [fetchPositions]);
 
   const marketByPairId = React.useMemo(() => {
     return Object.fromEntries(MARKETS.map((m) => [Number(m.id), m]));
@@ -185,23 +185,48 @@ const PositionsPage: React.FC = () => {
         </button>
       </div>
 
-      {userDetails?.swaps ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          {userDetails?.swaps.length > 0 ? (
-            userDetails?.swaps.map((pos) => (
-              <PositionCard
-                key={pos.swapId}
-                position={pos}
-                onClick={() => setSelectedPosition(pos)}
-              />
-            ))
-          ) : (
-            <div className="text-[#9896a3]">No Swaps Found</div>
-          )}
-        </div>
-      ) : (
-        <div className="text-[#9896a3] mb-16">No Swaps Found</div>
-      )}
+      {(() => {
+        const allSwaps = userDetails?.swaps ?? [];
+        const activeSwaps = allSwaps.filter((s) => s.status === "ACTIVE");
+        const closedSwaps = allSwaps.filter((s) => s.status !== "ACTIVE");
+
+        return (
+          <>
+            {/* Active Swaps */}
+            {activeSwaps.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+                {activeSwaps.map((pos) => (
+                  <PositionCard
+                    key={pos.swapId}
+                    position={pos}
+                    onClick={() => setSelectedPosition(pos)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-[#9896a3] mb-16">No Active Swaps</div>
+            )}
+
+            {/* Closed / Settled Swaps */}
+            {closedSwaps.length > 0 && (
+              <div className="mb-16">
+                <h2 className="text-[#9896a3] text-xs font-bold uppercase tracking-wide mb-6">
+                  Settled / Expired
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {closedSwaps.map((pos) => (
+                    <PositionCard
+                      key={pos.swapId}
+                      position={pos}
+                      onClick={() => setSelectedPosition(pos)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* LP Positions — card grid */}
       <div className="space-y-6">
@@ -320,7 +345,10 @@ const PositionsPage: React.FC = () => {
           position={selectedPosition}
           walletAddress={address as string}
           isOpen={!!selectedPosition}
-          onClose={() => setSelectedPosition(null)}
+          onClose={() => {
+            setSelectedPosition(null);
+            fetchPositions();
+          }}
         />
       )}
 
