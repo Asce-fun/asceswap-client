@@ -48,6 +48,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
   const market = MARKETS.find((m) => m.id === String(position.pairId));
   const tokenSymbol = (meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "");
   const collateralTokens = extractTokensFromName(meta?.collateralSymbol ?? "USDC");
+  const isActive = position.status === "ACTIVE";
   const isExpired = position.remainingSeconds === 0;
   const isFixed = position.side === PositionSide.FIXED;
 
@@ -171,10 +172,26 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
                 {tokenSymbol}
               </p>
             </div>
-            <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#34d399]/20 bg-[#34d399]/5 mr-8">
-              <span className={`w-1.5 h-1.5 rounded-full ${isExpired ? "bg-amber-400" : "bg-[#34d399] animate-pulse"}`} />
-              <span className={`text-[10px] font-semibold uppercase tracking-wider ${isExpired ? "text-amber-400" : "text-[#34d399]"}`}>
-                {isExpired ? "Expired" : position.status}
+            <div className={`ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full border mr-8 ${
+              isActive
+                ? isExpired
+                  ? "border-amber-400/20 bg-amber-400/5"
+                  : "border-[#34d399]/20 bg-[#34d399]/5"
+                : position.status === "LIQUIDATED"
+                  ? "border-[#f87171]/20 bg-[#f87171]/5"
+                  : "border-white/10 bg-white/5"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                isActive
+                  ? isExpired ? "bg-amber-400" : "bg-[#34d399] animate-pulse"
+                  : position.status === "LIQUIDATED" ? "bg-[#f87171]" : "bg-[#9896a3]"
+              }`} />
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+                isActive
+                  ? isExpired ? "text-amber-400" : "text-[#34d399]"
+                  : position.status === "LIQUIDATED" ? "text-[#f87171]" : "text-[#9896a3]"
+              }`}>
+                {isActive ? (isExpired ? "Expired" : "Active") : position.status === "EXITEDEARLY" ? "Exited" : position.status}
               </span>
             </div>
           </div>
@@ -212,7 +229,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
           </div>
           <div className="text-right">
             <div className="text-[10px] font-semibold text-[#9896a3] uppercase tracking-wider mb-0.5">
-              P&L
+              {isActive ? "P&L" : "Final P&L"}
             </div>
             <div className={`font-mono text-2xl font-bold tracking-tighter ${pnlColor}`}>
               {position.pnl >= 0 ? "+" : ""}{position.pnl.toFixed(4)} {tokenSymbol}
@@ -312,7 +329,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
               </div>
 
               {/* Early Exit Preview */}
-              {!isExpired && swapDetails?.fees && (
+              {isActive && !isExpired && swapDetails?.fees && (
                 <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] space-y-1.5">
                   <div className="text-[9px] font-semibold text-white/30 uppercase tracking-wider">
                     Early Exit Preview
@@ -374,103 +391,125 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
                 </div>
               )}
 
-              {/* Action Button */}
-              {txHash ? (
-                <button
-                  onClick={onClose}
-                  className="w-full py-3 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
-                   transition-all active:scale-[0.98] cursor-pointer
-                   bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08]
-                   text-[#e8e6ee] flex items-center justify-center gap-2"
-                >
-                  Close
-                </button>
-              ) : isExpired ? (
-                <button
-                  disabled={loading}
-                  onClick={handleAction}
-                  className="w-full py-3 rounded-xl bg-[#34d399] text-[#060608] font-bold text-sm
-                   hover:bg-[#6ee7b7] active:bg-[#059669]
-                   disabled:bg-[rgba(17,17,24,0.7)] disabled:text-[#5c5a66] disabled:cursor-not-allowed
-                   transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {loading ? "Settling..." : "Settle Swap"}
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  disabled={loading}
-                  onClick={handleAction}
-                  className="w-full py-3 rounded-xl font-bold text-sm
-                   transition-all active:scale-[0.98] cursor-pointer
-                   disabled:opacity-40 disabled:cursor-not-allowed
-                   border-2 border-rose-500/40 text-rose-400 hover:bg-rose-500/10
-                   flex items-center justify-center gap-2"
-                >
-                  {loading ? "Exiting..." : "Early Exit"}
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
+              {/* Action Button — only for active positions */}
+              {isActive ? (
+                <>
+                  {txHash ? (
+                    <button
+                      onClick={onClose}
+                      className="w-full py-3 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
+                       transition-all active:scale-[0.98] cursor-pointer
+                       bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08]
+                       text-[#e8e6ee] flex items-center justify-center gap-2"
+                    >
+                      Close
+                    </button>
+                  ) : isExpired ? (
+                    <button
+                      disabled={loading}
+                      onClick={handleAction}
+                      className="w-full py-3 rounded-xl bg-[#34d399] text-[#060608] font-bold text-sm
+                       hover:bg-[#6ee7b7] active:bg-[#059669]
+                       disabled:bg-[rgba(17,17,24,0.7)] disabled:text-[#5c5a66] disabled:cursor-not-allowed
+                       transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {loading ? "Settling..." : "Settle Swap"}
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      disabled={loading}
+                      onClick={handleAction}
+                      className="w-full py-3 rounded-xl font-bold text-sm
+                       transition-all active:scale-[0.98] cursor-pointer
+                       disabled:opacity-40 disabled:cursor-not-allowed
+                       border-2 border-rose-500/40 text-rose-400 hover:bg-rose-500/10
+                       flex items-center justify-center gap-2"
+                    >
+                      {loading ? "Exiting..." : "Early Exit"}
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
 
-              {/* ─── Inline Transfer NFT ─── */}
-              <div className="pt-2 border-t border-white/[0.04] space-y-2">
-                <div className="text-[9px] font-semibold text-white/30 uppercase tracking-wider">
-                  Transfer Position NFT
-                </div>
-                {transferTxHash ? (
-                  <div className="p-3 rounded-xl bg-[#34d399]/[0.04] border border-[#34d399]/20 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-[#34d399]" />
-                      <span className="text-xs font-semibold text-[#e8e6ee]">Transfer Initiated</span>
+                  {/* ─── Inline Transfer NFT ─── */}
+                  <div className="pt-2 border-t border-white/[0.04] space-y-2">
+                    <div className="text-[9px] font-semibold text-white/30 uppercase tracking-wider">
+                      Transfer Position NFT
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
-                      <span className="font-mono text-[10px] text-white/50 truncate">
-                        {`${transferTxHash.slice(0, 10)}...${transferTxHash.slice(-8)}`}
-                      </span>
-                      <a
-                        href={`https://sepolia.voyager.online/tx/${transferTxHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1 rounded-md hover:bg-white/[0.05] text-white/40 hover:text-[#34d399] transition-colors"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="0x0123...recipient"
-                        value={transferRecipient}
-                        onChange={(e) => setTransferRecipient(e.target.value)}
-                        className="flex-1 py-2.5 px-3 rounded-xl border font-mono text-[11px] transition-all focus:ring-0 outline-none
-                         bg-white/[0.02] border-white/[0.08] focus:border-[#34d399]/40 text-[#e8e6ee] placeholder:text-[#5C5A66]"
-                      />
-                      <button
-                        disabled={!transferRecipient || transferLoading}
-                        onClick={handleTransfer}
-                        className="px-4 py-2.5 rounded-xl text-[11px] font-semibold
-                         transition-all active:scale-[0.98] cursor-pointer
-                         disabled:opacity-40 disabled:cursor-not-allowed
-                         bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08]
-                         text-[#e8e6ee] flex items-center gap-1.5 shrink-0"
-                      >
-                        {transferLoading ? "..." : <><Send className="w-3 h-3" /> Send</>}
-                      </button>
-                    </div>
-                    {transferError && (
-                      <div className="text-red-400 text-[10px] flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" /> {transferError}
+                    {transferTxHash ? (
+                      <div className="p-3 rounded-xl bg-[#34d399]/[0.04] border border-[#34d399]/20 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Check className="w-3.5 h-3.5 text-[#34d399]" />
+                          <span className="text-xs font-semibold text-[#e8e6ee]">Transfer Initiated</span>
+                        </div>
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                          <span className="font-mono text-[10px] text-white/50 truncate">
+                            {`${transferTxHash.slice(0, 10)}...${transferTxHash.slice(-8)}`}
+                          </span>
+                          <a
+                            href={`https://sepolia.voyager.online/tx/${transferTxHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 rounded-md hover:bg-white/[0.05] text-white/40 hover:text-[#34d399] transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
                       </div>
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="0x0123...recipient"
+                            value={transferRecipient}
+                            onChange={(e) => setTransferRecipient(e.target.value)}
+                            className="flex-1 py-2.5 px-3 rounded-xl border font-mono text-[11px] transition-all focus:ring-0 outline-none
+                             bg-white/[0.02] border-white/[0.08] focus:border-[#34d399]/40 text-[#e8e6ee] placeholder:text-[#5C5A66]"
+                          />
+                          <button
+                            disabled={!transferRecipient || transferLoading}
+                            onClick={handleTransfer}
+                            className="px-4 py-2.5 rounded-xl text-[11px] font-semibold
+                             transition-all active:scale-[0.98] cursor-pointer
+                             disabled:opacity-40 disabled:cursor-not-allowed
+                             bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08]
+                             text-[#e8e6ee] flex items-center gap-1.5 shrink-0"
+                          >
+                            {transferLoading ? "..." : <><Send className="w-3 h-3" /> Send</>}
+                          </button>
+                        </div>
+                        {transferError && (
+                          <div className="text-red-400 text-[10px] flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> {transferError}
+                          </div>
+                        )}
+                        <p className="text-[9px] text-[#5C5A66] leading-relaxed">
+                          Transfers the swap NFT to another address. This action is irreversible.
+                        </p>
+                      </>
                     )}
-                    <p className="text-[9px] text-[#5C5A66] leading-relaxed">
-                      Transfers the swap NFT to another address. This action is irreversible.
-                    </p>
-                  </>
-                )}
-              </div>
+                  </div>
+                </>
+              ) : (
+                /* Settled/Closed position — just show a close button */
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] text-center">
+                    <span className="text-[11px] text-[#9896a3]">
+                      This position has been {position.status === "SETTLED" ? "settled" : position.status === "LIQUIDATED" ? "liquidated" : "exited early"}.
+                    </span>
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="w-full py-3 rounded-xl font-semibold text-xs uppercase tracking-[0.15em]
+                     transition-all active:scale-[0.98] cursor-pointer
+                     bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08]
+                     text-[#e8e6ee] flex items-center justify-center gap-2"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
