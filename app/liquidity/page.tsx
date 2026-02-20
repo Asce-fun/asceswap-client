@@ -134,7 +134,7 @@ export default function LiquidityPage() {
             Liquidity Pools
           </h2>
           <p className="text-sm text-[#9896a3]">
-            Supply liquidity to earn swap fees and trader PnL
+            Earn fees by backing the other side of every rate prediction.
           </p>
         </div>
 

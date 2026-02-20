@@ -168,7 +168,7 @@ const PositionsPage: React.FC = () => {
             Your Positions
           </h1>
           <p className="text-sm text-[#9896a3]">
-            Manage your yield derivatives and liquidity.
+            Track your active predictions, settled outcomes, and LP positions.
           </p>
         </div>
         <button
