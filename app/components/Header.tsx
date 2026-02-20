@@ -12,6 +12,9 @@ import {
   BarChart3,
   Coins,
   Briefcase,
+  Compass,
+  Anchor,
+  MessageSquare,
 } from "lucide-react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import STRKLogo from "../assets/icons/coins/strk";
@@ -24,6 +27,9 @@ const NAV_LINKS = [
   { href: "/markets", label: "Markets", icon: BarChart3 },
   { href: "/liquidity", label: "Liquidity", icon: Coins },
   { href: "/positions", label: "Positions", icon: Briefcase },
+  { href: "/curator", label: "Curator", icon: Compass },
+  { href: "/hooks", label: "Hooks", icon: Anchor },
+  { href: "/feedback", label: "Feedback", icon: MessageSquare, sub: "Imp." },
 ];
 
 export const Header: React.FC = () => {
@@ -129,13 +135,18 @@ export const Header: React.FC = () => {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`relative px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                className={`relative px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex flex-col items-center ${
                   isActive
                     ? "text-[#e8e6ee] bg-[#34d399]/10"
                     : "text-[#9896a3] hover:text-[#6ee7b7] hover:bg-[#34d399]/5"
                 }`}
               >
                 {link.label}
+                {"sub" in link && link.sub && (
+                  <span className="text-[8px] font-bold text-[#34d399]/60 leading-none -mt-0.5">
+                    {link.sub}
+                  </span>
+                )}
 
                 {isActive && (
                   <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full bg-[#34d399]" />
@@ -245,7 +256,14 @@ export const Header: React.FC = () => {
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                {link.label}
+                <span className="flex items-center gap-1.5">
+                  {link.label}
+                  {"sub" in link && link.sub && (
+                    <span className="text-[8px] font-bold text-[#34d399]/60">
+                      {link.sub}
+                    </span>
+                  )}
+                </span>
               </Link>
             );
           })}
