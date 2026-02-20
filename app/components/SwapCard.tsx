@@ -80,33 +80,31 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market, batchMarketDetails }
 
   return (
     <>
-      <div className="relative h-full group/card transition-all duration-400 hover:-translate-y-1">
-        
-        {/* Mint Glow */}
-        <div className="absolute -inset-px rounded-2xl bg-[#6ee7b7]/0 group-hover/card:bg-[#6ee7b7]/[0.04] transition-all duration-500 pointer-events-none blur-xl" />
-
-        {/* Gradient Border */}
+      <div
+        className="
+          group/card relative h-full rounded-2xl p-px
+          bg-linear-to-br from-white/10 via-white/5 to-transparent
+          hover:from-[#34d399]/30 hover:via-[#34d399]/20
+          transition-all duration-300
+        "
+      >
         <div
-          className="absolute inset-0 rounded-2xl p-px 
-          bg-gradient-to-br from-transparent via-transparent to-[#6ee7b7] 
-          opacity-0 group-hover/card:opacity-100 
-          transition-opacity duration-400 pointer-events-none"
-          style={{
-            WebkitMaskComposite: "xor",
-            maskComposite: "exclude",
-            WebkitMask:
-              "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-            mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-          }}
-        />
-
-        <div className="relative bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px] border border-[rgba(52,211,153,0.06)] rounded-2xl overflow-hidden flex flex-col h-full group-hover/card:border-[rgba(52,211,153,0.18)] group-hover/card:shadow-[0_8px_32px_rgba(52,211,153,0.18),0_0_0_1px_rgba(52,211,153,0.18)] transition-all duration-400">
-
-          {/* Top Accent Line */}
-          <div className="h-[2px] w-full bg-gradient-to-r from-[#059669] via-[#34d399] to-[#059669] opacity-50 group-hover/card:opacity-90 transition-opacity duration-400" />
+          className="
+            relative rounded-2xl
+            bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px]
+            border border-[#1e1e2a]
+            shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)]
+            hover:-translate-y-0.5
+            hover:shadow-[0_30px_80px_-25px_rgba(0,0,0,1)]
+            transition-all duration-300
+            overflow-hidden flex flex-col h-full
+          "
+        >
+          {/* TOP GLOW */}
+          <div className="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-[#34d399]/10 to-transparent pointer-events-none" />
 
           {/* HEADER */}
-          <div className="px-5 pt-5 pb-0">
+          <div className="relative z-10 px-5 pt-5 pb-0">
             <div className="flex justify-between items-start">
               <div className="flex items-start gap-3">
                 {(() => { const PL = getProtocolLogo(market.protocol); return <PL size={40} />; })()}
@@ -132,7 +130,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market, batchMarketDetails }
           </div>
 
           {/* RATE */}
-          <div className="px-5 pt-5 pb-4">
+          <div className="relative z-10 px-5 pt-5 pb-4">
             <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#6B7280] mb-2">
               Current Rate
             </div>
@@ -157,71 +155,49 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market, batchMarketDetails }
             </div>
           </div>
 
-          {/* STRIP */}
-          <div className="px-5 py-3 bg-black/40 border-y border-[rgba(52,211,153,0.06)] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">
-                Duration
-              </span>
-              <span className="text-xs font-mono font-bold text-[#9896a3]">
-                {termDays}d
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-1">
+          {/* DURATION & COLLATERAL + BUTTONS */}
+          <div className="relative z-10 px-5 pb-5 mt-auto space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">Duration</span>
+                <span className="text-[11px] font-mono font-bold text-[#9896a3]">{termDays}d</span>
+              </div>
+              <div className="flex items-center gap-1.5">
                 {collateralTokens.map((token) => {
                   const Logo = TOKEN_LOGOS[token];
-                  return <Logo key={token} size={20} />;
+                  return <Logo key={token} size={16} />;
                 })}
+                <span className="text-[11px] font-mono font-bold text-[#9896a3]">{collateralSymbol}</span>
               </div>
-              <span className="text-xs font-mono font-bold text-[#9896a3]">
-                {collateralSymbol}
-              </span>
             </div>
-          </div>
-
-          {/* BUTTONS */}
-          <div className="px-5 pb-4 pt-1 mt-auto">
-            <div className="grid grid-cols-2 gap-2">
-
-              {/* UP */}
+            <div className="flex gap-2">
               <button
                 onClick={() => handleOpenSwap("FLOATING")}
-                className="bg-gradient-to-br from-[#6ee7b7] to-[#34d399] 
-                text-[#030305] py-2.5 rounded-lg 
-                active:scale-[0.97] transition-all duration-200 
-                hover:shadow-[0_4px_20px_rgba(52,211,153,0.30)] 
-                group/btn cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl
+                  bg-[#34d399]/10 text-[#34d399] text-[13px] font-bold
+                  border border-[#34d399]/20
+                  hover:bg-[#34d399]/20 active:scale-[0.97]
+                  transition-all duration-200 cursor-pointer"
               >
-                <ArrowUp className="w-3.5 h-3.5 mx-auto mb-0.5 group-hover/btn:scale-110 transition-transform" />
-                <div className="text-[11px] font-bold tracking-tight">Up</div>
-                <div className="text-[8px] text-[#030305]/40 mt-0.5 font-semibold">
-                  rates go up
-                </div>
+                <ArrowUp className="w-4 h-4" />
+                Rates Up
               </button>
-
-              {/* DOWN */}
               <button
                 onClick={() => handleOpenSwap("FIXED")}
-                className="bg-white/6 cursor-pointer 
-                hover:bg-[rgba(52,211,153,0.10)] 
-                text-[#9896a3] hover:text-[#6ee7b7] 
-                py-2.5 rounded-lg active:scale-[0.97] 
-                transition-all duration-200 
-                border border-[rgba(52,211,153,0.06)] 
-                hover:border-[rgba(52,211,153,0.20)] 
-                group/btn"
+                className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl
+                  bg-white/[0.04] text-[#9896a3] text-[13px] font-bold
+                  border border-white/[0.06]
+                  hover:bg-white/[0.08] hover:text-[#e8e6ee] active:scale-[0.97]
+                  transition-all duration-200 cursor-pointer"
               >
-                <ArrowDown className="w-3.5 h-3.5 mx-auto mb-0.5 group-hover/btn:scale-110 transition-transform" />
-                <div className="text-[11px] font-bold tracking-tight">Down</div>
-                <div className="text-[8px] text-[#7A8792] mt-0.5 font-semibold">
-                  rates go down
-                </div>
+                <ArrowDown className="w-4 h-4" />
+                Rates Down
               </button>
-
             </div>
           </div>
+
+          {/* DECORATIVE GLOW */}
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 blur-3xl opacity-20 group-hover/card:opacity-40 transition-opacity bg-[#34d399]" />
         </div>
       </div>
 
