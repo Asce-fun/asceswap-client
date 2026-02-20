@@ -3,11 +3,17 @@ import { SwapSide, u256ToBigInt } from "../utils/utils";
 import { analytics } from "./asceswapanalyticsContract";
 import { formatUserDashboard } from "../utils/formatUserDashboard";
 import { formatSwapDetail } from "../utils/formatSwapDetail";
+import { MARKET_META } from "../../constants/markets";
+
+// Build decimals map from MARKET_META: { "1": 8, "2": 18, ... }
+const decimalsMap: Record<string, number> = Object.fromEntries(
+  Object.entries(MARKET_META).map(([id, meta]) => [id, meta.decimals])
+);
 
 export async function getUserDashboard(userAddress: string) {
   const raw = await analytics.get_user_dashboard_full(userAddress);
   console.log(raw,'raw')
-  return formatUserDashboard(raw,6);
+  return formatUserDashboard(raw, decimalsMap);
 }
 
 export async function getUserLPPositions(userAddress: string) {
@@ -17,7 +23,9 @@ export async function getUserLPPositions(userAddress: string) {
 
 export async function getSwapDetail(swapId: string) {
   const raw = await analytics.get_swap_detail(swapId);
-  return formatSwapDetail(raw,6);
+  const pairId = String(raw.pair_id);
+  const decimals = MARKET_META[pairId]?.decimals ?? 6;
+  return formatSwapDetail(raw, decimals);
 }
 
 export async function getMarketsPage(pairIds: string[]) {

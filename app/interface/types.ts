@@ -103,10 +103,13 @@ export interface Position {
     notional: number;
     collateral: number;
     pnl: number;
+    fixedRatePct?: number;
     healthFactorPct: number;
     progressPct: number;
     remainingDays: number;
-    remainingSeconds:number;
+    remainingHours: number;
+    remainingLabel: string;
+    remainingSeconds: number;
 }
 
 export interface LPPosition {
@@ -176,10 +179,13 @@ export type UserDashboard = {
     notional: number;
     collateral: number;
     pnl: number;
+    fixedRatePct?: number;
     healthFactorPct: number;
     progressPct: number;
     remainingDays: number;
-    remainingSeconds:number;
+    remainingHours: number;
+    remainingLabel: string;
+    remainingSeconds: number;
   }[];
 };
 

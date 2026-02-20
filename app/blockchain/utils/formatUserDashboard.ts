@@ -6,6 +6,14 @@ import {
 } from "./utils";
 
 const secondsToTime = (seconds: number) => {
+  if (seconds <= 0) {
+    return {
+      days: 0,
+      hours: 0,
+      label: "Ready to Settle",
+    };
+  }
+
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
 
@@ -17,17 +25,27 @@ const secondsToTime = (seconds: number) => {
     };
   }
 
+  if (hours > 0) {
+    return {
+      days: 0,
+      hours,
+      label: `${hours}h left`,
+    };
+  }
+
+  const minutes = Math.ceil(seconds / 60);
   return {
     days: 0,
-    hours,
-    label: `${hours}h left`,
+    hours: 0,
+    label: `${minutes}m left`,
   };
 };
 
-export function formatUserDashboard(raw: any, collateralDecimals: number) {
-  const scale = 10 ** collateralDecimals;
+export function formatUserDashboard(raw: any, decimalsMap: Record<string, number>) {
+  // Fallback scale for cross-market portfolio aggregates
+  const fallbackScale = 10 ** 6;
 
-  const toAmount = (v: any) => Number(BigInt(v)) / scale;
+  const toAmountFallback = (v: any) => Number(BigInt(v)) / fallbackScale;
 
   return {
     /* ---------- Identity ---------- */
@@ -35,13 +53,13 @@ export function formatUserDashboard(raw: any, collateralDecimals: number) {
 
     /* ---------- Portfolio ---------- */
     portfolio: {
-      totalValue: toAmount(raw.total_portfolio_value),
+      totalValue: toAmountFallback(raw.total_portfolio_value),
 
-      totalCollateralAtRisk: toAmount(raw.total_collateral_at_risk),
+      totalCollateralAtRisk: toAmountFallback(raw.total_collateral_at_risk),
 
-      totalNotionalExposure: toAmount(raw.total_notional_exposure),
+      totalNotionalExposure: toAmountFallback(raw.total_notional_exposure),
 
-      unrealizedPnl: signedValue(raw.total_unrealized_pnl) / scale,
+      unrealizedPnl: signedValue(raw.total_unrealized_pnl) / fallbackScale,
     },
 
     /* ---------- Counts ---------- */
@@ -55,7 +73,7 @@ export function formatUserDashboard(raw: any, collateralDecimals: number) {
 
     /* ---------- Risk ---------- */
     risk: {
-      avgHealthFactorPct: bpsToPct(raw.avg_health_factor_bps),
+      avgHealthFactorPct: bpsToPct(raw.avg_health_factor_bps) / 10,
 
       positionsAtRisk: Number(raw.positions_at_risk),
 
@@ -68,27 +86,37 @@ export function formatUserDashboard(raw: any, collateralDecimals: number) {
 
     /* ---------- LP ---------- */
     lp: {
-      totalValue: toAmount(raw.total_lp_value),
+      totalValue: toAmountFallback(raw.total_lp_value),
 
       totalSharePct: bpsToPct(raw.total_lp_share_percentage_bps),
 
-      positions: raw.lp_positions.map((lp: any) => ({
-        pairId: Number(lp.pair_id),
+      positions: raw.lp_positions.map((lp: any) => {
+        const pairId = String(lp.pair_id);
+        const lpScale = 10 ** (decimalsMap[pairId] ?? 6);
+        const toAmt = (v: any) => Number(BigInt(v)) / lpScale;
 
-        shares: toAmount(lp.shares),
+        return {
+          pairId: Number(lp.pair_id),
 
-        shareValue: toAmount(lp.share_value),
+          shares: toAmt(lp.shares),
 
-        sharePct: bpsToPct(lp.share_percentage_bps),
+          shareValue: toAmt(lp.share_value),
 
-        utilizationPct: bpsToPct(lp.utilization_bps),
+          sharePct: bpsToPct(lp.share_percentage_bps),
 
-        canWithdraw: Number(lp.can_withdraw) === 1,
-      })),
+          utilizationPct: bpsToPct(lp.utilization_bps),
+
+          canWithdraw: Number(lp.can_withdraw) === 1,
+        };
+      }),
     },
 
     /* ---------- Swap Positions ---------- */
     swaps: raw.swap_positions.map((s: any) => {
+      const pairId = String(s.pair_id);
+      const swapScale = 10 ** (decimalsMap[pairId] ?? 6);
+      const toAmt = (v: any) => Number(BigInt(v)) / swapScale;
+
       const remainingSeconds = Number(s.remaining_seconds);
       const progressPct = bpsToPct(s.progress_bps); // 0–100
 
@@ -97,22 +125,22 @@ export function formatUserDashboard(raw: any, collateralDecimals: number) {
       return {
         swapId: Number(s.swap_id),
         pairId: Number(s.pair_id),
-side: cairoEnumToString(s.side) as "FIXED" | "FLOAT",
-status: cairoEnumToString(s.status) as "ACTIVE" | "CLOSED",
-        notional: toAmount(s.notional),
+        side: cairoEnumToString(s.side) as "FIXED" | "FLOAT",
+        status: cairoEnumToString(s.status) as "ACTIVE" | "CLOSED",
+        notional: toAmt(s.notional),
 
-        collateral: toAmount(s.collateral),
+        collateral: toAmt(s.collateral),
 
-        pnl: signedValue(s.current_pnl) / scale,
+        pnl: signedValue(s.current_pnl) / swapScale,
 
-        healthFactorPct: bpsToPct(s.health_factor_bps),
+        healthFactorPct: bpsToPct(s.health_factor_bps) / 10,
 
         /* ---------- Time / Progress ---------- */
-        progressPct, // ✅ use directly for width
+        progressPct, // use directly for width
         remainingSeconds: remainingSeconds,
         remainingDays: time.days,
         remainingHours: time.hours,
-        remainingLabel: time.label, // "30d left"
+        remainingLabel: time.label,
       };
     }),
   };

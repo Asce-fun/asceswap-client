@@ -28,11 +28,11 @@ export function formatSwapDetail(raw: any,collateralDecimals:number) {
 
   /* -------------------- VALUES -------------------- */
 
-  const notional = Number(raw.notional);
-  const collateral = Number(raw.collateral);
+  const notional = Number(raw.notional) / scale;
+  const collateral = Number(raw.collateral) / scale;
 
-  const currentPnl = signedValue(raw.current_pnl)/scale;
-  const projectedPnl = signedValue(raw.projected_pnl_at_expiry);
+  const currentPnl = signedValue(raw.current_pnl) / scale;
+  const projectedPnl = signedValue(raw.projected_pnl_at_expiry) / scale;
 
   const spreadPct =
     signedValue(raw.spread_bps) / 100;
@@ -71,10 +71,10 @@ export function formatSwapDetail(raw: any,collateralDecimals:number) {
 
     /* ---------- Risk ---------- */
     healthFactorPct:
-      Number(raw.health_factor_bps) / 100,
+      Number(raw.health_factor_bps) / 1000,
 
     requiredMargin:
-      Number(raw.required_margin),
+      Number(raw.required_margin) / scale,
 
     isLiquidatable:
       Number(raw.is_liquidatable) === 1,
@@ -105,10 +105,10 @@ export function formatSwapDetail(raw: any,collateralDecimals:number) {
     /* ---------- Fees ---------- */
     fees: {
       earlyExitFee:
-        Number(raw.early_exit_fee),
+        Number(raw.early_exit_fee) / scale,
 
       earlyExitPayout:
-        Number(raw.early_exit_payout),
+        Number(raw.early_exit_payout) / scale,
     },
 
     /* ---------- Market ---------- */
