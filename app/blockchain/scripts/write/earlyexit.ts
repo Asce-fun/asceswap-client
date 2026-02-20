@@ -54,7 +54,7 @@ export async function earlyExitSwap({
     {
       contractAddress: asceSwapAddress,
       entrypoint: "early_exit",
-      calldata: [swapIdU256],
+      calldata: [String(swapIdU256.low), String(swapIdU256.high)],
     },
   ];
 

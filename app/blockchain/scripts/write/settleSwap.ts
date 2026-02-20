@@ -49,7 +49,7 @@ export async function settleSwap({
     {
       contractAddress: asceSwapAddress,
       entrypoint: "settle_swap",
-      calldata: [swapIdU256],
+      calldata: [String(swapIdU256.low), String(swapIdU256.high)],
     },
   ];
 
