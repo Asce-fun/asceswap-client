@@ -20,7 +20,7 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AsceSwap - Yield Derivatives Protocol",
+  title: "Asceswap - Interest Rate Prediction Market",
   description: "Institutional-grade DeFi protocol for interest rate swaps",
 };
 
