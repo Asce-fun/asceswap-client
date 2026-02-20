@@ -422,21 +422,6 @@ export const LpModal: React.FC<LpModalProps> = ({
               </p>
             </div>
 
-            {/* Pool Stats */}
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: "Total TVL", value: `$${numberFormatter(tvl)}` },
-                { label: "Available", value: `$${numberFormatter(available > 0 ? available : 0)}` },
-                { label: "Utilization", value: `${utilization.toFixed(1)}%` },
-                { label: "Active Swaps", value: String(activeSwaps) },
-              ].map((s) => (
-                <div key={s.label} className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5">
-                  <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">{s.label}</div>
-                  <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">{s.value}</div>
-                </div>
-              ))}
-            </div>
-
             {/* Info Tabs */}
             <div>
               <div className="flex gap-1 p-1 bg-[rgba(17,17,24,0.7)] rounded-[10px] border border-[#1e1e2a] w-fit mb-3">
@@ -580,6 +565,21 @@ export const LpModal: React.FC<LpModalProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Pool Stats */}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Total TVL", value: `$${numberFormatter(tvl)}` },
+                { label: "Available", value: `$${numberFormatter(available > 0 ? available : 0)}` },
+                { label: "Utilization", value: `${utilization.toFixed(1)}%` },
+                { label: "Active Swaps", value: String(activeSwaps) },
+              ].map((s) => (
+                <div key={s.label} className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5">
+                  <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">{s.label}</div>
+                  <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">{s.value}</div>
+                </div>
+              ))}
             </div>
           </div>
 

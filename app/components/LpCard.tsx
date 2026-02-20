@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, BarChart3 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { FormattedMarket, MarketData } from "../interface/types";
 import { MARKET_META } from "../constants/markets";
 import numberFormatter from "../blockchain/utils/numberFormatter";
@@ -144,27 +144,15 @@ export const LpCard: React.FC<LpCardProps> = ({
               <span className="text-[11px] font-mono font-bold text-[#9896a3]">{collateralSymbol}</span>
             </div>
           </div>
-          <div className="flex gap-2">
-            <div
-              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl
-                bg-[#34d399]/10 text-[#34d399] text-[13px] font-bold
-                border border-[#34d399]/20
-                hover:bg-[#34d399]/20 active:scale-[0.97]
-                transition-all duration-200"
-            >
-              <Plus className="w-4 h-4" />
-              {hasPosition ? "Deposit" : "Provide"}
-            </div>
-            <div
-              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl
-                bg-white/[0.04] text-[#9896a3] text-[13px] font-bold
-                border border-white/[0.06]
-                hover:bg-white/[0.08] hover:text-[#e8e6ee] active:scale-[0.97]
-                transition-all duration-200"
-            >
-              <BarChart3 className="w-4 h-4" />
-              {hasPosition ? "Manage" : "Details"}
-            </div>
+          <div
+            className="flex items-center justify-center gap-2 py-4 rounded-xl
+              bg-[#34d399]/10 text-[#34d399] text-[13px] font-bold
+              border border-[#34d399]/20
+              hover:bg-[#34d399]/20 active:scale-[0.97]
+              transition-all duration-200"
+          >
+            <Plus className="w-4 h-4" />
+            {hasPosition ? "Manage Position" : "Provide Liquidity"}
           </div>
         </div>
 
