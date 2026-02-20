@@ -47,3 +47,30 @@ export const cairoEnumToString = (e: any): string => {
   return entry ? entry[0].toUpperCase() : "UNKNOWN";
 };
 
+/* ---------- oracle history ---------- */
+
+export const compute24hChange = (
+  history: { rateBps: number; timestamp: number }[],
+  currentRateBps: number
+): number => {
+  if (!history || history.length === 0) return 0;
+  // history is chronological (oldest first), so index 0 is ~24h ago
+  const oldest = history[0];
+  if (!oldest || oldest.rateBps === 0) return 0;
+  return ((currentRateBps - oldest.rateBps) / oldest.rateBps) * 100;
+};
+
+export const compute7dRange = (
+  history: { rateBps: number; timestamp: number }[]
+): { minPct: number; maxPct: number } => {
+  if (!history || history.length === 0) return { minPct: 0, maxPct: 0 };
+  let min = Infinity;
+  let max = -Infinity;
+  for (const entry of history) {
+    const pct = entry.rateBps / 100;
+    if (pct < min) min = pct;
+    if (pct > max) max = pct;
+  }
+  return { minPct: min, maxPct: max };
+};
+

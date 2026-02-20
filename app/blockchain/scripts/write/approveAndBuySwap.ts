@@ -18,7 +18,6 @@ function toU256Array(value: number): string[] {
 export async function approveAndBuySwap({
   tokenAddress,
   asceSwapAddress,
-  oracleAddress,
   pairId,
   side,
   notional,
@@ -28,11 +27,10 @@ export async function approveAndBuySwap({
 }: {
   tokenAddress: string;
   asceSwapAddress: string;
-  oracleAddress: string;
   pairId: string; // felt252
   side: "FIXED" | "FLOATING";
   notional: number;
-  collateral: number;
+  collateral: number;      // total deposit (margin + fee) — used for both approve and buy_swap
   maxRateBps: number;
   decimals: number;
 }) {
@@ -65,30 +63,9 @@ export async function approveAndBuySwap({
   const collateralArr = toU256ArrayFromDecimal(collateral, decimals);
   const maxRateArr = toU256Array(maxRateBps);
 
-  /* -------- 🔥 ORACLE FIX --------
-     IMPORTANT:
-     - NEVER use Date.now()
-     - Use chain timestamp to avoid u64 overflow
-  */
-  const block = await account.getBlock("latest");
-  const chainTimestamp = Number(block.timestamp);
-
-  // Same rate as tests (5% = 500 bps)
-  const oracleRateArr = toU256Array(500);
-
   /* -------- multicall -------- */
   const calls = [
-    // 0️⃣ refresh oracle (fixes ORACLE STALE + u64 overflow)
-    {
-      contractAddress: oracleAddress,
-      entrypoint: "set_rate",
-      calldata: [
-        ...oracleRateArr,            // u256 rate
-        chainTimestamp.toString(),   // u64 timestamp (SAFE)
-      ],
-    },
-
-    // 1️⃣ approve collateral
+    // 1️⃣ approve collateral (total deposit the contract will pull)
     {
       contractAddress: tokenAddress,
       entrypoint: "approve",
@@ -98,7 +75,7 @@ export async function approveAndBuySwap({
       ],
     },
 
-    // 2️⃣ buy swap
+    // 2️⃣ buy swap (collateral = total deposit, contract deducts fee internally)
     {
       contractAddress: asceSwapAddress,
       entrypoint: "buy_swap",
@@ -111,6 +88,9 @@ export async function approveAndBuySwap({
       ],
     },
   ];
+
+  console.log("[approveAndBuySwap] wallet address:", account.address);
+  console.log("[approveAndBuySwap] calls:", JSON.stringify(calls, null, 2));
 
   const tx = await account.execute(calls);
   return tx.transaction_hash;

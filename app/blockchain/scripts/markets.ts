@@ -104,3 +104,33 @@ export async function getSwapDashboard(swapId: bigint) {
     twaRateBps: twa,
   };
 }
+
+/* ---------- LP preview helpers ---------- */
+
+export async function getExchangeRateForLp(pairId: string): Promise<bigint> {
+  return u256ToBigInt(await asceSwap.exchange_rate_for_lp(pairId));
+}
+
+export async function previewDepositForLp(
+  amount: bigint,
+  pairId: string
+): Promise<bigint> {
+  return u256ToBigInt(
+    await asceSwap.preview_deposit_for_lp(
+      uint256.bnToUint256(amount),
+      pairId
+    )
+  );
+}
+
+export async function previewWithdrawForLp(
+  shares: bigint,
+  pairId: string
+): Promise<bigint> {
+  return u256ToBigInt(
+    await asceSwap.preview_withdraw_for_lp(
+      uint256.bnToUint256(shares),
+      pairId
+    )
+  );
+}

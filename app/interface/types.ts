@@ -26,12 +26,14 @@ export interface MarketData {
   maturityTimestamp: number;
 }
 
-export type TokenSymbol = "STRK" | "USDC" | "ETH" | "BTC" | "USDT"; 
+export type TokenSymbol = "STRK" | "USDC" | "ETH" | "BTC" | "USDT" | "mockBTC" | "mockSTRK" | "mockUSDC";
+
+export type SwapStatus = "ACTIVE" | "SETTLED" | "LIQUIDATED" | "EXITEDEARLY" | "UNINITIALIZED";
 
 export type SwapDirection = 'FIXED' | 'FLOATING';
 
 // interface/types.ts
-export type ProtocolSymbol = "Ekubo" | "Vesu" | "Nostra" | "Asceswap";
+export type ProtocolSymbol = "Ekubo" | "Vesu" | "Nostra" | "Asceswap" | "Paradex" | "Endure.Fi" | "Troves" | "US";
 
 // interface/formattedMarket.ts
 
@@ -99,14 +101,17 @@ export interface Position {
     swapId: number;
     pairId: number;
     side: "FIXED" | "FLOAT";
-    status: "ACTIVE" | "CLOSED";
+    status: SwapStatus;
     notional: number;
     collateral: number;
     pnl: number;
+    fixedRatePct?: number;
     healthFactorPct: number;
     progressPct: number;
     remainingDays: number;
-    remainingSeconds:number;
+    remainingHours: number;
+    remainingLabel: string;
+    remainingSeconds: number;
 }
 
 export interface LPPosition {
@@ -172,14 +177,17 @@ export type UserDashboard = {
     swapId: number;
     pairId: number;
     side: "FIXED" | "FLOAT";
-    status: "ACTIVE" | "CLOSED";
+    status: SwapStatus;
     notional: number;
     collateral: number;
     pnl: number;
+    fixedRatePct?: number;
     healthFactorPct: number;
     progressPct: number;
     remainingDays: number;
-    remainingSeconds:number;
+    remainingHours: number;
+    remainingLabel: string;
+    remainingSeconds: number;
   }[];
 };
 
@@ -188,7 +196,7 @@ export type SwapDetail = {
   swapId: number;
   pairId: number;
   side: "FIXED" | "FLOAT";
-  status: "ACTIVE" | "CLOSED";
+  status: SwapStatus;
 
   /* ---------- Position ---------- */
   notional: number;
@@ -239,5 +247,30 @@ export type SwapDetail = {
   };
 };
 
+export type RateEntry = {
+  rateBps: number;
+  ratePct: number;
+  timestamp: number;
+  date: Date;
+};
 
+export type MarketsPageData = any; // Raw response from analytics.get_markets_page()
 
+export type LpPageData = any; // Raw response from analytics.get_lp_page()
+
+export type SwapQuoteResult = {
+  baseRateBps: bigint;
+  imbalanceAdjustmentBps: bigint;
+  adjustmentIsPositive: boolean;
+  feeSpreadBps: bigint;
+  finalRateBps: bigint;
+  requiredCollateral: bigint;
+  lpCollateralToLock: bigint;
+};
+
+export type PnLScenario = {
+  label: string;
+  rateBps: number;
+  pnl: number;
+  pnlPct: number;
+};

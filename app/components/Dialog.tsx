@@ -29,11 +29,11 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, children }) => 
       />
       
       {/* Content Container */}
-      <div className="relative w-full max-w-lg bg-[#0d111a] border border-white/10 rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5),0_0_20px_rgba(59,130,246,0.1)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 ease-out flex flex-col">
+      <div className="relative w-full max-w-lg bg-[rgba(12,12,18,0.7)] backdrop-blur-[16px] border border-white/10 rounded-3xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5),0_0_20px_rgba(167,139,250,0.22)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 ease-out flex flex-col">
         {/* Close Button - Positioned absolutely inside the container */}
         <button 
           onClick={onClose}
-          className="absolute cursor-pointer top-6 right-8 p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-full transition-all z-10"
+          className="absolute cursor-pointer top-6 right-8 p-2 text-[#9896a3] hover:text-[#e8e6ee] hover:bg-white/5 rounded-full transition-all z-10"
           aria-label="Close dialog"
         >
           <X className="w-5 h-5" />

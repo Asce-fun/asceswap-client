@@ -1,23 +1,24 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { TrendingUp, TrendingDown, Info, Clock, Wallet } from "lucide-react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import {
-  Duration,
   FormattedMarket,
   MarketData,
   ProtocolSymbol,
   SwapDirection,
 } from "../interface/types";
-import { Dialog } from "./Dialog";
-import { SwapDialogContent } from "./SwapDialogContent";
-import { extractTokensFromName } from "../lib/helpers/helpers";
-import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
+import { SwapModal } from "./SwapModal";
 import { PROTOCOL_LOGOS } from "../lib/helpers/dappLogos";
-import { LiquidityDialogContent } from "./LiquidityDialogContent";
 import { DefaultProtocolLogo } from "../lib/helpers/DefaultProtocolLogo";
 import { getMarket } from "../blockchain/scripts/markets";
+import { MARKET_META } from "../constants/markets";
+import { extractTokensFromName } from "../lib/helpers/helpers";
+import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
+import { getOracleRateHistory } from "../blockchain/scripts/oracleContract";
+import { compute24hChange } from "../blockchain/utils/utils";
 
 interface SwapCardProps {
   market: MarketData;
+  batchMarketDetails?: FormattedMarket;
 }
 
 export function getProtocolLogo(
@@ -26,242 +27,189 @@ export function getProtocolLogo(
   return PROTOCOL_LOGOS[protocol as ProtocolSymbol] ?? DefaultProtocolLogo;
 }
 
-export const SwapCard: React.FC<SwapCardProps> = ({ market }) => {
+export const SwapCard: React.FC<SwapCardProps> = ({ market, batchMarketDetails }) => {
   const [showSwapDialog, setShowSwapDialog] = useState(false);
-  const [showLiquidityDialog, setShowLiquidityDialog] = useState(false);
   const [activeDirection, setActiveDirection] =
     useState<SwapDirection>("FLOATING");
-  const [timeLeft, setTimeLeft] = useState("");
-  const ProtocolIcon = getProtocolLogo(market.protocol);
-  const tokens = extractTokensFromName(market.name);
   const [marketDetails, setMarketDetails] = useState<FormattedMarket | null>(
     null,
   );
-  /* ---------------- Countdown ---------------- */
+  const [dayChange, setDayChange] = useState<number>(0);
+
+  const meta = MARKET_META?.[market.id];
+  const collateralSymbol = meta?.collateralSymbol ?? "USDC";
+
+  // Use batch data if provided by parent, otherwise fetch individually
   useEffect(() => {
-    const updateCountdown = () => {
-      const diff = market.maturityTimestamp - Date.now();
-
-      if (diff <= 0) {
-        setTimeLeft("EXPIRED");
-        return;
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
-      );
-      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-      const parts = [];
-      if (days > 0) parts.push(`${days}d`);
-      parts.push(
-        `${hours.toString().padStart(2, "0")}h`,
-        `${mins.toString().padStart(2, "0")}m`,
-        `${secs.toString().padStart(2, "0")}s`,
-      );
-
-      setTimeLeft(parts.join(" "));
-    };
-
-    updateCountdown();
-    const i = setInterval(updateCountdown, 1000);
-    return () => clearInterval(i);
-  }, [market.maturityTimestamp]);
+    if (batchMarketDetails) {
+      setMarketDetails(batchMarketDetails);
+    }
+  }, [batchMarketDetails]);
 
   useEffect(() => {
     const fetchData = async () => {
-      const res = await getMarket(market.id);
+      // Skip market fetch if batch data already provided
+      const res = batchMarketDetails ?? await getMarket(market.id);
+      const history = meta?.oracleAddress
+        ? await getOracleRateHistory(meta.oracleAddress, 24).catch(() => [])
+        : [];
       if (res) {
-        setMarketDetails(res as any);
+        if (!batchMarketDetails) setMarketDetails(res as any);
+        const currentBps = (res as any).rate?.currentPct
+          ? (res as any).rate.currentPct * 100
+          : 0;
+        if (history && history.length > 0) {
+          setDayChange(
+            parseFloat(compute24hChange(history, currentBps).toFixed(2))
+          );
+        }
       }
     };
     fetchData();
-  }, []);
-
-  /* ---------------- Pricing ---------------- */
-  const impliedFixedRate = useMemo(() => {
-    const termPremium =
-      market.fixedDuration === Duration.D1
-        ? 0.2
-        : market.fixedDuration === Duration.D7
-          ? 0.8
-          : 1.6;
-
-    return (
-      (marketDetails?.rate?.currentPct ? marketDetails?.rate?.currentPct : 5) -
-      termPremium
-    );
-  }, [marketDetails?.rate?.currentPct, market.fixedDuration]);
+  }, [batchMarketDetails]);
 
   const handleOpenSwap = (direction: SwapDirection) => {
     setActiveDirection(direction);
     setShowSwapDialog(true);
   };
 
-  const settlementEndTs = useMemo(() => {
-  if (!marketDetails?.params?.swapTermDays) return null;
-
-  const now = Date.now();
-  const termMs =
-    marketDetails.params.swapTermDays * 24 * 60 * 60 * 1000;
-
-  return now + termMs;
-}, [marketDetails?.params?.swapTermDays]);
-
-
-  const settlementDateLabel = useMemo(() => {
-  if (!settlementEndTs) return null;
-  return new Date(settlementEndTs).toLocaleString();
-}, [settlementEndTs]);
-
+  const currentRate = marketDetails?.rate?.currentPct ?? 0;
+  const termDays = marketDetails?.params?.swapTermDays ?? "--";
+  const tokens = extractTokensFromName(market.name);
+  const collateralTokens = extractTokensFromName(collateralSymbol);
 
   return (
     <>
-      <div className="relative group transition-all duration-500 h-full">
-        <div className="absolute -inset-0.5 bg-linear-to-br from-blue-500/20 to-purple-500/20 rounded-[2rem] blur opacity-0 group-hover:opacity-100 transition duration-500" />
+      <div
+        className="
+          group/card relative h-full rounded-2xl p-px
+          bg-linear-to-br from-white/10 via-white/5 to-transparent
+          hover:from-[#34d399]/30 hover:via-[#34d399]/20
+          transition-all duration-300
+        "
+      >
+        <div
+          className="
+            relative rounded-2xl
+            bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px]
+            border border-[#1e1e2a]
+            shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)]
+            hover:-translate-y-0.5
+            hover:shadow-[0_30px_80px_-25px_rgba(0,0,0,1)]
+            transition-all duration-300
+            overflow-hidden flex flex-col h-full
+          "
+        >
+          {/* TOP GLOW */}
+          <div className="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-[#34d399]/10 to-transparent pointer-events-none" />
 
-        <div className="relative dark:bg-[#11141d] border dark:border-white/5 rounded-[2rem] bg-white border-slate-200 shadow-xl overflow-hidden flex flex-col h-full">
-          {/* ================= HEADER ================= */}
-          <div className="p-6 pb-3">
-            <div className="flex justify-between items-start mb-5">
+          {/* HEADER */}
+          <div className="relative z-10 px-5 pt-5 pb-0">
+            <div className="flex justify-between items-start">
               <div className="flex items-start gap-3">
-                {/* Protocol icon */}
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                  <ProtocolIcon size={20} />
-                </div>
-
-                {/* -------- Title + tokens -------- */}
-                <div className="flex flex-col gap-2">
-                  <h3 className="font-bold dark:text-slate-100 tracking-tight leading-none">
+                {(() => { const PL = getProtocolLogo(market.protocol); return <PL size={40} />; })()}
+                <div>
+                  <h3 className="text-[17px] font-bold text-[#e8e6ee] tracking-tight leading-none">
                     {market.protocol}
                   </h3>
-
-                  {/* Tokens + Market Name */}
-                  <div className="flex gap-1.5 items-center">
-                    {/* Token logos */}
-                    <div className="flex items-center gap-1">
-                      {tokens.map((token) => {
-                        const Logo = TOKEN_LOGOS[token];
-                        return <Logo key={token} size={16} />;
-                      })}
-                    </div>
-
-                    {/* Market name */}
-                    <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">
-                      {market.name}
-                    </p>
-                  </div>
+                  <p className="text-[10px] text-[#7A8792] uppercase font-semibold tracking-[0.1em] mt-1.5 flex items-center gap-1">
+                    {market.name}
+                    {collateralTokens.map((token) => {
+                      const Logo = TOKEN_LOGOS[token];
+                      return <Logo key={token} size={12} />;
+                    })}
+                    {collateralSymbol.replace(/^mock/, '')}
+                  </p>
                 </div>
               </div>
 
-              <Info className="w-4 h-4 text-slate-500 mt-1" />
-            </div>
-
-            {/* ================= RATE ================= */}
-            <div className="text-center py-8">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-3">
-                Current Fixed Rate
-              </div>
-
-              <div className="text-6xl font-mono font-bold dark:text-white mb-2 tracking-tighter">
-                {marketDetails?.rate?.currentPct.toFixed(2)}%
-              </div>
+              <span className="text-[9px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 rounded-md text-[#6ee7b7] border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)]">
+                Live
+              </span>
             </div>
           </div>
 
-          {/* ================= TERM BAR ================= */}
-          <div className="px-6 py-4 border-y dark:border-white/5 dark:bg-black/40 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 mb-0.5">
-                Market Term
-              </span>
-              <span className="text-xs font-mono font-bold dark:text-slate-300">
-                {marketDetails?.params.swapTermDays} Days
-              </span>
+          {/* RATE */}
+          <div className="relative z-10 px-5 pt-5 pb-4">
+            <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#6B7280] mb-2">
+              Current Rate
             </div>
-
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 mb-0.5">
-                Market Maturity
+            <div className="flex items-baseline gap-2.5">
+              <span className="text-[42px] font-mono font-bold text-[#e8e6ee] tracking-tighter leading-none">
+                {currentRate.toFixed(2)}
               </span>
-              <div className="flex items-center gap-2">
-                <Clock className="w-3 h-3 text-blue-500 animate-pulse" />
-                <span className="text-xs font-mono font-bold text-blue-400">
-                  {settlementDateLabel}
-                </span>
-              </div>
+              <span className="text-lg font-mono font-bold text-[#6B7280] -ml-1">
+                %
+              </span>
+
+              <span
+                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                  dayChange >= 0
+                    ? "text-[#34d399] bg-[#34d399]/10"
+                    : "text-[#f87171] bg-[#f87171]/10"
+                }`}
+              >
+                {dayChange >= 0 ? "+" : ""}
+                {dayChange.toFixed(2)}%
+              </span>
             </div>
           </div>
 
-          {/* ================= ACTIONS ================= */}
-          <div className="p-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+          {/* DURATION & COLLATERAL + BUTTONS */}
+          <div className="relative z-10 px-5 pb-5 mt-auto space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#6B7280]">Duration</span>
+                <span className="text-[11px] font-mono font-bold text-[#9896a3]">{termDays}d</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {collateralTokens.map((token) => {
+                  const Logo = TOKEN_LOGOS[token];
+                  return <Logo key={token} size={16} />;
+                })}
+                <span className="text-[11px] font-mono font-bold text-[#9896a3]">{collateralSymbol}</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
               <button
                 onClick={() => handleOpenSwap("FLOATING")}
-                className="bg-[#1de9b6] cursor-pointer hover:bg-[#14cbad] text-black p-5 rounded-[1.5rem] shadow-xl shadow-[#1de9b6]/10 active:scale-95 transition-all group/btn"
+                className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl
+                  bg-[#34d399]/10 text-[#34d399] text-[13px] font-bold
+                  border border-[#34d399]/20
+                  hover:bg-[#34d399]/20 active:scale-[0.97]
+                  transition-all duration-200 cursor-pointer"
               >
-                <TrendingUp className="w-5 h-5 mx-auto mb-2 group-hover/btn:scale-110 transition-transform" />
-                <div className="text-xs font-black uppercase tracking-tighter">
-                  Receive Floating
-                </div>
-                <div className="text-[9px] text-black/50 mt-1 font-bold">
-                  BULLISH YIELD
-                </div>
+                <ArrowUp className="w-4 h-4" />
+                Rates Up
               </button>
-
               <button
                 onClick={() => handleOpenSwap("FIXED")}
-                className="bg-[#00e5ff] cursor-pointer hover:bg-[#00d1e8] text-black p-5 rounded-[1.5rem] shadow-xl shadow-[#00e5ff]/10 active:scale-95 transition-all group/btn"
+                className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl
+                  bg-white/[0.04] text-[#9896a3] text-[13px] font-bold
+                  border border-white/[0.06]
+                  hover:bg-white/[0.08] hover:text-[#e8e6ee] active:scale-[0.97]
+                  transition-all duration-200 cursor-pointer"
               >
-                <TrendingDown className="w-5 h-5 mx-auto mb-2 group-hover/btn:scale-110 transition-transform" />
-                <div className="text-xs font-black uppercase tracking-tighter">
-                  Receive Fixed
-                </div>
-                <div className="text-[9px] text-black/50 mt-1 font-bold">
-                  BEARISH YIELD
-                </div>
+                <ArrowDown className="w-4 h-4" />
+                Rates Down
               </button>
-            </div>
-
-            {!marketDetails?.params.isLpPermissioned && (
-              <button
-                onClick={() => setShowLiquidityDialog(true)}
-                className="w-full cursor-pointer py-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-400 font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 transition-all hover:border-indigo-500/50"
-              >
-                <Wallet className="w-4 h-4" />
-                Provide Liquidity
-              </button>
-            )}
-
-            <div className="text-center text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
-              Smart Contract Enforced • Atomic Execution
             </div>
           </div>
+
+          {/* DECORATIVE GLOW */}
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 blur-3xl opacity-20 group-hover/card:opacity-40 transition-opacity bg-[#34d399]" />
         </div>
       </div>
 
-      <Dialog isOpen={showSwapDialog} onClose={() => setShowSwapDialog(false)}>
-        <SwapDialogContent
+      {showSwapDialog && (
+        <SwapModal
+          isOpen={showSwapDialog}
+          onClose={() => setShowSwapDialog(false)}
           market={market}
           direction={activeDirection}
-          duration={market.fixedDuration}
-          onClose={() => setShowSwapDialog(false)}
-          marketDetails={marketDetails}
-          settlementDateLabel={settlementDateLabel}
-        />
-      </Dialog>
-      <Dialog
-        isOpen={showLiquidityDialog}
-        onClose={() => setShowLiquidityDialog(false)}
-      >
-        <LiquidityDialogContent
-          market={market}
-          onClose={() => setShowLiquidityDialog(false)}
           marketDetails={marketDetails}
         />
-      </Dialog>
+      )}
     </>
   );
 };

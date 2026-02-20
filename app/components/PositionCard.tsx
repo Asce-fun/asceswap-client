@@ -1,6 +1,7 @@
 import React from "react";
-import { Lock, Waves } from "lucide-react";
+import { Lock, Waves, CheckCircle } from "lucide-react";
 import { Position, PositionSide } from "../interface/types";
+import { MARKETS, MARKET_META } from "../constants/markets";
 
 interface PositionCardProps {
   position: Position;
@@ -12,151 +13,194 @@ export const PositionCard: React.FC<PositionCardProps> = ({
   onClick,
 }) => {
   const isFixed = position.side === PositionSide.FIXED;
-  const pnlColor = position.pnl >= 0 ? "text-green-400" : "text-red-400";
+  const isActive = position.status === "ACTIVE";
+  const isSettled = !isActive; // SETTLED, LIQUIDATED, EXITEDEARLY
+  const pnlColor = position.pnl >= 0 ? "text-[#34d399]" : "text-[#f87171]";
 
-  /* ---------------- TIME-BASED PROGRESS (NO CONSTANTS) ---------------- */
+  const meta = MARKET_META[String(position.pairId)];
+  const market = MARKETS.find((m) => m.id === String(position.pairId));
+  const marketName = market?.name ?? `Market #${position.pairId}`;
+  const tokenSymbol = (meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "");
 
   const remainingSeconds = position.remainingSeconds ?? 0;
-  const financialProgressBps =
-    typeof position.progressPct === "number"
-      ? position.progressPct * 100 // convert % → bps-like
-      : 0;
+  const isExpired = remainingSeconds <= 0;
 
+  // Compute time-based progress
   let timeProgressPct = 0;
 
-  if (remainingSeconds > 0 && financialProgressBps < 10000) {
-    const totalSeconds =
-      remainingSeconds / (1 - financialProgressBps / 10000);
+  if (isExpired || isSettled) {
+    timeProgressPct = 100;
+  } else {
+    const financialProgressBps =
+      typeof position.progressPct === "number"
+        ? position.progressPct * 100
+        : 0;
 
-    const elapsedSeconds =
-      totalSeconds - remainingSeconds;
-
-    timeProgressPct = Math.min(
-      100,
-      Math.max(0, (elapsedSeconds / totalSeconds) * 100)
-    );
+    if (financialProgressBps < 10000) {
+      const totalSeconds =
+        remainingSeconds / (1 - financialProgressBps / 10000);
+      const elapsedSeconds = totalSeconds - remainingSeconds;
+      timeProgressPct = Math.min(
+        100,
+        Math.max(0, (elapsedSeconds / totalSeconds) * 100)
+      );
+    }
   }
 
-  /* -------------------------------------------------------------------- */
+  // Fixed rate display
+  const fixedRateDisplay =
+    position.fixedRatePct != null && position.fixedRatePct > 0
+      ? `${position.fixedRatePct.toFixed(2)}%`
+      : "--";
+
+  // Status badge config
+  const statusBadge = (() => {
+    switch (position.status) {
+      case "ACTIVE":
+        return { label: "ACTIVE", bg: "bg-[#34d399]/10", text: "text-[#34d399]", border: "border-[#34d399]/20" };
+      case "SETTLED":
+        return { label: "SETTLED", bg: "bg-white/5", text: "text-[#9896a3]", border: "border-white/10" };
+      case "LIQUIDATED":
+        return { label: "LIQUIDATED", bg: "bg-[#f87171]/10", text: "text-[#f87171]", border: "border-[#f87171]/20" };
+      case "EXITEDEARLY":
+        return { label: "EXITED", bg: "bg-amber-400/10", text: "text-amber-400", border: "border-amber-400/20" };
+      default:
+        return { label: position.status, bg: "bg-white/5", text: "text-[#9896a3]", border: "border-white/10" };
+    }
+  })();
 
   return (
     <div
       onClick={onClick}
-      className="
+      className={`
         group relative cursor-pointer rounded-2xl p-px
-        bg-linear-to-br from-white/10 via-white/5 to-transparent
-        hover:from-blue-500/30 hover:via-purple-500/20
+        bg-linear-to-br
+        ${isSettled
+          ? "from-white/5 via-white/[0.02] to-transparent hover:from-white/10 hover:via-white/5"
+          : "from-white/10 via-white/5 to-transparent hover:from-[#34d399]/30 hover:via-[#34d399]/20"
+        }
         transition-all duration-300
-      "
+      `}
     >
       <div
-        className="
-          relative rounded-2xl p-6
-          bg-[#0b0f16]/90
-          backdrop-blur-xl
-          border border-white/5
+        className={`
+          relative rounded-2xl p-5
+          bg-[rgba(12,12,18,0.6)] backdrop-blur-[16px]
+          border border-[#1e1e2a]
           shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)]
           hover:-translate-y-0.5
           hover:shadow-[0_30px_80px_-25px_rgba(0,0,0,1)]
           transition-all duration-300
           overflow-hidden
-        "
+          ${isSettled ? "opacity-75" : ""}
+        `}
       >
         {/* TOP GLOW */}
-        <div
-          className={`
-            absolute inset-x-0 top-0 h-24
-            bg-linear-to-b
-            ${isFixed ? "from-blue-500/10" : "from-purple-500/10"}
-            to-transparent
-            pointer-events-none
-          `}
-        />
+        {!isSettled && (
+          <div className="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-[#34d399]/10 to-transparent pointer-events-none" />
+        )}
 
         <div className="relative z-10">
-          {/* HEADER */}
-          <div className="flex justify-between items-start mb-8">
-            <div className="flex items-center gap-3">
-              <div
-                className={`
-                  p-2.5 rounded-xl
-                  ${
-                    isFixed
-                      ? "bg-blue-600/10 text-blue-400"
-                      : "bg-purple-600/10 text-purple-400"
-                  }
-                `}
-              >
-                {isFixed ? (
-                  <Lock className="w-5 h-5" />
-                ) : (
-                  <Waves className="w-5 h-5" />
-                )}
-              </div>
-
-              <div>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                  {position.side} SIDE
-                </p>
-                <p className="text-sm font-semibold text-zinc-300">
-                  #{position.swapId}
-                </p>
-              </div>
-            </div>
-
-            <span className="px-2 py-0.5 rounded-md bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/20">
-              {position.status}
+          {/* TOP ROW: Swap ID + Status */}
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[10px] font-mono text-[#4B5563] tracking-wide">
+              #{position.swapId}
+            </span>
+            <span className={`px-1.5 py-px rounded text-[9px] font-semibold ${statusBadge.bg} ${statusBadge.text} border ${statusBadge.border}`}>
+              {statusBadge.label}
             </span>
           </div>
 
-          {/* RATE */}
-          <div className="flex justify-between items-baseline mb-2">
-            <span className="text-zinc-500 text-sm">
-              {isFixed ? "Rate" : "Current APR"}
+          {/* HEADER: Icon + Market */}
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className={`p-2 rounded-lg ${isSettled ? "bg-white/5 text-[#6B7280]" : "bg-[#34d399]/10 text-[#34d399]"}`}>
+              {isFixed ? (
+                <Lock className="w-4 h-4" />
+              ) : (
+                <Waves className="w-4 h-4" />
+              )}
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-[#4B5563] uppercase tracking-widest">
+                {position.side} Side
+              </p>
+              <p className={`text-[13px] font-semibold leading-tight ${isSettled ? "text-[#9896a3]" : "text-[#e8e6ee]"}`}>
+                {marketName}
+              </p>
+            </div>
+          </div>
+
+          {/* FIXED RATE */}
+          <div className="flex justify-between items-baseline mb-3">
+            <span className="text-xs text-[#6B7280]">Fixed Rate</span>
+            <span className={`text-xl font-semibold tabular-nums ${isSettled ? "text-[#9896a3]" : "text-[#e8e6ee]"}`}>{fixedRateDisplay}</span>
+          </div>
+
+          {/* DIVIDER */}
+          <div className="h-px bg-white/5 mb-3" />
+
+          {/* NOTIONAL */}
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[11px] text-[#6B7280]">Notional</span>
+            <span className="text-[13px] font-medium text-[#9896a3] tabular-nums">
+              {position.notional.toFixed(4)} {tokenSymbol}
             </span>
-            <span className="text-3xl font-medium text-white">16</span>
           </div>
 
           {/* PNL */}
-          <div className="flex justify-between items-center mb-6">
-            <span className="text-zinc-500 text-sm">Unrealized P&L</span>
-            <span className={`text-lg font-semibold ${pnlColor}`}>
-              {position.pnl >= 0 ? "+" : ""}$
-              {position.pnl}
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-[11px] text-[#6B7280]">{isSettled ? "Final P&L" : "Unrealized P&L"}</span>
+            <span className={`text-[13px] font-semibold tabular-nums ${isSettled ? "text-[#9896a3]" : pnlColor}`}>
+              {position.pnl >= 0 ? "+" : ""}{position.pnl.toFixed(4)} {tokenSymbol}
             </span>
           </div>
 
-          {/* PROGRESS */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-              <span>Progress</span>
-              <span>{position.remainingDays}d left</span>
-            </div>
+          {/* PROGRESS — only show for active */}
+          {isActive && (
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[9px] text-[#4B5563] font-semibold uppercase tracking-wider">
+                <span>Progress</span>
+                {isExpired ? (
+                  <span className="flex items-center gap-1 text-[#34d399]">
+                    <CheckCircle className="w-3 h-3" />
+                    Ready to Settle
+                  </span>
+                ) : (
+                  <span className="text-[#9896a3]">{position.remainingLabel}</span>
+                )}
+              </div>
 
-            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-              <div
-                className={`
-                  h-full rounded-full transition-all duration-1000
-                  ${
-                    isFixed
-                      ? "bg-linear-to-r from-blue-500 to-cyan-400"
-                      : "bg-linear-to-r from-purple-500 to-pink-400"
-                  }
-                `}
-                style={{ width: `${timeProgressPct}%` }}
-              />
+              <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className={`
+                    h-full rounded-full transition-all duration-1000
+                    ${
+                      isExpired
+                        ? "bg-[#34d399]"
+                        : "bg-linear-to-r from-[#34d399] to-[#6ee7b7]"
+                    }
+                  `}
+                  style={{ width: `${timeProgressPct}%` }}
+                />
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* SETTLED LABEL — show for non-active */}
+          {isSettled && (
+            <div className="flex justify-between items-center text-[9px] text-[#4B5563] font-semibold uppercase tracking-wider">
+              <span>Status</span>
+              <span className={`${statusBadge.text}`}>
+                {position.status === "SETTLED" ? "Settled" : position.status === "LIQUIDATED" ? "Liquidated" : "Exited Early"}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* DECORATIVE GLOW */}
-        <div
-          className={`
-            absolute -right-6 -bottom-6 w-24 h-24
-            blur-3xl opacity-20 group-hover:opacity-40 transition-opacity
-            ${isFixed ? "bg-blue-500" : "bg-purple-500"}
-          `}
-        />
+        {/* DECORATIVE GLOW — only for active */}
+        {!isSettled && (
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 blur-3xl opacity-20 group-hover:opacity-40 transition-opacity bg-[#34d399]" />
+        )}
       </div>
     </div>
   );
