@@ -9,7 +9,12 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { FormattedMarket, Position, PositionSide, SwapDetail } from "../interface/types";
+import {
+  FormattedMarket,
+  Position,
+  PositionSide,
+  SwapDetail,
+} from "../interface/types";
 import { MOCK_CHART_DATA } from "../constants/constants";
 import numberFormatter from "../blockchain/utils/numberFormatter";
 import { getSwapDetail } from "../blockchain/scripts/analytics";
@@ -36,9 +41,9 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
-    const [marketDetails, setMarketDetails] = useState<FormattedMarket | null>(
-      null,
-    );
+  const [marketDetails, setMarketDetails] = useState<FormattedMarket | null>(
+    null,
+  );
   useEffect(() => {
     if (position?.swapId) {
       const fetchSwapDetail = async () => {
@@ -67,7 +72,7 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
       setLoading(true);
       const txHash = await earlyExitSwap({
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
-        oracleAddress:marketDetails?.oracle as string,
+        oracleAddress: marketDetails?.oracle as string,
         swapId: position.swapId,
       });
 
@@ -79,17 +84,17 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
     }
   };
 
-    useEffect(() => {
-      const fetchData = async () => {
-        const res = await getMarket(String(position.pairId));
-        if (res) {
-          setMarketDetails(res as any);
-        }
-      };
-      if(position?.pairId){
-        fetchData();
+  useEffect(() => {
+    const fetchData = async () => {
+      const res = await getMarket(String(position.pairId));
+      if (res) {
+        setMarketDetails(res as any);
       }
-    }, [position.pairId]);
+    };
+    if (position?.pairId) {
+      fetchData();
+    }
+  }, [position.pairId]);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -128,55 +133,75 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
         </div>
 
         {/* Chart Section */}
-        <div className="h-75 w-full mb-12 relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={MOCK_CHART_DATA}>
+        <div className="relative mb-8 rounded-xl bg-white/[0.015] border border-[#1FD6A3]/10 overflow-hidden w-full">
+          {/* Chart */}
+          <div className="opacity-60 pointer-events-none select-none w-full">
+            <svg
+              viewBox="0 0 600 255"
+              preserveAspectRatio="none"
+              className="w-full"
+              style={{ height: 255 }}
+            >
               <defs>
-                <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1} />
-                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#1FD6A3" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#1FD6A3" stopOpacity="0.05" />
                 </linearGradient>
               </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="rgba(180,175,200,0.06)"
+
+              {/* Grid */}
+              {[60, 110, 160, 210].map((y) => (
+                <line
+                  key={y}
+                  x1="0"
+                  y1={y}
+                  x2="600"
+                  y2={y}
+                  stroke="rgba(31,214,163,0.08)"
+                  strokeDasharray="4 4"
+                />
+              ))}
+
+              {/* Area (Full Width) */}
+              <path
+                d="M0,150 
+           C80,140 120,155 160,130 
+           C200,105 240,120 280,100 
+           C320,80 360,95 400,85 
+           C440,75 480,90 520,70 
+           C560,60 580,65 600,55
+           L600,255 
+           L0,255 
+           Z"
+                fill="url(#chartGradient)"
               />
-              <XAxis dataKey="time" hide />
-              <YAxis domain={[3, 7]} hide />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#111114",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "12px",
-                }}
-                itemStyle={{ color: "#8b5cf6" }}
+
+              {/* Line */}
+              <path
+                d="M0,150 
+           C80,140 120,155 160,130 
+           C200,105 240,120 280,100 
+           C320,80 360,95 400,85 
+           C440,75 480,90 520,70 
+           C560,60 580,65 600,55"
+                fill="none"
+                stroke="#1FD6A3"
+                strokeWidth="2"
+                strokeLinecap="round"
               />
-              <Area
-                type="monotone"
-                dataKey="rate"
-                stroke="#8b5cf6"
-                fillOpacity={1}
-                fill="url(#colorRate)"
-                strokeWidth={2}
-              />
-              <Area
-                type="monotone"
-                dataKey="fixed"
-                stroke="#4b5563"
-                strokeDasharray="5 5"
-                fillOpacity={0}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-          <div className="absolute top-4 right-12 text-xs text-[#8A8894] flex gap-4">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-0.5 bg-[#8b5cf6]"></span> Current Float:
-              4.85%
+            </svg>
+          </div>
+
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-black/45" />
+
+          {/* Label */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+              Performance Chart
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-0.5 bg-zinc-600 border-dashed border-t"></span>{" "}
-              5.2% FIXED
+            <div className="mt-2 text-lg font-semibold text-[#1FD6A3]">
+              Coming Soon
             </div>
           </div>
         </div>
