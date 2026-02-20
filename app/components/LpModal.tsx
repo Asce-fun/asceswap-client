@@ -20,6 +20,7 @@ interface LpModalProps {
   onClose: () => void;
   market: MarketData;
   marketDetails: FormattedMarket | null;
+  defaultTab?: ActionTab;
 }
 
 type ActionTab = "deposit" | "withdraw";
@@ -30,6 +31,7 @@ export const LpModal: React.FC<LpModalProps> = ({
   onClose,
   market,
   marketDetails,
+  defaultTab = "deposit",
 }) => {
   const meta = MARKET_META?.[market.id] ?? {
     letter: "?",
@@ -41,8 +43,9 @@ export const LpModal: React.FC<LpModalProps> = ({
   const { primaryWallet, setShowAuthFlow } = useDynamicContext();
   const address = primaryWallet?.address;
   const isConnected = !!address;
+  const tokenSymbol = (meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "");
 
-  const [actionTab, setActionTab] = useState<ActionTab>("deposit");
+  const [actionTab, setActionTab] = useState<ActionTab>(defaultTab);
   const [infoTab, setInfoTab] = useState<InfoTab>("fees");
   const [amount, setAmount] = useState(0);
   const [amountStr, setAmountStr] = useState("");
@@ -53,6 +56,13 @@ export const LpModal: React.FC<LpModalProps> = ({
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedTx, setCopiedTx] = useState(false);
+
+  // Sync actionTab when modal opens or defaultTab changes
+  useEffect(() => {
+    if (isOpen) {
+      setActionTab(defaultTab);
+    }
+  }, [isOpen, defaultTab]);
 
   // Market data
   const tvl = marketDetails?.pool?.totalCollateral ?? 0;
@@ -271,7 +281,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                   const Logo = TOKEN_LOGOS[token];
                   return <Logo key={token} size={14} />;
                 })}
-                {(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")} · {termDays}d Term
+                {tokenSymbol}
               </p>
             </div>
             <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#34d399]/20 bg-[#34d399]/5 mr-8">
@@ -308,27 +318,12 @@ export const LpModal: React.FC<LpModalProps> = ({
             </div>
             <div className="font-mono text-lg font-bold text-[#e8e6ee]">
               {sharePrice.toFixed(4)}{" "}
-              <span className="text-[#9896a3] text-xs">USDC</span>
+              <span className="text-[#9896a3] text-xs">{tokenSymbol}</span>
             </div>
             <div className="text-[10px] text-trade-up">
               +{((sharePrice - 1.0) * 100).toFixed(1)}% since inception
             </div>
           </div>
-        </div>
-
-        {/* ========== STAT ROW ========== */}
-        <div className="flex gap-px bg-[#1e1e2a] rounded-xl overflow-hidden mx-6 mb-5 mt-5 shrink-0">
-          {[
-            { label: "Total TVL", value: `$${numberFormatter(tvl)}` },
-            { label: "Available", value: `$${numberFormatter(available > 0 ? available : 0)}` },
-            { label: "Utilization", value: `${utilization.toFixed(1)}%` },
-            { label: "Active Swaps", value: String(activeSwaps) },
-          ].map((s) => (
-            <div key={s.label} className="flex-1 bg-[rgba(17,17,24,0.7)] p-3.5 first:rounded-l-xl last:rounded-r-xl">
-              <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">{s.label}</div>
-              <div className="font-mono font-bold text-[0.9rem] text-[#e8e6ee]">{s.value}</div>
-            </div>
-          ))}
         </div>
 
         {/* ========== TWO-COLUMN BODY ========== */}
@@ -427,6 +422,21 @@ export const LpModal: React.FC<LpModalProps> = ({
               </p>
             </div>
 
+            {/* Pool Stats */}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Total TVL", value: `$${numberFormatter(tvl)}` },
+                { label: "Available", value: `$${numberFormatter(available > 0 ? available : 0)}` },
+                { label: "Utilization", value: `${utilization.toFixed(1)}%` },
+                { label: "Active Swaps", value: String(activeSwaps) },
+              ].map((s) => (
+                <div key={s.label} className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5">
+                  <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">{s.label}</div>
+                  <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">{s.value}</div>
+                </div>
+              ))}
+            </div>
+
             {/* Info Tabs */}
             <div>
               <div className="flex gap-1 p-1 bg-[rgba(17,17,24,0.7)] rounded-[10px] border border-[#1e1e2a] w-fit mb-3">
@@ -510,7 +520,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                     <span className="text-[#e8e6ee] font-semibold">
                       Share-based accounting.
                     </span>{" "}
-                    When you deposit USDC, you receive LP shares proportional to
+                    When you deposit collateral, you receive LP shares proportional to
                     your contribution. The share price increases as the pool
                     earns swap fees and trader losses.
                   </p>
@@ -526,7 +536,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                     <span className="text-[#e8e6ee] font-semibold">
                       Withdrawals.
                     </span>{" "}
-                    You can redeem shares for the underlying USDC at the current
+                    You can redeem shares for the underlying collateral at the current
                     share price, subject to available liquidity and cooldown
                     requirements.
                   </p>
@@ -616,7 +626,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                   >
                     <Wallet className="w-3 h-3" />
                     {actionTab === "deposit"
-                      ? `${numberFormatter(walletBalance ?? 0)} USDC`
+                      ? `${numberFormatter(walletBalance ?? 0)} ${tokenSymbol}`
                       : `${numberFormatter(lpShares ?? 0)} Shares`}
                   </button>
                 </div>
@@ -631,44 +641,32 @@ export const LpModal: React.FC<LpModalProps> = ({
                     className="bg-transparent border-none outline-none font-serif font-bold text-[1.8rem] text-[#e8e6ee] tracking-tighter w-full focus:ring-0 placeholder:opacity-20"
                   />
                   <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[rgba(52,211,153,0.08)] border border-[rgba(52,211,153,0.15)] font-mono font-bold text-[0.75rem] text-[#34d399] shrink-0">
-                    {(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")}
+                    {tokenSymbol}
                   </span>
                 </div>
 
                 {/* Slider */}
-                {actionTab === "deposit" ? (
-                  <input
-                    type="range"
-                    min={0}
-                    max={maxAmount}
-                    step={maxAmount > 100 ? maxAmount / 100 : 0.01}
-                    value={Math.min(amount, maxAmount)}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full h-2
-             bg-white/10
-             rounded-full
-             appearance-none
-             cursor-pointer
-             accent-[#34d399]"
-                    style={{ borderWidth: "3px", borderColor: "#0c0c12" }}
-                  />
-                ) : (
-                  <input
-                    type="range"
-                    min={0}
-                    max={maxLpshares}
-                    step={maxLpshares > 100 ? maxLpshares / 100 : 0.01}
-                    value={Math.min(amount, maxLpshares)}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full h-2
-             bg-white/10
-             rounded-full
-             appearance-none
-             cursor-pointer
-             accent-[#34d399]"
-                    style={{ borderWidth: "3px", borderColor: "#0c0c12" }}
-                  />
-                )}
+                {(() => {
+                  const sliderMax = actionTab === "deposit" ? maxAmount : maxLpshares;
+                  const sliderStep = sliderMax > 0 ? sliderMax / 100 : 0.0001;
+                  return (
+                    <input
+                      type="range"
+                      min={0}
+                      max={sliderMax}
+                      step={sliderStep}
+                      value={Math.min(amount, sliderMax)}
+                      onChange={(e) => setAmount(Number(e.target.value))}
+                      className="w-full h-2
+               bg-white/10
+               rounded-full
+               appearance-none
+               cursor-pointer
+               accent-[#34d399]"
+                      style={{ borderWidth: "3px", borderColor: "#0c0c12" }}
+                    />
+                  );
+                })()}
                 <div className="flex justify-between items-center text-[9px] font-mono text-[#5C5A66]">
                   {actionTab === "deposit" ? (
                     <div className="flex items-center gap-3">
@@ -698,7 +696,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                     />
                     <PreviewRow
                       label="Exchange Rate"
-                      value={`1 Share = ${sharePrice.toFixed(4)} USDC`}
+                      value={`1 Share = ${sharePrice.toFixed(4)} ${tokenSymbol}`}
                     />
                     <PreviewRow
                       label="New Pool Share"
@@ -749,7 +747,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                       </p>
                       <p className="text-[10px] text-white/40">
                         {actionTab === "deposit"
-                          ? `${numberFormatter(amount)} ${(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")} supplied to pool`
+                          ? `${numberFormatter(amount)} ${tokenSymbol} supplied to pool`
                           : `${numberFormatter(amount)} shares redeemed`}
                       </p>
                     </div>
@@ -817,7 +815,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                   >
                     {loading
                       ? "Depositing..."
-                      : `Deposit ${amount > 0 ? `${numberFormatter(amount)}` : ""} ${(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")}`}
+                      : `Deposit ${amount > 0 ? `${numberFormatter(amount)}` : ""} ${tokenSymbol}`}
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
@@ -828,7 +826,7 @@ export const LpModal: React.FC<LpModalProps> = ({
                   >
                     {loading
                       ? "Withdrawing..."
-                      : `Withdraw ${amount > 0 ? `${numberFormatter(amount)}` : ""} ${(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")}`}
+                      : `Withdraw ${amount > 0 ? `${numberFormatter(amount)}` : ""} ${tokenSymbol}`}
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 )}

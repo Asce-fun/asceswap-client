@@ -371,7 +371,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   const Logo = TOKEN_LOGOS[token];
                   return <Logo key={token} size={14} />;
                 })}
-                {tokenSymbol} · {termDays}d Term
+                {tokenSymbol}
               </p>
             </div>
             <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#34d399]/20 bg-[#34d399]/5 mr-8">
@@ -384,41 +384,46 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         </div>
 
         {/* ========== B. RATE STRIP ========== */}
-        <div className="px-6 py-4 border-b border-white/[0.04] flex items-center gap-4 shrink-0 bg-[rgba(12,12,18,0.5)]">
-          <div>
-            <div className="text-[10px] font-semibold text-[#9896a3] uppercase tracking-wider mb-1">
-              Current Rate
+        <div className="px-6 py-4 border-b border-white/[0.04] flex items-center justify-between shrink-0 bg-[rgba(12,12,18,0.5)]">
+          <div className="flex items-center gap-4">
+            <div>
+              <div className="text-[10px] font-semibold text-[#9896a3] uppercase tracking-wider mb-1">
+                Current Rate
+              </div>
+              <span className="font-mono text-3xl font-bold text-[#e8e6ee] tracking-tighter">
+                {currentRate.toFixed(2)}%
+              </span>
             </div>
-            <span className="font-mono text-3xl font-bold text-[#e8e6ee] tracking-tighter">
-              {currentRate.toFixed(2)}%
+            <span
+              className={`text-xs font-mono font-semibold px-2.5 py-1 rounded-lg ${
+                dayChange >= 0
+                  ? "text-[#34d399] bg-[rgba(52,211,153,0.12)]"
+                  : "text-[#f87171] bg-[rgba(248,113,113,0.12)]"
+              }`}
+            >
+              {dayChange >= 0 ? "+" : ""}
+              {dayChange.toFixed(2)}%{" "}
+              <span className="text-[10px] opacity-60">(24h)</span>
             </span>
           </div>
-          <span
-            className={`text-xs font-mono font-semibold px-2.5 py-1 rounded-lg ${
-              dayChange >= 0
-                ? "text-[#34d399] bg-[rgba(52,211,153,0.12)]"
-                : "text-[#f87171] bg-[rgba(248,113,113,0.12)]"
-            }`}
-          >
-            {dayChange >= 0 ? "+" : ""}
-            {dayChange.toFixed(2)}%{" "}
-            <span className="text-[10px] opacity-60">(24h)</span>
-          </span>
-        </div>
 
-        {/* ========== STAT ROW ========== */}
-        <div className="flex gap-px bg-[#1e1e2a] rounded-xl overflow-hidden mx-6 mb-5 shrink-0 mt-5">
-          {[
-            { label: "Oracle Source", value: meta.oracleSource },
-            { label: "Available Liq.", value: `${numberFormatter(available > 0 ? available : 0)} ${tokenSymbol}` },
-            { label: "Pool Util.", value: `${utilization.toFixed(1)}%` },
-            { label: "Active Swaps", value: String(activeSwaps) },
-          ].map((s) => (
-            <div key={s.label} className="flex-1 bg-[rgba(17,17,24,0.7)] p-3.5 first:rounded-l-xl last:rounded-r-xl">
-              <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">{s.label}</div>
-              <div className="font-mono font-bold text-[0.9rem] text-[#e8e6ee]">{s.value}</div>
-            </div>
-          ))}
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">
+              Curator
+            </span>
+            <a
+              href="https://x.com/asceswap"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-[10px] font-medium text-[#34d399]/70 hover:text-[#34d399] transition-colors"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              @asceswap
+              <ExternalLink className="w-2.5 h-2.5 opacity-40" />
+            </a>
+          </div>
         </div>
 
         {/* ========== C. TWO-COLUMN BODY ========== */}
@@ -470,27 +475,13 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1 p-1 bg-[rgba(17,17,24,0.7)] rounded-[10px] border border-[#1e1e2a] w-fit">
-                {["1W", "1M", "3M", "ALL"].map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setChartTimeRange(t)}
-                    className={`px-4 py-2 rounded-lg font-semibold text-[0.75rem] transition-all cursor-pointer ${
-                      chartTimeRange === t
-                        ? "bg-[rgba(255,255,255,0.06)] text-[#e8e6ee]"
-                        : "text-[#9896a3] hover:text-[#e8e6ee]"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Rate History Chart */}
             <OracleChart
               oracleAddress={MARKET_META[market.id]?.oracleAddress ?? ''}
               isOpen={isOpen}
+              liveRatePct={currentRate}
             />
 
             {/* Info Tabs — pill style */}
@@ -542,8 +533,8 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     )}
                   </p>
 
-                  {/* Oracle addresses */}
-                  <div className="space-y-2">
+                  {/* Oracle addresses – side by side */}
+                  <div className="grid grid-cols-2 gap-2">
                     {[
                       {
                         label: "Rate Oracle",
@@ -558,19 +549,19 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     ].map((row) => (
                       <div
                         key={row.field}
-                        className="flex items-center justify-between bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5"
+                        className="flex items-center justify-between bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3"
                       >
-                        <div>
+                        <div className="min-w-0">
                           <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">
                             {row.label}
                           </div>
-                          <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">
+                          <div className="font-mono font-bold text-[0.75rem] text-[#e8e6ee] truncate">
                             {truncHex(row.value)}
                           </div>
                         </div>
                         <button
                           onClick={() => handleCopy(row.value, row.field)}
-                          className="p-1.5 rounded-md hover:bg-white/[0.05] text-[#9896a3] hover:text-[#e8e6ee] transition-colors cursor-pointer"
+                          className="p-1.5 rounded-md hover:bg-white/[0.05] text-[#9896a3] hover:text-[#e8e6ee] transition-colors cursor-pointer shrink-0"
                         >
                           {copiedField === row.field ? (
                             <Check className="w-3.5 h-3.5 text-[#34d399]" />
@@ -581,6 +572,51 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                       </div>
                     ))}
                   </div>
+
+                  {/* P&L Scenario Card */}
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-[#34d399]/10 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-4 rounded-full bg-[#34d399]" />
+                      <span className="text-[10px] font-semibold text-[#e8e6ee] uppercase tracking-wider">
+                        P&L at Expiry
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      {pnlScenarios.map((s) => (
+                        <div
+                          key={s.label}
+                          className="p-2.5 rounded-xl bg-white/[0.015] border border-white/[0.05] text-center"
+                        >
+                          <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1">
+                            {s.label}
+                          </div>
+
+                          <div className="text-[10px] font-mono text-white/60 mb-1">
+                            {s.rate}
+                          </div>
+
+                          <div
+                            className={`text-sm font-mono font-bold ${
+                              s.pnl >= 0 ? "text-[#34d399]" : "text-red-400"
+                            }`}
+                          >
+                            {s.pnl >= 0 ? "+" : "-"}
+                            {formatAmount(Math.abs(s.pnl))}
+                          </div>
+
+                          <div
+                            className={`text-[9px] font-mono ${
+                              s.pct >= 0 ? "text-[#34d399]/70" : "text-red-400/70"
+                            }`}
+                          >
+                            {s.pct >= 0 ? "+" : ""}
+                            {s.pct.toFixed(1)}%
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -588,6 +624,22 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               {infoTab === "details" && (
                 <div className="grid grid-cols-2 gap-2">
                   {[
+                    {
+                      label: "Oracle Source",
+                      value: meta.oracleSource,
+                    },
+                    {
+                      label: "Available Liq.",
+                      value: `${numberFormatter(available > 0 ? available : 0)} ${tokenSymbol}`,
+                    },
+                    {
+                      label: "Pool Util.",
+                      value: `${utilization.toFixed(1)}%`,
+                    },
+                    {
+                      label: "Active Swaps",
+                      value: String(activeSwaps),
+                    },
                     {
                       label: "Entry Fee",
                       value: `${marketDetails?.params?.swapFeePct ?? 0}%`,
@@ -696,82 +748,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 </div>
               )}
             </div>
-
-            {/* P&L Scenario Card */}
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-[#34d399]/10 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-4 rounded-full bg-[#34d399]" />
-                <span className="text-[10px] font-semibold text-[#e8e6ee] uppercase tracking-wider">
-                  P&L at Expiry
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {pnlScenarios.map((s) => (
-                  <div
-                    key={s.label}
-                    className="p-2.5 rounded-xl bg-white/[0.015] border border-white/[0.05] text-center"
-                  >
-                    <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider mb-1">
-                      {s.label}
-                    </div>
-
-                    <div className="text-[10px] font-mono text-white/60 mb-1">
-                      {s.rate}
-                    </div>
-
-                    <div
-                      className={`text-sm font-mono font-bold ${
-                        s.pnl >= 0 ? "text-[#34d399]" : "text-red-400"
-                      }`}
-                    >
-                      {s.pnl >= 0 ? "+" : "-"}
-                      {formatAmount(Math.abs(s.pnl))}
-                    </div>
-
-                    <div
-                      className={`text-[9px] font-mono ${
-                        s.pct >= 0 ? "text-[#34d399]/70" : "text-red-400/70"
-                      }`}
-                    >
-                      {s.pct >= 0 ? "+" : ""}
-                      {s.pct.toFixed(1)}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* ===== C2. RIGHT COLUMN ===== */}
           <div className="flex flex-col overflow-y-auto bg-gradient-to-b from-[rgba(12,12,18,0.7)] to-transparent">
             <div className="p-5 space-y-4 flex-1">
-              {/* Curator */}
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">
-                  Curator
-                </span>
-
-                <a
-                  href="https://x.com/asceswap"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[10px] font-medium
-               text-[#34d399]/70 hover:text-[#34d399]
-               transition-colors"
-                >
-                  <svg
-                    className="w-3 h-3"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                  @asceswap
-                  <ExternalLink className="w-2.5 h-2.5 opacity-40 group-hover:opacity-70" />
-                </a>
-              </div>
-
               {/* Side Selector */}
               <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/[0.04]">
                 <button
@@ -820,7 +801,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                         return <Logo key={token} size={20} />;
                       })}
                     </div>
-                    {(meta?.collateralSymbol ?? "USDC").replace(/^mock/i, "")}
+                    {tokenSymbol}
                   </span>
                 </div>
 
@@ -871,14 +852,10 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   value={`~${effectiveLeverage.toFixed(1)}x`}
                   highlight
                 />
-                <QuoteRow
-                  label="Entry Fee"
-                  value={`${formatAmount(entryFee)} ${tokenSymbol}`}
-                />
                 <QuoteRow label="Market Maturity" value={settlementDate} />
               </div>
 
-              {/* Slippage Row */}
+              {/* Max Rate Tolerance */}
               <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] text-[#9896a3] font-semibold">
                   Max Rate Tolerance
@@ -1012,8 +989,10 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
 /* ─────────────────────── OracleChart ─────────────────────── */
 
-function OracleChart({ oracleAddress, isOpen }: { oracleAddress: string; isOpen: boolean }) {
-  const [points, setPoints] = useState<{ x: number; y: number; label: string; rate: number }[]>([]);
+function OracleChart({ oracleAddress, isOpen, liveRatePct }: { oracleAddress: string; isOpen: boolean; liveRatePct?: number }) {
+  const [points, setPoints] = useState<{ x: number; y: number; label: string; rate: number; fullDate: string }[]>([]);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     if (!isOpen || !oracleAddress) return;
@@ -1025,6 +1004,13 @@ function OracleChart({ oracleAddress, isOpen }: { oracleAddress: string; isOpen:
         if (cancelled || !history || history.length === 0) return;
 
         const sorted = [...history].sort((a, b) => a.timestamp - b.timestamp);
+
+        // Append live rate from market contract as the latest point
+        if (liveRatePct && liveRatePct > 0) {
+          const lastTs = sorted.length > 0 ? sorted[sorted.length - 1].timestamp : Math.floor(Date.now() / 1000);
+          sorted.push({ rateBps: Math.round(liveRatePct * 100), timestamp: Math.floor(Date.now() / 1000) });
+        }
+
         const rates = sorted.map(h => h.rateBps / 100);
         const minRate = Math.min(...rates);
         const maxRate = Math.max(...rates);
@@ -1042,6 +1028,7 @@ function OracleChart({ oracleAddress, isOpen }: { oracleAddress: string; isOpen:
             x, y,
             label: `${d.getMonth() + 1}/${d.getDate()}`,
             rate: entry.rateBps / 100,
+            fullDate: d.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
           };
         });
 
@@ -1053,7 +1040,31 @@ function OracleChart({ oracleAddress, isOpen }: { oracleAddress: string; isOpen:
 
     load();
     return () => { cancelled = true; };
-  }, [oracleAddress, isOpen]);
+  }, [oracleAddress, isOpen, liveRatePct]);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!svgRef.current || points.length === 0) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      const mouseX = ((e.clientX - rect.left) / rect.width) * 600;
+
+      let closest = 0;
+      let minDist = Infinity;
+      for (let i = 0; i < points.length; i++) {
+        const dist = Math.abs(points[i].x - mouseX);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = i;
+        }
+      }
+      setHoverIdx(closest);
+    },
+    [points],
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverIdx(null);
+  }, []);
 
   if (points.length === 0) {
     return (
@@ -1067,10 +1078,18 @@ function OracleChart({ oracleAddress, isOpen }: { oracleAddress: string; isOpen:
 
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
   const areaPath = linePath + ` L${points[points.length - 1].x},230 L${points[0].x},230 Z`;
+  const hp = hoverIdx !== null ? points[hoverIdx] : null;
 
   return (
     <div className="relative rounded-xl bg-white/[0.015] border border-[#34d399]/10 overflow-hidden">
-      <svg viewBox="0 0 600 255" className="w-full" style={{ height: 255 }}>
+      <svg
+        ref={svgRef}
+        viewBox="0 0 600 255"
+        className="w-full cursor-crosshair"
+        style={{ height: 255 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
         <defs>
           <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#34d399" stopOpacity="0.35" />
@@ -1085,10 +1104,47 @@ function OracleChart({ oracleAddress, isOpen }: { oracleAddress: string; isOpen:
         <path d={areaPath} fill="url(#chartGradient)" />
         <path d={linePath} fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" opacity="0.9" />
 
-        {points.length > 0 && (
+        {/* Last point dot (when not hovering) */}
+        {hoverIdx === null && points.length > 0 && (
           <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="4" fill="#34d399" />
         )}
+
+        {/* Hover crosshair + dot */}
+        {hp && (
+          <>
+            <line x1={hp.x} y1="30" x2={hp.x} y2="230" stroke="rgba(52,211,153,0.3)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="60" y1={hp.y} x2="540" y2={hp.y} stroke="rgba(52,211,153,0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <circle cx={hp.x} cy={hp.y} r="5" fill="#0c0c12" stroke="#34d399" strokeWidth="2" />
+          </>
+        )}
+
+        {/* Invisible hover zones for each point */}
+        {points.map((p, i) => (
+          <rect
+            key={i}
+            x={p.x - 15}
+            y="0"
+            width="30"
+            height="255"
+            fill="transparent"
+          />
+        ))}
       </svg>
+
+      {/* Tooltip */}
+      {hp && (
+        <div
+          className="absolute pointer-events-none z-20 px-3 py-2 rounded-lg bg-[#0c0c12] border border-[#34d399]/20 shadow-xl"
+          style={{
+            left: `${(hp.x / 600) * 100}%`,
+            top: `${(hp.y / 255) * 100}%`,
+            transform: `translate(${hp.x > 400 ? "-110%" : "10%"}, -120%)`,
+          }}
+        >
+          <div className="text-[10px] text-white/50 mb-0.5">{hp.fullDate}</div>
+          <div className="font-mono font-bold text-sm text-[#34d399]">{hp.rate.toFixed(2)}%</div>
+        </div>
+      )}
     </div>
   );
 }
