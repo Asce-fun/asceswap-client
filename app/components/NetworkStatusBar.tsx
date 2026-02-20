@@ -2,29 +2,20 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { provider } from "../blockchain/scripts/asceswapContract";
-import { getMarketsPage } from "../blockchain/scripts/analytics";
 
 interface NetworkStatus {
   blockNumber: number | null;
   rpcLatency: number | null;
   gasLevel: "Low" | "Med" | "High";
-  tvl: number;
 }
 
 const POLL_INTERVAL = 30_000;
-
-function formatTvl(val: number): string {
-  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(2)}M`;
-  if (val >= 1_000) return `$${(val / 1_000).toFixed(1)}K`;
-  return `$${val}`;
-}
 
 export const NetworkStatusBar: React.FC = () => {
   const [status, setStatus] = useState<NetworkStatus>({
     blockNumber: null,
     rpcLatency: null,
     gasLevel: "Low",
-    tvl: 0,
   });
 
   const fetchStatus = useCallback(async () => {
@@ -56,31 +47,11 @@ export const NetworkStatusBar: React.FC = () => {
     }
   }, []);
 
-  // Fetch real TVL from analytics batch call
-  const fetchTvl = useCallback(async () => {
-    try {
-      const raw = await getMarketsPage(['1', '2', '3', '4', '5', '6']);
-      if (raw && typeof raw === 'object') {
-        // Try to extract total TVL from the batch response
-        const totalTvl = Number(raw.total_protocol_tvl ?? raw.totalProtocolTvl ?? 0);
-        if (totalTvl > 0) {
-          setStatus((prev) => ({ ...prev, tvl: totalTvl }));
-        }
-      }
-    } catch {
-      // TVL fetch failed, keep previous value
-    }
-  }, []);
-
   useEffect(() => {
     fetchStatus();
-    fetchTvl();
-    const id = setInterval(() => {
-      fetchStatus();
-      fetchTvl();
-    }, POLL_INTERVAL);
+    const id = setInterval(fetchStatus, POLL_INTERVAL);
     return () => clearInterval(id);
-  }, [fetchStatus, fetchTvl]);
+  }, [fetchStatus]);
 
   const gasColor =
     status.gasLevel === "Low"
@@ -117,19 +88,13 @@ export const NetworkStatusBar: React.FC = () => {
         </div>
 
         {/* Gas */}
-        <div className="flex items-center gap-2 px-4 border-r border-[rgba(180,175,200,0.06)] shrink-0">
+        <div className="flex items-center gap-2 px-4 shrink-0">
           <span className="text-[#5C5A66]">Gas</span>
           <span
             className="w-[6px] h-[6px] rounded-full"
             style={{ backgroundColor: gasColor }}
           />
           <span className="text-[#9896a3]">{status.gasLevel}</span>
-        </div>
-
-        {/* TVL */}
-        <div className="flex items-center gap-2 px-4 shrink-0">
-          <span className="text-[#5C5A66]">TVL</span>
-          <span className="text-[#6ee7b7]">{status.tvl > 0 ? formatTvl(status.tvl) : "--"}</span>
         </div>
       </div>
     </div>
