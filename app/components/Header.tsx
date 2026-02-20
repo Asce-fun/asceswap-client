@@ -29,7 +29,7 @@ const NAV_LINKS = [
   { href: "/positions", label: "Positions", icon: Briefcase },
   { href: "/curator", label: "Curator", icon: Compass },
   { href: "/hooks", label: "Hooks", icon: Anchor },
-  { href: "/feedback", label: "Feedback", icon: MessageSquare, sub: "Imp." },
+  { href: "/feedback", label: "Feedback", icon: MessageSquare },
 ];
 
 export const Header: React.FC = () => {
@@ -142,12 +142,6 @@ export const Header: React.FC = () => {
                 }`}
               >
                 {link.label}
-                {"sub" in link && link.sub && (
-                  <span className="text-[8px] font-bold text-[#34d399]/60 leading-none -mt-0.5">
-                    {link.sub}
-                  </span>
-                )}
-
                 {isActive && (
                   <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full bg-[#34d399]" />
                 )}
@@ -256,14 +250,7 @@ export const Header: React.FC = () => {
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                <span className="flex items-center gap-1.5">
-                  {link.label}
-                  {"sub" in link && link.sub && (
-                    <span className="text-[8px] font-bold text-[#34d399]/60">
-                      {link.sub}
-                    </span>
-                  )}
-                </span>
+                {link.label}
               </Link>
             );
           })}
