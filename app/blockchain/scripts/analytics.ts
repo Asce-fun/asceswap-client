@@ -12,12 +12,11 @@ const decimalsMap: Record<string, number> = Object.fromEntries(
 
 export async function getUserDashboard(userAddress: string) {
   const raw = await analytics.get_user_dashboard_full(userAddress);
-  console.log(raw,'raw')
   return formatUserDashboard(raw, decimalsMap);
 }
 
 export async function getUserLPPositions(userAddress: string) {
-  const raw=await analytics.get_user_lp_positions(userAddress);
+  const raw = await analytics.get_user_lp_positions(userAddress);
   return raw;
 }
 

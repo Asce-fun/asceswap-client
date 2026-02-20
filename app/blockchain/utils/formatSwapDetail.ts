@@ -1,4 +1,4 @@
-import { signedValue } from "./utils";
+import { signedValue, cairoEnumToString } from "./utils";
 
 /**
  * Raw fields used:
@@ -47,8 +47,7 @@ export function formatSwapDetail(raw: any,collateralDecimals:number) {
     side:
       Number(raw.side) === 0 ? "FIXED" : "FLOAT",
 
-    status:
-      Number(raw.status) === 0 ? "ACTIVE" : "CLOSED",
+    status: cairoEnumToString(raw.status),
 
     /* ---------- Position ---------- */
     notional,

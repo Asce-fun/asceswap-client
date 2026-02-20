@@ -28,6 +28,8 @@ export interface MarketData {
 
 export type TokenSymbol = "STRK" | "USDC" | "ETH" | "BTC" | "USDT" | "mockBTC" | "mockSTRK" | "mockUSDC";
 
+export type SwapStatus = "ACTIVE" | "SETTLED" | "LIQUIDATED" | "EXITEDEARLY" | "UNINITIALIZED";
+
 export type SwapDirection = 'FIXED' | 'FLOATING';
 
 // interface/types.ts
@@ -99,7 +101,7 @@ export interface Position {
     swapId: number;
     pairId: number;
     side: "FIXED" | "FLOAT";
-    status: "ACTIVE" | "CLOSED";
+    status: SwapStatus;
     notional: number;
     collateral: number;
     pnl: number;
@@ -175,7 +177,7 @@ export type UserDashboard = {
     swapId: number;
     pairId: number;
     side: "FIXED" | "FLOAT";
-    status: "ACTIVE" | "CLOSED";
+    status: SwapStatus;
     notional: number;
     collateral: number;
     pnl: number;
@@ -194,7 +196,7 @@ export type SwapDetail = {
   swapId: number;
   pairId: number;
   side: "FIXED" | "FLOAT";
-  status: "ACTIVE" | "CLOSED";
+  status: SwapStatus;
 
   /* ---------- Position ---------- */
   notional: number;

@@ -816,6 +816,22 @@
       },
       {
         "type": "function",
+        "name": "get_user_swap_ids",
+        "inputs": [
+          {
+            "name": "user",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::array::Span::<core::integer::u256>"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
         "name": "exchange_rate_for_lp",
         "inputs": [
           {
