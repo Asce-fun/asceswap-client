@@ -67,7 +67,7 @@ export default function MarketsPage() {
     <PageLayout showFooter={false}>
       <div>
         <div className="mb-10">
-          <h2 className="font-serif font-normal text-[#e8e6ee] mb-2 text-3xl md:text-4xl tracking-tight">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#e8e6ee] mb-2">
             Available Markets
           </h2>
           <p className="text-sm text-[#9896a3]">

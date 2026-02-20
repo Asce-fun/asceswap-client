@@ -129,22 +129,17 @@ export default function LiquidityPage() {
     <PageLayout showFooter={false}>
       <div>
         {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#34d399]" />
-
-            <h2 className="font-semibold text-2xl md:text-3xl tracking-tight text-[#e8e6ee]">
-              Liquidity Pools
-            </h2>
-          </div>
-
-          <p className="text-sm text-[#9896a3] ml-[18px]">
+        <div className="mb-10">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#e8e6ee] mb-2">
+            Liquidity Pools
+          </h2>
+          <p className="text-sm text-[#9896a3]">
             Supply liquidity to earn swap fees and trader PnL
           </p>
         </div>
 
         {/* LP Card Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {MARKETS.map((market) => {
             const lp = lpPositionsMap[market.id];
             return (
