@@ -61,6 +61,8 @@ export default function MarketsPage() {
     };
 
     fetchAll();
+    const interval = setInterval(fetchAll, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

@@ -73,6 +73,8 @@ export default function LiquidityPage() {
     };
 
     fetchAll();
+    const interval = setInterval(fetchAll, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch all LP positions in parallel when wallet connected and market data available
