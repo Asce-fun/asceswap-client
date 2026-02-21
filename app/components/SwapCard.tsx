@@ -13,7 +13,7 @@ import { getMarket } from "../blockchain/scripts/markets";
 import { MARKET_META } from "../constants/markets";
 import { extractTokensFromName } from "../lib/helpers/helpers";
 import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
-import { getOracleRateHistory } from "../blockchain/scripts/oracleContract";
+import { getOracleRate, getOracleRateHistory } from "../blockchain/scripts/oracleContract";
 import { compute24hChange } from "../blockchain/utils/utils";
 
 interface SwapCardProps {
@@ -35,6 +35,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market, batchMarketDetails }
     null,
   );
   const [dayChange, setDayChange] = useState<number>(0);
+  const [oracleRatePct, setOracleRatePct] = useState<number | null>(null);
 
   const meta = MARKET_META?.[market.id];
   const collateralSymbol = meta?.collateralSymbol ?? "USDC";
@@ -46,22 +47,36 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market, batchMarketDetails }
     }
   }, [batchMarketDetails]);
 
+  // Fetch live oracle rate + 24h history
   useEffect(() => {
     const fetchData = async () => {
       // Skip market fetch if batch data already provided
       const res = batchMarketDetails ?? await getMarket(market.id);
-      const history = meta?.oracleAddress
-        ? await getOracleRateHistory(meta.oracleAddress, 24).catch(() => [])
-        : [];
-      if (res) {
-        if (!batchMarketDetails) setMarketDetails(res as any);
-        const currentBps = (res as any).rate?.currentPct
-          ? (res as any).rate.currentPct * 100
-          : 0;
-        if (history && history.length > 0) {
-          setDayChange(
-            parseFloat(compute24hChange(history, currentBps).toFixed(2))
-          );
+      if (res && !batchMarketDetails) setMarketDetails(res as any);
+
+      // Fetch live rate directly from oracle contract
+      let liveBps = 0;
+      if (meta?.oracleAddress) {
+        try {
+          const oracleData = await getOracleRate(meta.oracleAddress);
+          const pct = oracleData.rateBps / 100;
+          setOracleRatePct(pct);
+          liveBps = oracleData.rateBps;
+        } catch {
+          // Fall back to market contract rate
+          liveBps = (res as any)?.rate?.currentPct ? (res as any).rate.currentPct * 100 : 0;
+        }
+      }
+
+      // 24h change
+      if (meta?.oracleAddress && liveBps > 0) {
+        try {
+          const history = await getOracleRateHistory(meta.oracleAddress, 24);
+          if (history.length > 0) {
+            setDayChange(parseFloat(compute24hChange(history, liveBps).toFixed(2)));
+          }
+        } catch {
+          // history unavailable
         }
       }
     };
@@ -73,7 +88,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market, batchMarketDetails }
     setShowSwapDialog(true);
   };
 
-  const currentRate = marketDetails?.rate?.currentPct ?? 0;
+  const currentRate = oracleRatePct ?? marketDetails?.rate?.currentPct ?? 0;
   const termDays = marketDetails?.params?.swapTermDays ?? "--";
   const tokens = extractTokensFromName(market.name);
   const collateralTokens = extractTokensFromName(collateralSymbol);
@@ -208,6 +223,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ market, batchMarketDetails }
           market={market}
           direction={activeDirection}
           marketDetails={marketDetails}
+          oracleRatePct={oracleRatePct}
         />
       )}
     </>

@@ -8,7 +8,7 @@ import { FormattedMarket } from "../interface/types";
 import { getMarketsPage } from "../blockchain/scripts/analytics";
 import { getMarket } from "../blockchain/scripts/markets";
 import { formatMarket } from "../blockchain/utils/formatMarket";
-import { getOracleRateHistory } from "../blockchain/scripts/oracleContract";
+import { getOracleRate, getOracleRateHistory } from "../blockchain/scripts/oracleContract";
 import { compute24hChange } from "../blockchain/utils/utils";
 import { getProtocolLogo } from "./SwapCard";
 
@@ -71,31 +71,35 @@ export const LiveMarketsStrip: React.FC = () => {
         });
       }
 
-      // 3. Fetch 24h changes in parallel
+      // 3. Fetch live oracle rates + 24h changes in parallel
+      const oracleRateMap: Record<string, number> = {};
       const changeMap: Record<string, number> = {};
       try {
-        const changeResults = await Promise.all(
+        const results = await Promise.all(
           MARKETS.map(async (market) => {
             const meta = MARKET_META[market.id];
-            const fm = formatted[market.id];
-            if (!meta?.oracleAddress || !fm) return { id: market.id, change: 0 };
+            if (!meta?.oracleAddress) return { id: market.id, ratePct: 0, change: 0 };
             try {
-              const history = await getOracleRateHistory(meta.oracleAddress, 24);
-              const currentBps = fm.rate.currentPct * 100;
-              return {
-                id: market.id,
-                change: parseFloat(compute24hChange(history, currentBps).toFixed(2)),
-              };
+              const [oracleData, history] = await Promise.all([
+                getOracleRate(meta.oracleAddress),
+                getOracleRateHistory(meta.oracleAddress, 24).catch(() => []),
+              ]);
+              const ratePct = oracleData.rateBps / 100;
+              const change = history.length > 0
+                ? parseFloat(compute24hChange(history, oracleData.rateBps).toFixed(2))
+                : 0;
+              return { id: market.id, ratePct, change };
             } catch {
-              return { id: market.id, change: 0 };
+              return { id: market.id, ratePct: 0, change: 0 };
             }
           })
         );
-        changeResults.forEach((r) => {
+        results.forEach((r) => {
+          oracleRateMap[r.id] = r.ratePct;
           changeMap[r.id] = r.change;
         });
       } catch {
-        // 24h changes are non-critical
+        // oracle data non-critical
       }
 
       // 4. Build rows
@@ -105,7 +109,7 @@ export const LiveMarketsStrip: React.FC = () => {
           id: market.id,
           name: market.name,
           protocol: market.protocol,
-          rate: fm?.rate?.currentPct ?? 0,
+          rate: oracleRateMap[market.id] || fm?.rate?.currentPct || 0,
           change24h: changeMap[market.id] ?? 0,
           termDays: fm?.params?.swapTermDays ? `${fm.params.swapTermDays}d` : "--",
           tvl: fm?.pool?.totalCollateral ?? 0,
@@ -118,6 +122,8 @@ export const LiveMarketsStrip: React.FC = () => {
     };
 
     fetchAll();
+    const interval = setInterval(fetchAll, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
 

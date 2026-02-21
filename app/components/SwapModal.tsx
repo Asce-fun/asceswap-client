@@ -39,6 +39,7 @@ interface SwapModalProps {
   market: MarketData;
   direction: SwapDirection;
   marketDetails: FormattedMarket | null;
+  oracleRatePct?: number | null;
 }
 
 type InfoTab = "overview" | "details" | "risks";
@@ -51,6 +52,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   market,
   direction,
   marketDetails,
+  oracleRatePct,
 }) => {
   const meta = MARKET_META?.[market.id] ?? {
     letter: "?",
@@ -131,7 +133,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   const initialMarginMultiplierPct =
     marketDetails?.params?.initialMarginMultiplierPct ?? 100;
 
-  const currentRate = marketDetails?.rate?.currentPct ?? 0;
+  const currentRate = oracleRatePct ?? marketDetails?.rate?.currentPct ?? 0;
   const feeSpread = marketDetails?.params?.feeSpreadPct ?? 0;
   const lockedRate = currentRate + feeSpread;
   const termDays = marketDetails?.params?.swapTermDays ?? 30;
