@@ -12,6 +12,7 @@ import {
 import { MarketData, Position } from "../interface/types";
 import { transferSwapNFT } from "../blockchain/scripts/write/transferPosition";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { getStarknetAccount } from "../blockchain/utils/getStarknetAccount";
 import { MARKETS } from "../constants/markets";
 import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
 import { extractTokensFromName } from "../lib/helpers/helpers";
@@ -46,11 +47,13 @@ export const TransferDialogContent: React.FC<TransferDialogContentProps> = ({
   const handleTransfer = async () => {
     try {
       setLoading(true);
+      const account = await getStarknetAccount(primaryWallet);
       const txHash = await transferSwapNFT({
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
         from: address!!,
         to: recipient,
         tokenId: position.swapId,
+        account,
       });
 
       setTxHash(txHash);

@@ -1,6 +1,7 @@
 // transferSwapNFT.ts
 
 import { Contract, uint256 } from "starknet";
+import type { StarknetAccount } from "../../utils/getStarknetAccount";
 import AsceSwapABI from "../../abis/AsceSwap.json";
 
 /**
@@ -18,37 +19,20 @@ export async function transferSwapNFT({
   from,
   to,
   tokenId,
+  account,
 }: {
   asceSwapAddress: string;
   from: string;      // current owner
   to: string;        // recipient
   tokenId: number;   // swapId / token_id
+  account: StarknetAccount;
 }) {
-  const starknet = (window as any).starknet;
-
-  if (!starknet) {
-    throw new Error("Starknet wallet not found. Install Argent X or Braavos.");
-  }
-
-  // Ensure wallet is connected
-  if (!starknet.isConnected) {
-    await starknet.enable({ starknetVersion: "v5" });
-  }
-
-  // Small delay so account is hydrated
-  await new Promise((r) => setTimeout(r, 100));
-
-  const account = starknet.account;
-
-  if (!account || !account.address) {
-    throw new Error("Wallet account not available.");
-  }
 
   // Contract instance
   const asceSwap = new Contract({
     abi: AsceSwapABI,
     address: asceSwapAddress,
-    providerOrAccount: account,
+    providerOrAccount: account as any,
   });
 
   // Convert tokenId → u256

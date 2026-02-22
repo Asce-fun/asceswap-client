@@ -1,4 +1,5 @@
 import { uint256 } from "starknet";
+import type { StarknetAccount } from "../../utils/getStarknetAccount";
 
 /* -------------------- helpers -------------------- */
 
@@ -24,6 +25,7 @@ export async function approveAndBuySwap({
   collateral,
   maxRateBps,
   decimals,
+  account,
 }: {
   tokenAddress: string;
   asceSwapAddress: string;
@@ -33,27 +35,8 @@ export async function approveAndBuySwap({
   collateral: number;      // total deposit (margin + fee) — used for both approve and buy_swap
   maxRateBps: number;
   decimals: number;
+  account: StarknetAccount;
 }) {
-  /* -------- wallet -------- */
-  const starknet = (window as any).starknet;
-
-  if (!starknet) {
-    throw new Error("Starknet wallet not found. Please install Braavos or Argent X.");
-  }
-
-  // Make sure wallet is connected and enabled
-  if (!starknet.isConnected) {
-    await starknet.enable({ starknetVersion: "v5" });
-  }
-
-  // Wait a bit for the account to be ready
-  await new Promise(resolve => setTimeout(resolve, 100));
-
-  const account = starknet.account;
-
-  if (!account || !account.address) {
-    throw new Error("Wallet account not available. Please connect your wallet.");
-  }
 
   /* -------- enum (DO NOT TOUCH) -------- */
   const sideValue = side === "FIXED" ? "0" : "1";
