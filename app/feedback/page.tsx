@@ -10,41 +10,46 @@ export default function FeedbackPage() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!message.trim()) return;
-    setSending(true);
-    try {
-      await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: message.trim(),
-          email: email.trim() || undefined,
-          timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent,
-        }),
-      });
-      setSent(true);
-      setMessage("");
-      setEmail("");
-      setTimeout(() => setSent(false), 4000);
-    } catch {
-      // Fallback: store locally
-      const existing = JSON.parse(localStorage.getItem("asceswap_feedback") || "[]");
-      existing.push({
+const handleSubmit = async () => {
+  if (!message.trim()) return;
+
+  setSending(true);
+
+  try {
+    const res = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         message: message.trim(),
         email: email.trim() || undefined,
         timestamp: new Date().toISOString(),
-      });
-      localStorage.setItem("asceswap_feedback", JSON.stringify(existing));
-      setSent(true);
-      setMessage("");
-      setEmail("");
-      setTimeout(() => setSent(false), 4000);
-    } finally {
-      setSending(false);
+        userAgent: navigator.userAgent,
+      }),
+    });
+
+    // 🔥 THIS is what you're missing
+    if (!res.ok) {
+      throw new Error("Server error");
     }
-  };
+
+    setSent(true);
+    setMessage("");
+    setEmail("");
+    setTimeout(() => setSent(false), 4000);
+
+  } catch (err) {
+    console.error("Feedback failed:", err);
+
+    // Optional: remove localStorage fallback if you want strict error
+    // OR keep fallback but still show error UI
+
+    alert("Failed to send feedback. Please try again.");
+
+  } finally {
+    setSending(false);
+  }
+};
+
 
   return (
     <PageLayout showFooter={false}>
