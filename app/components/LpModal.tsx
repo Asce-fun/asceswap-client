@@ -1,13 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Info, Wallet, ArrowRight, AlertTriangle, Check, Copy, ExternalLink } from "lucide-react";
+import {
+  Info,
+  Wallet,
+  ArrowRight,
+  AlertTriangle,
+  Check,
+  Copy,
+  ExternalLink,
+} from "lucide-react";
 import { FormattedMarket, MarketData } from "../interface/types";
 import { MARKET_META } from "../constants/markets";
 import { FullModal } from "./FullModal";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { getTokenBalance } from "../blockchain/scripts/tokenBalance";
-import { getLpPosition, getExchangeRateForLp } from "../blockchain/scripts/markets";
+import {
+  getLpPosition,
+  getExchangeRateForLp,
+} from "../blockchain/scripts/markets";
 import { approveAndSupplyLp } from "../blockchain/scripts/write/approveAndSupplyLp";
 import { withdrawLpLiquidity } from "../blockchain/scripts/write/withdrawLiquidity";
 import numberFormatter from "../blockchain/utils/numberFormatter";
@@ -67,7 +78,8 @@ export const LpModal: React.FC<LpModalProps> = ({
   // Market data
   const tvl = marketDetails?.pool?.totalCollateral ?? 0;
   const lockedTotal = marketDetails?.pool
-    ? (marketDetails.pool.lockedFixed ?? 0) + (marketDetails.pool.lockedFloating ?? 0)
+    ? (marketDetails.pool.lockedFixed ?? 0) +
+      (marketDetails.pool.lockedFloating ?? 0)
     : 0;
   const available = tvl - lockedTotal;
   const utilization = tvl > 0 ? (lockedTotal / tvl) * 100 : 0;
@@ -85,7 +97,8 @@ export const LpModal: React.FC<LpModalProps> = ({
   // Share price state (fetched from chain)
   const [sharePrice, setSharePrice] = useState(1.0);
 
-  const decimals = MARKET_META[market.id]?.decimals ?? marketDetails?.decimals ?? 6;
+  const decimals =
+    MARKET_META[market.id]?.decimals ?? marketDetails?.decimals ?? 6;
 
   // Fetch real exchange rate
   useEffect(() => {
@@ -94,7 +107,9 @@ export const LpModal: React.FC<LpModalProps> = ({
 
     async function fetchSharePrice() {
       try {
-        const rawRate = await getExchangeRateForLp(String(marketDetails!.pairId));
+        const rawRate = await getExchangeRateForLp(
+          String(marketDetails!.pairId),
+        );
         if (!cancelled) {
           // Exchange rate is in 1e18 precision per spec (1e18 = 1.0 per share)
           const rate = Number(rawRate) / 1e18;
@@ -106,11 +121,13 @@ export const LpModal: React.FC<LpModalProps> = ({
     }
 
     fetchSharePrice();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, marketDetails?.pairId, decimals]);
 
   // PnL component: lifetime share price gain (not annualized — would need time data)
-  const pnlReturn = sharePrice > 1.0 ? (sharePrice - 1.0) : 0;
+  const pnlReturn = sharePrice > 1.0 ? sharePrice - 1.0 : 0;
   const totalApy = feeApy + pnlReturn;
 
   // Exposure breakdown
@@ -130,7 +147,13 @@ export const LpModal: React.FC<LpModalProps> = ({
   const maxLpshares = lpShares ?? 0;
   // Fetch balances
   useEffect(() => {
-    if (!address || !isOpen || !marketDetails?.collateralToken || !marketDetails?.pairId) return;
+    if (
+      !address ||
+      !isOpen ||
+      !marketDetails?.collateralToken ||
+      !marketDetails?.pairId
+    )
+      return;
     let cancelled = false;
 
     async function fetchWalletBalance() {
@@ -261,6 +284,20 @@ export const LpModal: React.FC<LpModalProps> = ({
   const receiveAmount = amount * sharePrice;
   const remainingValue = lpShares ? (lpShares - amount) * sharePrice : 0;
   const tokens = extractTokensFromName(market.name);
+  const holdSeconds = (marketDetails?.params?.minHoldPeriodMinutes ?? 0) * 60;
+
+  let isCooldownActive = false;
+
+  if (lastDepositTime && holdSeconds > 0) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const unlockTime = lastDepositTime + holdSeconds;
+    const remaining = unlockTime - nowSec;
+
+    if (remaining > 0) {
+      isCooldownActive = true;
+    }
+  }
+
   return (
     <FullModal isOpen={isOpen} onClose={onClose} maxWidth="1080px">
       <div
@@ -270,17 +307,22 @@ export const LpModal: React.FC<LpModalProps> = ({
         {/* ========== MODAL HEADER ========== */}
         <div className="px-6 pt-5 pb-4 border-b border-white/[0.04] shrink-0">
           <div className="flex items-center gap-3 pr-10">
-            {(() => { const PL = getProtocolLogo(market.protocol); return <PL size={40} />; })()}
+            {(() => {
+              const PL = getProtocolLogo(market.protocol);
+              return <PL size={40} />;
+            })()}
             <div>
               <h2 className="text-lg font-semibold text-[#e8e6ee] tracking-tight">
                 {market.protocol} — Liquidity Pool
               </h2>
               <p className="text-[11px] text-[#9896a3] flex items-center gap-1">
                 {market.name}
-                {extractTokensFromName((meta?.collateralSymbol ?? "USDC")).map((token) => {
-                  const Logo = TOKEN_LOGOS[token];
-                  return <Logo key={token} size={14} />;
-                })}
+                {extractTokensFromName(meta?.collateralSymbol ?? "USDC").map(
+                  (token) => {
+                    const Logo = TOKEN_LOGOS[token];
+                    return <Logo key={token} size={14} />;
+                  },
+                )}
                 {tokenSymbol}
               </p>
             </div>
@@ -339,7 +381,8 @@ export const LpModal: React.FC<LpModalProps> = ({
                   Connect Your Wallet
                 </h3>
                 <p className="text-[#9896a3] text-xs leading-relaxed">
-                  Connect your wallet to view pool details, deposit liquidity, and manage your LP positions.
+                  Connect your wallet to view pool details, deposit liquidity,
+                  and manage your LP positions.
                 </p>
                 <button
                   onClick={() => setShowAuthFlow(true)}
@@ -505,9 +548,9 @@ export const LpModal: React.FC<LpModalProps> = ({
                     <span className="text-[#e8e6ee] font-semibold">
                       Share-based accounting.
                     </span>{" "}
-                    When you deposit collateral, you receive LP shares proportional to
-                    your contribution. The share price increases as the pool
-                    earns swap fees and trader losses.
+                    When you deposit collateral, you receive LP shares
+                    proportional to your contribution. The share price increases
+                    as the pool earns swap fees and trader losses.
                   </p>
                   <p>
                     <span className="text-[#e8e6ee] font-semibold">
@@ -521,9 +564,9 @@ export const LpModal: React.FC<LpModalProps> = ({
                     <span className="text-[#e8e6ee] font-semibold">
                       Withdrawals.
                     </span>{" "}
-                    You can redeem shares for the underlying collateral at the current
-                    share price, subject to available liquidity and cooldown
-                    requirements.
+                    You can redeem shares for the underlying collateral at the
+                    current share price, subject to available liquidity and
+                    cooldown requirements.
                   </p>
                 </div>
               )}
@@ -571,13 +614,23 @@ export const LpModal: React.FC<LpModalProps> = ({
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: "Total TVL", value: `$${numberFormatter(tvl)}` },
-                { label: "Available", value: `$${numberFormatter(available > 0 ? available : 0)}` },
+                {
+                  label: "Available",
+                  value: `$${numberFormatter(available > 0 ? available : 0)}`,
+                },
                 { label: "Utilization", value: `${utilization.toFixed(1)}%` },
                 { label: "Active Swaps", value: String(activeSwaps) },
               ].map((s) => (
-                <div key={s.label} className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5">
-                  <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">{s.label}</div>
-                  <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">{s.value}</div>
+                <div
+                  key={s.label}
+                  className="bg-[rgba(17,17,24,0.7)] border border-[#1e1e2a] rounded-[10px] p-3.5"
+                >
+                  <div className="font-mono text-[0.52rem] tracking-[0.1em] uppercase text-[#5c5a66] mb-1.5">
+                    {s.label}
+                  </div>
+                  <div className="font-mono font-bold text-[0.85rem] text-[#e8e6ee]">
+                    {s.value}
+                  </div>
                 </div>
               ))}
             </div>
@@ -621,7 +674,11 @@ export const LpModal: React.FC<LpModalProps> = ({
                       : "Withdraw Amount"}
                   </span>
                   <button
-                    onClick={() => setPresetAmount(actionTab === "deposit" ? maxAmount : maxLpshares)}
+                    onClick={() =>
+                      setPresetAmount(
+                        actionTab === "deposit" ? maxAmount : maxLpshares,
+                      )
+                    }
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[rgba(52,211,153,0.2)] bg-[rgba(52,211,153,0.06)] font-mono text-[0.6rem] font-bold text-[#34d399] cursor-pointer hover:bg-[rgba(52,211,153,0.12)]"
                   >
                     <Wallet className="w-3 h-3" />
@@ -647,7 +704,8 @@ export const LpModal: React.FC<LpModalProps> = ({
 
                 {/* Slider */}
                 {(() => {
-                  const sliderMax = actionTab === "deposit" ? maxAmount : maxLpshares;
+                  const sliderMax =
+                    actionTab === "deposit" ? maxAmount : maxLpshares;
                   const sliderStep = sliderMax > 0 ? sliderMax / 100 : 0.0001;
                   return (
                     <input
@@ -677,7 +735,11 @@ export const LpModal: React.FC<LpModalProps> = ({
                     <div />
                   )}
                   <button
-                    onClick={() => setPresetAmount(actionTab === "deposit" ? maxAmount : maxLpshares)}
+                    onClick={() =>
+                      setPresetAmount(
+                        actionTab === "deposit" ? maxAmount : maxLpshares,
+                      )
+                    }
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[rgba(52,211,153,0.2)] bg-[rgba(52,211,153,0.06)] font-mono text-[0.6rem] font-bold text-[#34d399] cursor-pointer hover:bg-[rgba(52,211,153,0.12)]"
                   >
                     <Wallet className="w-3 h-3 text-[#34d399]" />
@@ -743,7 +805,9 @@ export const LpModal: React.FC<LpModalProps> = ({
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-[#e8e6ee]">
-                        {actionTab === "deposit" ? "Liquidity Deposited" : "Withdrawal Complete"}
+                        {actionTab === "deposit"
+                          ? "Liquidity Deposited"
+                          : "Withdrawal Complete"}
                       </p>
                       <p className="text-[10px] text-white/40">
                         {actionTab === "deposit"
@@ -766,7 +830,11 @@ export const LpModal: React.FC<LpModalProps> = ({
                         }}
                         className="p-1 rounded-md hover:bg-white/[0.05] text-white/40 hover:text-white transition-colors cursor-pointer"
                       >
-                        {copiedTx ? <Check className="w-3 h-3 text-[#34d399]" /> : <Copy className="w-3 h-3" />}
+                        {copiedTx ? (
+                          <Check className="w-3 h-3 text-[#34d399]" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
                       </button>
                       <a
                         href={`https://sepolia.voyager.online/tx/${txHash}`}
@@ -820,13 +888,15 @@ export const LpModal: React.FC<LpModalProps> = ({
                   </button>
                 ) : (
                   <button
-                    disabled={amount === 0 || loading}
+                    disabled={amount === 0 || loading || isCooldownActive}
                     onClick={handleWithdraw}
                     className="w-full py-4 rounded-xl font-bold text-xs uppercase tracking-[0.15em] transition-all active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 border-2 border-rose-500/40 text-rose-400 hover:bg-rose-500/10 flex items-center justify-center gap-2"
                   >
                     {loading
                       ? "Withdrawing..."
-                      : `Withdraw ${amount > 0 ? `${numberFormatter(amount)}` : ""} ${tokenSymbol}`}
+                      : isCooldownActive
+                        ? "Cooldown Active"
+                        : `Withdraw ${amount > 0 ? `${numberFormatter(amount)}` : ""} ${tokenSymbol}`}
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 )}
@@ -885,15 +955,25 @@ export const LpModal: React.FC<LpModalProps> = ({
                         Cooldown
                       </div>
                       {(() => {
-                        const holdSeconds = (marketDetails?.params?.minHoldPeriodMinutes ?? 0) * 60;
+                        const holdSeconds =
+                          (marketDetails?.params?.minHoldPeriodMinutes ?? 0) *
+                          60;
                         if (!lastDepositTime || holdSeconds === 0) {
-                          return <div className="font-serif font-bold text-[0.95rem] text-[#34d399]">Met</div>;
+                          return (
+                            <div className="font-serif font-bold text-[0.95rem] text-[#34d399]">
+                              Met
+                            </div>
+                          );
                         }
                         const nowSec = Math.floor(Date.now() / 1000);
                         const unlockTime = lastDepositTime + holdSeconds;
                         const remaining = unlockTime - nowSec;
                         if (remaining <= 0) {
-                          return <div className="font-serif font-bold text-[0.95rem] text-[#34d399]">Met</div>;
+                          return (
+                            <div className="font-serif font-bold text-[0.95rem] text-[#34d399]">
+                              Met
+                            </div>
+                          );
                         }
                         const mins = Math.ceil(remaining / 60);
                         return (
