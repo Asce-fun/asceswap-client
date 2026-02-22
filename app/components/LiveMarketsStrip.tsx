@@ -84,7 +84,7 @@ export const LiveMarketsStrip: React.FC = () => {
                 getOracleRate(meta.oracleAddress),
                 getOracleRateHistory(meta.oracleAddress, 24).catch(() => []),
               ]);
-              const ratePct = oracleData.rateBps / 100;
+              const ratePct = oracleData?.rateBps ? oracleData.rateBps / 100 : 0;
               const change = history.length > 0
                 ? parseFloat(compute24hChange(history, oracleData.rateBps).toFixed(2))
                 : 0;
@@ -166,7 +166,7 @@ export const LiveMarketsStrip: React.FC = () => {
                 >
                   {/* Left: Logo + Name */}
                   <div className="flex items-center gap-3 sm:w-[280px]">
-                    <ProtocolLogo size={32} />
+                    {ProtocolLogo && <ProtocolLogo size={32} />}
                     <div>
                       <div className="text-sm font-bold text-[#e8e6ee] tracking-tight">
                         {row.protocol}
