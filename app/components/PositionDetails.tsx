@@ -17,6 +17,7 @@ import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
 import { getProtocolLogo } from "./SwapCard";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useRef } from "react";
+import { getStarknetAccount } from "../blockchain/utils/getStarknetAccount";
 
 interface PositionDetailsProps {
   position: Position;
@@ -90,18 +91,21 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
     try {
       setLoading(true);
       setError(null);
+      const account = await getStarknetAccount(primaryWallet);
       let hash: string;
       if (isExpired) {
         hash = await settleSwap({
           asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
           pairId: position.pairId,
           swapId: position.swapId,
+          account,
         });
       } else {
         hash = await earlyExitSwap({
           asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
           pairId: position.pairId,
           swapId: position.swapId,
+          account,
         });
       }
       setTxHash(hash);
@@ -122,11 +126,13 @@ export const PositionDetails: React.FC<PositionDetailsProps> = ({
     try {
       setTransferLoading(true);
       setTransferError(null);
+      const account = await getStarknetAccount(primaryWallet);
       const hash = await transferSwapNFT({
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
         from: primaryWallet?.address!,
         to: transferRecipient,
         tokenId: position.swapId,
+        account,
       });
       setTransferTxHash(hash);
     } catch (err: any) {

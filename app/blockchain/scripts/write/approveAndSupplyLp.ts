@@ -1,4 +1,5 @@
 import { Contract, uint256 } from "starknet";
+import type { StarknetAccount } from "../../utils/getStarknetAccount";
 import { ERC20_ABI } from "../../abis/erc20";
 import AsceSwapABI from "../../abis/AsceSwap.json";
 
@@ -14,46 +15,28 @@ export async function approveAndSupplyLp({
   pairId,
   amount,
   decimals,
+  account,
 }: {
   tokenAddress: string;
   asceSwapAddress: string;
   pairId: string;
   amount: number;
   decimals: number;
+  account: StarknetAccount;
 }) {
-  // Access window.starknet directly
-  const starknet = (window as any).starknet;
-
-  if (!starknet) {
-    throw new Error("Starknet wallet not found. Please install Braavos or Argent X.");
-  }
-
-  // Make sure wallet is connected and enabled
-  if (!starknet.isConnected) {
-    await starknet.enable({ starknetVersion: "v5" });
-  }
-
-  // Wait a bit for the account to be ready
-  await new Promise(resolve => setTimeout(resolve, 100));
-
-  const account = starknet.account;
-
-  if (!account || !account.address) {
-    throw new Error("Wallet account not available. Please connect your wallet.");
-  }
 
   const amountU256 = toU256(amount, decimals);
 
   const erc20 = new Contract({
     abi:ERC20_ABI,
     address:tokenAddress,
-    providerOrAccount:account
+    providerOrAccount:account as any
 });
 
   const asceSwap = new Contract({
     abi:AsceSwapABI,
     address:asceSwapAddress,
-    providerOrAccount:account
+    providerOrAccount:account as any
 });
 
   const calls = [

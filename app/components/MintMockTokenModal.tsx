@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Droplet, X, Check, ExternalLink, Copy } from "lucide-react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { mintMockToken } from "../blockchain/scripts/write/mintMockToken";
+import { getStarknetAccount } from "../blockchain/utils/getStarknetAccount";
 import { Portal } from "./Portal";
 import { MARKETS, MARKET_META } from "../constants/markets";
 import { getMarket } from "../blockchain/scripts/markets";
@@ -94,7 +95,8 @@ export const MintMockTokenModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setLoading(true);
       setError(null);
 
-      const hash = await mintMockToken(selectedToken.address);
+      const walletAccount = await getStarknetAccount(primaryWallet);
+      const hash = await mintMockToken(selectedToken.address, walletAccount);
       setTxHash(hash);
     } catch (error) {
       setError("Mint failed — check console for details");

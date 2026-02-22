@@ -24,6 +24,7 @@ import { FullModal } from "./FullModal";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { getTokenBalance } from "../blockchain/scripts/tokenBalance";
 import { approveAndBuySwap } from "../blockchain/scripts/write/approveAndBuySwap";
+import { getStarknetAccount } from "../blockchain/utils/getStarknetAccount";
 import numberFormatter from "../blockchain/utils/numberFormatter";
 import { extractTokensFromName } from "../lib/helpers/helpers";
 import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
@@ -290,6 +291,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
       console.log("[SwapModal] tokenAddress:", marketDetails.collateralToken);
       console.log("[SwapModal] asceSwapAddress:", process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS);
       console.log("[SwapModal] collateral:", collateral, "approveAmount:", collateral + entryFee, "notional:", notional);
+      const account = await getStarknetAccount(primaryWallet);
       const hash = await approveAndBuySwap({
         tokenAddress: marketDetails.collateralToken,
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
@@ -299,6 +301,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         collateral: (collateral + entryFee) * 2,
         maxRateBps: 100_000,
         decimals: MARKET_META[market.id]?.decimals ?? marketDetails.decimals,
+        account,
       });
       setTxHash(hash);
     } catch (e: any) {

@@ -1,4 +1,5 @@
 import { Contract, uint256 } from "starknet";
+import type { StarknetAccount } from "../../utils/getStarknetAccount";
 import AsceSwapABI from "../../abis/AsceSwap.json";
 
 function toU256(amount: number, decimals: number) {
@@ -12,38 +13,21 @@ export async function withdrawLpLiquidity({
   pairId,
   shares,
   shareDecimals = 6,
+  account,
 }: {
   asceSwapAddress: string;
   pairId: string; // felt252
   shares: number; // number of LP shares to withdraw
   shareDecimals?: number;
+  account: StarknetAccount;
 }) {
-  const starknet = (window as any).starknet;
-
-  if (!starknet) {
-    throw new Error("Starknet wallet not found. Please install Braavos or Argent X.");
-  }
-
-  // Make sure wallet is connected and enabled
-  if (!starknet.isConnected) {
-    await starknet.enable({ starknetVersion: "v5" });
-  }
-
-  // Wait a bit for the account to be ready
-  await new Promise(resolve => setTimeout(resolve, 100));
-
-  const account = starknet.account;
-
-  if (!account || !account.address) {
-    throw new Error("Wallet account not available. Please connect your wallet.");
-  }
 
   const sharesU256 = toU256(shares, shareDecimals);
 
   const asceSwap = new Contract({
     abi: AsceSwapABI,
     address: asceSwapAddress,
-    providerOrAccount: account,
+    providerOrAccount: account as any,
   });
 
   const call = asceSwap.populate("withdraw_lp_collateral", [

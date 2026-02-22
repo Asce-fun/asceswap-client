@@ -21,6 +21,7 @@ import {
 } from "../blockchain/scripts/markets";
 import { approveAndSupplyLp } from "../blockchain/scripts/write/approveAndSupplyLp";
 import { withdrawLpLiquidity } from "../blockchain/scripts/write/withdrawLiquidity";
+import { getStarknetAccount } from "../blockchain/utils/getStarknetAccount";
 import numberFormatter from "../blockchain/utils/numberFormatter";
 import { extractTokensFromName } from "../lib/helpers/helpers";
 import { TOKEN_LOGOS } from "../lib/helpers/tokenLogos";
@@ -241,12 +242,14 @@ export const LpModal: React.FC<LpModalProps> = ({
     try {
       setLoading(true);
       setError(null);
+      const account = await getStarknetAccount(primaryWallet);
       const hash = await approveAndSupplyLp({
         tokenAddress: marketDetails?.collateralToken as string,
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
         pairId: String(marketDetails?.pairId),
         amount: Number(amount),
         decimals: marketDetails?.decimals as number,
+        account,
       });
       setTxHash(hash);
     } catch (e: any) {
@@ -260,11 +263,13 @@ export const LpModal: React.FC<LpModalProps> = ({
     try {
       setLoading(true);
       setError(null);
+      const account = await getStarknetAccount(primaryWallet);
       const hash = await withdrawLpLiquidity({
         asceSwapAddress: process.env.NEXT_PUBLIC_ASCESWAP_ADDRESS!,
         pairId: String(marketDetails?.pairId),
         shares: Number(amount),
         shareDecimals: decimals,
+        account,
       });
       setTxHash(hash);
     } catch (e: any) {
