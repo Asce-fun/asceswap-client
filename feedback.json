@@ -1,0 +1,14 @@
+[
+  {
+    "message": "test",
+    "email": "test",
+    "timestamp": "2026-02-22T21:14:36.010Z",
+    "ip": "::1"
+  },
+  {
+    "message": "test",
+    "email": "test",
+    "timestamp": "2026-02-22T21:15:12.068Z",
+    "ip": "::1"
+  }
+]
