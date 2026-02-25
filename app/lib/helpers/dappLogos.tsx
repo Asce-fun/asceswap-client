@@ -14,7 +14,7 @@ export const PROTOCOL_LOGOS: Partial<
   Ekubo: ({ size = 16 }) => <EkuboLogo size={size} />,
   Vesu: ({ size = 16 }) => <VesuLogo size={size} />,
   Nostra: ({ size = 16 }) => <NostraLogo size={size} />,
-  "Endure.Fi": ({ size = 16 }) => <EndureFiLogo size={size} />,
+  "Endur.fi": ({ size = 16 }) => <EndureFiLogo size={size} />,
   Troves: ({ size = 16 }) => <TrovesLogo size={size} />,
   US: ({ size = 16 }) => <USLogo size={size} />,
   Paradex: ({ size = 16 }) => <ParadexLogo size={size} />,

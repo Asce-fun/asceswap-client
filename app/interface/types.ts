@@ -33,7 +33,7 @@ export type SwapStatus = "ACTIVE" | "SETTLED" | "LIQUIDATED" | "EXITEDEARLY" | "
 export type SwapDirection = 'FIXED' | 'FLOATING';
 
 // interface/types.ts
-export type ProtocolSymbol = "Ekubo" | "Vesu" | "Nostra" | "Asceswap" | "Paradex" | "Endure.Fi" | "Troves" | "US";
+export type ProtocolSymbol = "Ekubo" | "Vesu" | "Nostra" | "Asceswap" | "Paradex" | "Endur.fi" | "Troves" | "US";
 
 // interface/formattedMarket.ts
 
