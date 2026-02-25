@@ -105,7 +105,7 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-[#e8e6ee] mb-4">Support</h4>
             <ul className="space-y-3 text-sm text-[#9896a3]">
               <li>
-                <a href="#" className="hover:text-[#6ee7b7] transition-colors">
+                <a href="https://asceswap.gitbook.io/asceswap-docs" target="_blank" className="hover:text-[#6ee7b7] transition-colors">
                   Documentation
                 </a>
               </li>
