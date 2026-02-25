@@ -164,18 +164,18 @@ export const Header: React.FC = () => {
             )}
           </button> */}
 
-          {/* Mint icon button */}
-          {isLoggedIn && (
-            <button
-              onClick={() => setShowMint(true)}
-              className="p-2 cursor-pointer rounded-xl 
-             hover:bg-[#34d399]/10 
+          {/* Faucet button — always visible */}
+          <button
+            onClick={() => setShowMint(true)}
+            className="flex items-center gap-1.5 px-4 py-2 cursor-pointer rounded-xl text-sm font-semibold
+             text-[#34d399] border border-[#34d399]/20
+             hover:bg-[#34d399]/10
              transition-all duration-200"
-              title="Mint Test Tokens"
-            >
-              <Droplet className="w-4 h-4 text-[#34d399]" />
-            </button>
-          )}
+            title="Faucet – Mint Test Tokens"
+          >
+            <Droplet className="w-4 h-4" />
+            Faucet
+          </button>
 
           {/* Wallet */}
           {!isLoggedIn ? (
@@ -257,22 +257,20 @@ export const Header: React.FC = () => {
 
           <div className="border-t border-[#1e1e2a] my-2" />
 
-          {/* Actions */}
-          {isLoggedIn && (
-            <button
-              onClick={() => {
-                setMobileOpen(false);
-                setShowMint(true);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
+          {/* Faucet — always visible */}
+          <button
+            onClick={() => {
+              setMobileOpen(false);
+              setShowMint(true);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
              text-[#34d399]/70 hover:text-[#34d399]
              hover:bg-[#34d399]/10
              transition-all duration-200 cursor-pointer"
-            >
-              <Droplet className="w-4 h-4 text-[#34d399]" />
-              Mint Test Tokens
-            </button>
-          )}
+          >
+            <Droplet className="w-4 h-4 text-[#34d399]" />
+            Faucet
+          </button>
 
           {/* <button
             onClick={toggleTheme}

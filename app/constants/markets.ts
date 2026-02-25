@@ -90,7 +90,7 @@ export const MARKETS: MarketData[] = [
   },
   {
     id: '2',
-    protocol: 'Endure.Fi',
+    protocol: 'Endur.fi',
     name: 'STRK Staking Yield',
     oracleRate: 7.22,
     fixedDuration: Duration.D1,
