@@ -34,19 +34,14 @@ export const LpCard: React.FC<LpCardProps> = ({
   };
 
   const collateralSymbol = meta?.collateralSymbol ?? "USDC";
-  const tvl = marketDetails?.pool?.totalCollateral ?? 0;
   const swapFeeBps = (marketDetails?.params?.swapFeePct ?? 0) * 100;
   const termDays = marketDetails?.params?.swapTermDays ?? 30;
+  const maxUtilizationPct = marketDetails?.params?.maxUtilizationPct ?? 80;
+  const maxUtilFraction = (maxUtilizationPct > 0 ? maxUtilizationPct : 80) / 100;
 
-  const lockedTotal = marketDetails?.pool
-    ? (marketDetails.pool.lockedFixed ?? 0) + (marketDetails.pool.lockedFloating ?? 0)
-    : 0;
-
-  const utilization = tvl > 0 ? (lockedTotal / tvl) * 100 : 0;
-  const utilizationFraction = utilization / 100;
-
-  const apy = marketDetails
-    ? (swapFeeBps * utilizationFraction * (365 / termDays)) / 10000
+  // APY at max utilization so LPs see earning potential
+  const maxApy = marketDetails
+    ? (swapFeeBps * maxUtilFraction * (365 / termDays)) / 10000
     : null;
 
   const collateralTokens = extractTokensFromName(collateralSymbol);
@@ -114,18 +109,17 @@ export const LpCard: React.FC<LpCardProps> = ({
         {/* APY */}
         <div className="relative z-10 px-5 pt-5 pb-4">
           <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#6B7280] mb-2">
-            Estimated APY
+            APY at Max Utilization
           </div>
           <div className="flex items-baseline gap-2.5">
             <span className="text-[42px] font-mono font-bold text-[#34d399] tracking-tighter leading-none">
-              {apy !== null ? (apy * 100).toFixed(1) : "—"}
+              {maxApy !== null ? (maxApy * 100).toFixed(1) : "—"}
             </span>
-            {apy !== null && (
+            {maxApy !== null && (
               <span className="text-lg font-mono font-bold text-[#34d399]/40 -ml-1">
                 %
               </span>
             )}
-
           </div>
         </div>
 

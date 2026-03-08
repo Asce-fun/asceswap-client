@@ -7,7 +7,7 @@ import { PageLayout } from '../components/PageLayout';
 import { FormattedMarket } from '../interface/types';
 import { getMarketsPage } from '../blockchain/scripts/analytics';
 import { getMarket } from '../blockchain/scripts/markets';
-import { formatMarket } from '../blockchain/utils/formatMarket';
+import { formatMarket, formatMarketForTrading } from '../blockchain/utils/formatMarket';
 
 export default function MarketsPage() {
   const [marketDetailsMap, setMarketDetailsMap] = useState<Record<string, FormattedMarket>>({});
@@ -25,7 +25,7 @@ export default function MarketsPage() {
             markets.forEach((m: any, i: number) => {
               if (m && pairIds[i]) {
                 try {
-                  map[pairIds[i]] = formatMarket(m) as FormattedMarket;
+                  map[pairIds[i]] = formatMarketForTrading(m) as FormattedMarket;
                 } catch {
                   // skip malformed entries
                 }
