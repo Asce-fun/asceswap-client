@@ -5,43 +5,15 @@ import { SwapCard } from '../components/SwapCard';
 import { MARKETS } from '../constants/markets';
 import { PageLayout } from '../components/PageLayout';
 import { FormattedMarket } from '../interface/types';
-import { getMarketsPage } from '../blockchain/scripts/analytics';
 import { getMarket } from '../blockchain/scripts/markets';
-import { formatMarket, formatMarketForTrading } from '../blockchain/utils/formatMarket';
 
 export default function MarketsPage() {
   const [marketDetailsMap, setMarketDetailsMap] = useState<Record<string, FormattedMarket>>({});
 
+  // Fetch all market details via individual get_market calls
+  // (analytics batch endpoint lacks params like initialMarginMultiplierPct needed for swap collateral)
   useEffect(() => {
     const fetchAll = async () => {
-      try {
-        // Try batch analytics call first (single RPC call for all markets)
-        const pairIds = MARKETS.map(m => m.id);
-        const batchData = await getMarketsPage(pairIds);
-        if (batchData && typeof batchData === 'object') {
-          const markets = batchData.markets ?? batchData;
-          if (Array.isArray(markets) && markets.length > 0) {
-            const map: Record<string, FormattedMarket> = {};
-            markets.forEach((m: any, i: number) => {
-              if (m && pairIds[i]) {
-                try {
-                  map[pairIds[i]] = formatMarketForTrading(m) as FormattedMarket;
-                } catch {
-                  // skip malformed entries
-                }
-              }
-            });
-            if (Object.keys(map).length > 0) {
-              setMarketDetailsMap(map);
-              return;
-            }
-          }
-        }
-      } catch {
-        // Batch call failed, fall through to individual calls
-      }
-
-      // Fallback: individual calls in parallel (still better than 6 separate useEffects)
       const results = await Promise.all(
         MARKETS.map(async (market) => {
           try {
