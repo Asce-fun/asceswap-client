@@ -88,11 +88,12 @@ export const LpModal: React.FC<LpModalProps> = ({
 
   const swapFeeBps = (marketDetails?.params?.swapFeePct ?? 0) * 100;
   const termDays = marketDetails?.params?.swapTermDays ?? 30;
-  const utilizationFraction = utilization / 100;
+  const maxUtilizationPct = marketDetails?.params?.maxUtilizationPct ?? 80;
+  const maxUtilFraction = (maxUtilizationPct > 0 ? maxUtilizationPct : 80) / 100;
 
-  // Fee APY calculation
+  // Fee APY at max utilization
   const feeApy = marketDetails
-    ? (swapFeeBps * utilizationFraction * (365 / termDays)) / 10000
+    ? (swapFeeBps * maxUtilFraction * (365 / termDays)) / 10000
     : 0;
 
   // Share price state (fetched from chain)
@@ -345,7 +346,7 @@ export const LpModal: React.FC<LpModalProps> = ({
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <span className="text-[10px] font-semibold text-[#9896a3] uppercase tracking-wider">
-                Estimated APY
+                APY at Max Utilization
               </span>
               <Info className="w-3 h-3 text-[#5C5A66] cursor-help" />
             </div>

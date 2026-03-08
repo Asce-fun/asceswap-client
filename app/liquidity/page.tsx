@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { FormattedMarket } from "../interface/types";
 import { MARKETS, MARKET_META } from "../constants/markets";
 import { getMarket, getLpPosition, getExchangeRateForLp } from "../blockchain/scripts/markets";
-import { getMarketsPage } from "../blockchain/scripts/analytics";
 import { formatMarket } from "../blockchain/utils/formatMarket";
 import { PageLayout } from "../components/PageLayout";
 import { LpCard } from "../components/LpCard";
@@ -23,37 +22,10 @@ export default function LiquidityPage() {
     Record<string, { shares: number; value: number }>
   >({});
 
-  // Fetch all market details in a single batch (or parallel fallback)
+  // Fetch all market details via individual get_market calls
+  // (analytics batch endpoint lacks proper pool.locked_for_fixed/floating data)
   useEffect(() => {
     const fetchAll = async () => {
-      try {
-        // Try batch analytics call first
-        const pairIds = MARKETS.map(m => m.id);
-        const batchData = await getMarketsPage(pairIds);
-        if (batchData && typeof batchData === 'object') {
-          const markets = batchData.markets ?? batchData;
-          if (Array.isArray(markets) && markets.length > 0) {
-            const map: Record<string, FormattedMarket> = {};
-            markets.forEach((m: any, i: number) => {
-              if (m && pairIds[i]) {
-                try {
-                  map[pairIds[i]] = formatMarket(m) as FormattedMarket;
-                } catch {
-                  // skip malformed entries
-                }
-              }
-            });
-            if (Object.keys(map).length > 0) {
-              setMarketDetailsMap(map);
-              return;
-            }
-          }
-        }
-      } catch {
-        // Batch call failed, fall through
-      }
-
-      // Fallback: individual calls in parallel
       const results = await Promise.all(
         MARKETS.map(async (market) => {
           try {
