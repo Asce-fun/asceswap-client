@@ -5,9 +5,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { MARKETS, MARKET_META } from "../constants/markets";
 import { FormattedMarket } from "../interface/types";
-import { getMarketsPage } from "../blockchain/scripts/analytics";
 import { getMarket } from "../blockchain/scripts/markets";
-import { formatMarket } from "../blockchain/utils/formatMarket";
 import { getOracleRate, getOracleRateHistory } from "../blockchain/scripts/oracleContract";
 import { compute24hChange } from "../blockchain/utils/utils";
 import { getProtocolLogo } from "./SwapCard";
@@ -29,47 +27,22 @@ export const LiveMarketsStrip: React.FC = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const pairIds = MARKETS.map((m) => m.id);
       const formatted: Record<string, FormattedMarket> = {};
 
-      // 1. Try batch analytics call first (mirrors markets/page.tsx)
-      try {
-        const batchData = await getMarketsPage(pairIds);
-        if (batchData && typeof batchData === "object") {
-          const markets = batchData.markets ?? batchData;
-          if (Array.isArray(markets) && markets.length > 0) {
-            markets.forEach((m: any, i: number) => {
-              if (m && pairIds[i]) {
-                try {
-                  formatted[pairIds[i]] = formatMarket(m) as FormattedMarket;
-                } catch {
-                  // skip malformed entries
-                }
-              }
-            });
+      // Fetch all markets individually (analytics batch lacks full MarketPair data)
+      const results = await Promise.all(
+        MARKETS.map(async (market) => {
+          try {
+            const res = await getMarket(market.id);
+            return { id: market.id, data: res as FormattedMarket };
+          } catch {
+            return { id: market.id, data: null };
           }
-        }
-      } catch {
-        // Batch call failed, fall through to individual calls
-      }
-
-      // 2. Fallback: individual getMarket() calls for any missing markets
-      const missing = pairIds.filter((id) => !formatted[id]);
-      if (missing.length > 0) {
-        const results = await Promise.all(
-          missing.map(async (id) => {
-            try {
-              const res = await getMarket(id);
-              return { id, data: res as FormattedMarket };
-            } catch {
-              return { id, data: null };
-            }
-          })
-        );
-        results.forEach(({ id, data }) => {
-          if (data) formatted[id] = data;
-        });
-      }
+        })
+      );
+      results.forEach(({ id, data }) => {
+        if (data) formatted[id] = data;
+      });
 
       // 3. Fetch live oracle rates + 24h changes in parallel
       const oracleRateMap: Record<string, number> = {};
