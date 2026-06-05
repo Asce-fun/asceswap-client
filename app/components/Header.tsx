@@ -1,14 +1,19 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Menu, Search, Wallet } from "lucide-react";
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  filters?: ReactNode;
+}
+
+export const Header = ({ filters }: HeaderProps) => {
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-[#1d2a34] bg-[rgba(8,11,15,0.9)] backdrop-blur-[18px]">
-      <div className="mx-auto flex h-16 max-w-[1760px] items-center gap-4 px-4 sm:px-6">
+    <nav className="sticky top-0 z-50 w-full border-b border-[#15231f] bg-[rgba(3,5,6,0.86)] backdrop-blur-[18px]">
+      <div className="mx-auto flex h-14 max-w-[1760px] items-center gap-3 px-4 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-3">
           <svg
-            width="30"
-            height="30"
+            width="26"
+            height="26"
             viewBox="0 0 140 150"
             fill="none"
             className="logo-a"
@@ -41,32 +46,34 @@ export const Header: React.FC = () => {
             <circle cx="105" cy="130" r="2.5" fill="#0e0e13" />
           </svg>
 
-          <span className="text-xl font-semibold text-[#f2f5f3]">
+          <span className="text-lg font-semibold text-[#f2f5f3]">
             Asce<span className="text-[#2ee59d]">Swap</span>
           </span>
         </Link>
 
-        <div className="relative hidden min-w-0 max-w-[760px] flex-1 md:block">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#65717d]" />
+        <div className="relative hidden min-w-0 md:block md:w-[250px] lg:w-[280px] xl:w-[320px] 2xl:w-[360px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#65717d]" />
           <input
             aria-label="Search scalar markets"
             placeholder="Search scalar markets..."
-            className="h-11 w-full rounded-lg border border-[#23323d] bg-[#101820] pl-11 pr-12 text-sm text-[#f2f5f3] outline-none transition placeholder:text-[#65717d] focus:border-[#33505f]"
+            className="h-9 w-full rounded-md border border-[#1d312b] bg-[rgba(5,11,11,0.82)] pl-9 pr-9 text-sm text-[#f2f5f3] outline-none transition placeholder:text-[#66756f] focus:border-[#2ee59d]/55"
           />
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-mono text-sm text-[#65717d]">/</span>
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-sm text-[#66756f]">/</span>
         </div>
 
+        {filters ? <div className="hidden min-w-0 flex-1 items-center lg:flex">{filters}</div> : null}
+
         <div className="ml-auto hidden items-center gap-2 md:flex">
-          <button className="h-9 rounded-md px-3 text-sm font-semibold text-[#8a96a3] transition hover:bg-[#121a21] hover:text-[#f2f5f3]">
+          <button className="h-9 rounded-md px-3 text-sm font-semibold text-[#8a968f] transition hover:bg-[#0c1514] hover:text-[#f2f5f3]">
             Portfolio
           </button>
-          <button className="flex h-9 items-center gap-2 rounded-md border border-[#2ee59d]/35 bg-[#123026] px-3 text-sm font-semibold text-[#2ee59d] transition hover:border-[#2ee59d]">
+          <button className="flex h-9 items-center gap-2 rounded-md border border-[#7cf3bd]/40 bg-[#7cf3bd] px-3 text-sm font-semibold text-[#03100b] transition hover:border-[#a7ffd4] hover:bg-[#9af7ca]">
             <Wallet className="h-4 w-4" />
             Connect
           </button>
         </div>
 
-        <button className="ml-auto flex h-9 w-9 items-center justify-center rounded-md border border-[#23323d] bg-[#101820] text-[#8a96a3] md:hidden">
+        <button className="ml-auto flex h-9 w-9 items-center justify-center rounded-md border border-[#1d312b] bg-[rgba(5,11,11,0.82)] text-[#8a968f] md:hidden">
           <Menu className="h-5 w-5" />
         </button>
       </div>

@@ -6,14 +6,15 @@ import { SpaceBackground } from "./SpaceBackground";
 
 interface PageLayoutProps {
   children: React.ReactNode;
+  headerFilters?: React.ReactNode;
 }
 
-export const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
+export const PageLayout: React.FC<PageLayoutProps> = ({ children, headerFilters }) => {
   return (
-    <div className="min-h-screen bg-[#080b0f] font-sans text-[#f2f5f3]">
+    <div className="min-h-screen bg-[#030506] font-sans text-[#f2f5f3]">
       <SpaceBackground />
       <div className="relative z-10 flex flex-col">
-        <Header />
+        <Header filters={headerFilters} />
 
         <main className="grow pb-12">
           <div className="mx-auto max-w-[1760px] px-4 sm:px-6">{children}</div>
