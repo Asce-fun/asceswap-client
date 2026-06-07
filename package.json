@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:protocol": "node --test tests/protocol.test.mjs"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.0",
