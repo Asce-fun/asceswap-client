@@ -16,16 +16,35 @@ import {
   ArrowUpRight,
   Bitcoin,
   Bookmark,
+  CheckCircle2,
+  FileSignature,
   Flame,
   Fuel,
   Gauge,
   Landmark,
   LineChart,
+  Loader2,
+  ShieldAlert,
   TrendingUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { PageLayout } from "./components/PageLayout";
+import { createOrderbookClient } from "./orderbook/client";
+import type { SubmitOrderOutcome } from "./orderbook/schemas";
+import { resolveSigningConfig } from "./protocol/clientConfig";
+import {
+  type ApiOrder,
+  type Hex,
+  type Outcome,
+  type Side,
+  parseCentsLabelToPriceWad,
+  parseDecimalToUnits,
+} from "./protocol/order";
+import { pendingRecordFromSubmission, upsertPendingOrder } from "./state/orderStore";
+import { buildBuyOrderFromCollateral, buildOrder } from "./trading/buildOrder";
+import { signOrder, submitSignedOrder } from "./trading/placeLimitOrder";
+import { formatAddress, useWallet } from "./wallet/WalletProvider";
 
 type CategoryId =
   | "trending"
@@ -317,6 +336,10 @@ function formatUsd(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function formatShortHex(value: Hex) {
+  return `${value.slice(0, 10)}...${value.slice(-8)}`;
 }
 
 function parseCompactUsd(value: string) {
@@ -654,7 +677,6 @@ function TradingUnderlyingChart({ market }: { market: Market }) {
 function FeaturedChart({ market, mode }: { market: Market; mode: ChartMode }) {
   const width = 760;
   const height = 288;
-  const tone = getMarketTone(market);
 
   if (mode === "underlying") {
     return <TradingUnderlyingChart market={market} />;
@@ -927,10 +949,20 @@ function OrderFlowPanel({ market }: { market: Market }) {
 
 function FeaturedMarket({ market }: { market: Market }) {
   const Icon = market.icon;
-  const tone = getMarketTone(market);
+  const wallet = useWallet();
   const [orderAmount, setOrderAmount] = useState("100");
   const [chartMode, setChartMode] = useState<ChartMode>("underlying");
-  const entryPrice = parseCentsPrice(market.primaryPrice);
+  const [selectedOutcome, setSelectedOutcome] = useState<Outcome>("yes");
+  const [selectedSide, setSelectedSide] = useState<Side>("buy");
+  const [signingStatus, setSigningStatus] = useState<"idle" | "connecting" | "signing" | "submitting" | "signed" | "submitted" | "error">("idle");
+  const [signingError, setSigningError] = useState<string | null>(null);
+  const [submitWarning, setSubmitWarning] = useState<string | null>(null);
+  const [submitOutcome, setSubmitOutcome] = useState<SubmitOrderOutcome | null>(null);
+  const [signedOrder, setSignedOrder] = useState<ApiOrder | null>(null);
+  const [signature, setSignature] = useState<Hex | null>(null);
+  const [usedDemoConfig, setUsedDemoConfig] = useState(false);
+  const ticketPriceLabel = selectedOutcome === "yes" ? market.primaryPrice : market.secondaryPrice;
+  const entryPrice = parseCentsPrice(ticketPriceLabel);
   const secondaryEntryPrice = parseCentsPrice(market.secondaryPrice);
   const orderValue = Math.max(Number(orderAmount) || 0, 0);
   const estimatedShares = entryPrice > 0 ? orderValue / entryPrice : 0;
@@ -950,6 +982,90 @@ function FeaturedMarket({ market }: { market: Market }) {
     { label: "24h volume", value: market.volume, tone: "text-[#f2f5f3]" },
     { label: "Avg move", value: `±${formatValue(averageMove, market.format)}`, tone: "text-[#f2f5f3]" },
   ];
+  const isSigning = signingStatus === "connecting" || signingStatus === "signing" || signingStatus === "submitting";
+  const ticketButtonLabel = isSigning
+    ? signingStatus === "connecting" ? "Connecting wallet" : signingStatus === "submitting" ? "Submitting order" : "Open wallet request"
+    : signingStatus === "submitted" ? "Submit again" : signingStatus === "signed" ? "Sign again" : wallet.account ? "Sign and submit" : "Connect and sign";
+
+  useEffect(() => {
+    setSignedOrder(null);
+    setSignature(null);
+    setSigningError(null);
+    setSubmitWarning(null);
+    setSubmitOutcome(null);
+    setUsedDemoConfig(false);
+    setSigningStatus((currentStatus) => currentStatus === "signed" || currentStatus === "submitted" ? "idle" : currentStatus);
+  }, [market.id, ticketPriceLabel, orderAmount, selectedOutcome, selectedSide]);
+
+  const handleSignPreview = async () => {
+    try {
+      setSigningError(null);
+      setSigningStatus(wallet.account && wallet.chainId ? "signing" : "connecting");
+
+      const connection = wallet.account && wallet.chainId
+        ? { account: wallet.account, chainId: wallet.chainId }
+        : await wallet.connect();
+      const config = resolveSigningConfig(connection.chainId);
+
+      if (config.chainId !== connection.chainId) {
+        throw new Error(`Switch wallet to chain ${config.chainId} before signing.`);
+      }
+
+      const inputAmount = parseDecimalToUnits(orderAmount, 18);
+      const priceWad = parseCentsLabelToPriceWad(ticketPriceLabel);
+      const expiration = BigInt(Math.floor(Date.now() / 1000) + 60 * 60);
+      const commonOrderInput = {
+        maker: connection.account,
+        marketId: market.id,
+        outcome: selectedOutcome,
+        priceWad,
+        expiration,
+        epoch: 0n,
+        maxFeeRateBps: 50,
+      };
+      const order = selectedSide === "buy"
+        ? buildBuyOrderFromCollateral({
+            ...commonOrderInput,
+            collateralAmount: inputAmount,
+          })
+        : buildOrder({
+            ...commonOrderInput,
+            side: "sell",
+            claimAmount: inputAmount,
+          });
+      const domain = {
+        name: "AsceSwap" as const,
+        version: "1" as const,
+        chainId: config.chainId,
+        verifyingContract: config.verifyingContract,
+      };
+
+      setSigningStatus("signing");
+      const nextSignature = await signOrder(order, wallet, domain);
+      setSignedOrder(order);
+      setSignature(nextSignature);
+      setUsedDemoConfig(config.isDemoConfig);
+      upsertPendingOrder(pendingRecordFromSubmission({ order, signature: nextSignature }));
+
+      try {
+        const orderbookClient = createOrderbookClient();
+        setSigningStatus("submitting");
+        const response = await submitSignedOrder(orderbookClient, order, nextSignature, {
+          postOnly: false,
+          restOnNoMatch: true,
+        });
+        setSubmitOutcome(response);
+        upsertPendingOrder(pendingRecordFromSubmission({ order, signature: nextSignature, response }));
+        setSigningStatus("submitted");
+      } catch (submitError) {
+        setSubmitWarning(submitError instanceof Error ? submitError.message : "Signed order was not submitted.");
+        setSigningStatus("signed");
+      }
+    } catch (error) {
+      setSigningError(error instanceof Error ? error.message : "Signing request failed.");
+      setSigningStatus("error");
+    }
+  };
 
   return (
     <article className="glass-panel overflow-hidden rounded-lg">
@@ -1088,17 +1204,50 @@ function FeaturedMarket({ market }: { market: Market }) {
             </div>
           </div>
 
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-md border border-[#1d312b] bg-[rgba(4,10,10,0.52)] p-1">
+            {(["buy", "sell"] as const).map((side) => (
+              <button
+                key={side}
+                type="button"
+                onClick={() => setSelectedSide(side)}
+                className={`h-8 rounded text-xs font-semibold uppercase transition ${
+                  selectedSide === side
+                    ? "bg-[#123026] text-[#72e6b8]"
+                    : "text-[#8a96a3] hover:bg-[#0c1514] hover:text-[#d7ddd9]"
+                }`}
+              >
+                {side}
+              </button>
+            ))}
+          </div>
+
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <button className="h-12 rounded-md border border-[#2ee59d]/35 bg-[rgba(18,48,38,0.72)] px-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-[#2ee59d]">
+            <button
+              type="button"
+              onClick={() => setSelectedOutcome("yes")}
+              className={`h-12 rounded-md border px-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition ${
+                selectedOutcome === "yes"
+                  ? "border-[#2ee59d] bg-[rgba(18,48,38,0.86)]"
+                  : "border-[#2ee59d]/35 bg-[rgba(18,48,38,0.58)] hover:border-[#2ee59d]"
+              }`}
+            >
               <span className="flex items-center justify-between gap-2 text-xs font-semibold text-[#72e6b8]">
-                {market.primaryAction}
+                YES
                 <span className="font-mono">{primaryPayoutMultiple.toFixed(1)}x</span>
               </span>
               <span className="mt-0.5 block font-mono text-lg font-semibold text-[#f2f5f3]">{market.primaryPrice}</span>
             </button>
-            <button className="h-12 rounded-md border border-[#ff5c7a]/28 bg-[rgba(37,21,26,0.72)] px-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-[#ff5c7a]">
+            <button
+              type="button"
+              onClick={() => setSelectedOutcome("no")}
+              className={`h-12 rounded-md border px-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition ${
+                selectedOutcome === "no"
+                  ? "border-[#ff5c7a] bg-[rgba(37,21,26,0.86)]"
+                  : "border-[#ff5c7a]/28 bg-[rgba(37,21,26,0.58)] hover:border-[#ff5c7a]"
+              }`}
+            >
               <span className="flex items-center justify-between gap-2 text-xs font-semibold text-[#ff9cad]">
-                {market.secondaryAction}
+                NO
                 <span className="font-mono">{secondaryPayoutMultiple.toFixed(1)}x</span>
               </span>
               <span className="mt-0.5 block font-mono text-lg font-semibold text-[#f2f5f3]">{market.secondaryPrice}</span>
@@ -1108,8 +1257,10 @@ function FeaturedMarket({ market }: { market: Market }) {
           <div className="mt-3 space-y-2">
             <div className="glass-control rounded-md p-2">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#65717d]">Order value</span>
-                <span className="text-xs text-[#8a96a3]">USDC</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#65717d]">
+                  {selectedSide === "buy" ? "Order value" : "Claim size"}
+                </span>
+                <span className="text-xs text-[#8a96a3]">{selectedSide === "buy" ? "USDC" : "Claims"}</span>
               </div>
               <label className="flex items-center gap-2">
                 <span className="font-mono text-lg font-semibold text-[#65717d]">$</span>
@@ -1148,9 +1299,85 @@ function FeaturedMarket({ market }: { market: Market }) {
             </div>
           </div>
 
-          <button className="mt-3 h-10 w-full rounded-md bg-[#2ee59d] text-sm font-bold text-[#06100c] transition hover:bg-[#6fdcb4]">
-            Preview order
+          <button
+            type="button"
+            onClick={handleSignPreview}
+            disabled={isSigning || wallet.status === "unavailable"}
+            className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#2ee59d] text-sm font-bold text-[#06100c] transition hover:bg-[#6fdcb4] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
+            {ticketButtonLabel}
           </button>
+
+          {wallet.status === "unavailable" ? (
+            <div className="mt-2 flex gap-2 rounded-md border border-[#f5b84b]/28 bg-[rgba(44,34,18,0.42)] p-2 text-xs text-[#f5c873]">
+              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>No injected wallet detected.</span>
+            </div>
+          ) : null}
+
+          {signingError ? (
+            <div className="mt-2 flex gap-2 rounded-md border border-[#ff5c7a]/28 bg-[rgba(37,21,26,0.5)] p-2 text-xs text-[#ff9cad]">
+              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{signingError}</span>
+            </div>
+          ) : null}
+
+          {submitWarning ? (
+            <div className="mt-2 flex gap-2 rounded-md border border-[#f5b84b]/28 bg-[rgba(44,34,18,0.42)] p-2 text-xs text-[#f5c873]">
+              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{submitWarning}</span>
+            </div>
+          ) : null}
+
+          {signature && signedOrder ? (
+            <div className="mt-2 rounded-md border border-[#2ee59d]/24 bg-[rgba(12,36,29,0.48)] p-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#72e6b8]">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {submitOutcome ? `Orderbook ${submitOutcome.outcome}` : "Signed only, not submitted"}
+              </div>
+              <div className="mt-2 grid gap-1 font-mono text-[11px] text-[#8a96a3]">
+                <div className="flex justify-between gap-3">
+                  <span>Maker</span>
+                  <span className="text-[#d7ddd9]">{formatAddress(signedOrder.maker)}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span>Order</span>
+                  <span className="text-[#d7ddd9]">{signedOrder.claim} {signedOrder.side}</span>
+                </div>
+                {submitOutcome && "order_hash" in submitOutcome && submitOutcome.order_hash ? (
+                  <div className="flex justify-between gap-3">
+                    <span>Hash</span>
+                    <span className="text-[#d7ddd9]">{formatShortHex(submitOutcome.order_hash)}</span>
+                  </div>
+                ) : null}
+                {submitOutcome?.outcome === "matched" ? (
+                  <div className="flex justify-between gap-3">
+                    <span>Reservation</span>
+                    <span className="text-[#d7ddd9]">{submitOutcome.reservation_id}</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-3">
+                  <span>Salt</span>
+                  <span className="text-[#d7ddd9]">{signedOrder.salt.slice(0, 8)}...{signedOrder.salt.slice(-6)}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span>Signature</span>
+                  <span className="text-[#d7ddd9]">{formatShortHex(signature)}</span>
+                </div>
+              </div>
+              {submitOutcome?.outcome === "matched" ? (
+                <div className="mt-2 rounded border border-[#6f86ff]/24 bg-[rgba(16,23,53,0.46)] px-2 py-1 text-[11px] text-[#c9d2ff]">
+                  Match is pending execution and indexer confirmation.
+                </div>
+              ) : null}
+              {usedDemoConfig ? (
+                <div className="mt-2 rounded border border-[#f5b84b]/24 bg-[rgba(44,34,18,0.36)] px-2 py-1 text-[11px] text-[#f5c873]">
+                  Demo domain: set NEXT_PUBLIC_ASCESWAP_CHAIN_ID and NEXT_PUBLIC_ASCESWAP_EXCHANGE_ADDRESS before production signing.
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </aside>
       </div>
     </article>
@@ -1244,7 +1471,7 @@ function MarketCategoryFilters({
   setActiveCategory: (category: CategoryId) => void;
 }) {
   return (
-    <div className="flex w-full max-w-full gap-1 overflow-x-auto rounded-md border border-[#1d312b] bg-[rgba(4,10,10,0.52)] p-1">
+    <div className="flex w-full max-w-full gap-1 overflow-x-auto rounded-md border border-[#1d312b] bg-[rgba(4,10,10,0.52)] p-1 2xl:w-max">
       {categories.map((category) => {
         const Icon = category.icon;
         const isActive = category.id === activeCategory;
