@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Menu, Search, Wallet } from "lucide-react";
+import { Menu, Search } from "lucide-react";
+
+import { WalletConnectButton } from "./WalletConnectButton";
 
 interface HeaderProps {
   filters?: ReactNode;
@@ -51,7 +53,7 @@ export const Header = ({ filters }: HeaderProps) => {
           </span>
         </Link>
 
-        <div className="relative hidden min-w-0 md:block md:w-[250px] lg:w-[280px] xl:w-[320px] 2xl:w-[360px]">
+        <div className="relative hidden min-w-0 md:block md:w-[clamp(250px,26vw,500px)]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#65717d]" />
           <input
             aria-label="Search scalar markets"
@@ -61,21 +63,21 @@ export const Header = ({ filters }: HeaderProps) => {
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-sm text-[#66756f]">/</span>
         </div>
 
-        {filters ? <div className="hidden min-w-0 flex-1 items-center lg:flex">{filters}</div> : null}
+        {filters ? <div className="hidden min-w-0 items-center lg:flex lg:flex-1 2xl:flex-none">{filters}</div> : null}
 
         <div className="ml-auto hidden items-center gap-2 md:flex">
           <button className="h-9 rounded-md px-3 text-sm font-semibold text-[#8a968f] transition hover:bg-[#0c1514] hover:text-[#f2f5f3]">
             Portfolio
           </button>
-          <button className="flex h-9 items-center gap-2 rounded-md border border-[#7cf3bd]/40 bg-[#7cf3bd] px-3 text-sm font-semibold text-[#03100b] transition hover:border-[#a7ffd4] hover:bg-[#9af7ca]">
-            <Wallet className="h-4 w-4" />
-            Connect
-          </button>
+          <WalletConnectButton />
         </div>
 
-        <button className="ml-auto flex h-9 w-9 items-center justify-center rounded-md border border-[#1d312b] bg-[rgba(5,11,11,0.82)] text-[#8a968f] md:hidden">
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="ml-auto flex items-center gap-2 md:hidden">
+          <WalletConnectButton compact />
+          <button className="flex h-9 w-9 items-center justify-center rounded-md border border-[#1d312b] bg-[rgba(5,11,11,0.82)] text-[#8a968f]">
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
     </nav>
   );
