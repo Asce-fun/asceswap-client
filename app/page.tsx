@@ -22,7 +22,6 @@ import {
   Fuel,
   Gauge,
   Landmark,
-  LineChart,
   Loader2,
   ShieldAlert,
   TrendingUp,
@@ -56,7 +55,15 @@ type CategoryId =
   | "protocol";
 
 type MetricFormat = "percent" | "usd" | "gwei" | "million";
-type ChartMode = "underlying" | "depth" | "probability";
+const chartRanges = ["1H", "1D", "2D", "1W"] as const;
+type ChartRange = (typeof chartRanges)[number];
+const chartPointIntervalMinutes = 15;
+const chartRangePointCounts: Record<ChartRange, number> = {
+  "1H": 5,
+  "1D": 97,
+  "2D": 193,
+  "1W": 673,
+};
 
 interface Market {
   id: string;
@@ -66,7 +73,6 @@ interface Market {
   icon: LucideIcon;
   iconTone: string;
   status: "Live" | "Opening" | "Critical" | "Settles soon";
-  timeLeft: string;
   minutesToExpiry: number;
   maturity: string;
   observation: string;
@@ -106,26 +112,15 @@ const categories: Array<{
   { id: "protocol", label: "Protocol Metrics", icon: Activity },
 ];
 
-const chartModes: Array<{
-  id: ChartMode;
-  label: string;
-  description: string;
-}> = [
-  { id: "underlying", label: "Underlying", description: "Observed metric path" },
-  { id: "depth", label: "Depth", description: "Bid/ask liquidity ladder" },
-  { id: "probability", label: "Probability", description: "Implied outcome skew" },
-];
-
 const markets: Market[] = [
   {
     id: "aave-usdc-borrow-cap",
-    title: "Aave USDC borrow APR above 12% for 30D",
+    title: "Cap my Aave USDC borrow cost at 12% APR",
     category: "rates",
     categoryLabel: "Rates",
     icon: TrendingUp,
     iconTone: "#6fdcb4",
     status: "Live",
-    timeLeft: "4h 18m",
     minutesToExpiry: 258,
     maturity: "Jun 30, 2026",
     observation: "30D rolling window",
@@ -142,23 +137,22 @@ const markets: Market[] = [
     volume: "$184K",
     liquidity: "$62K",
     openInterest: "$93K",
-    primaryAction: "Buy Cap",
-    secondaryAction: "Sell Cap",
+    primaryAction: "Buy YES",
+    secondaryAction: "Buy NO",
     primaryPrice: "34c",
-    secondaryPrice: "31c",
-    payoutLabel: "Pays as APR clears strike",
-    sourceNote: "USDC variable borrow rate",
+    secondaryPrice: "67c",
+    payoutLabel: "YES pays if borrow APR finishes above 12%.",
+    sourceNote: "Hedge variable USDC borrow APR",
     trendingRank: 1,
   },
   {
     id: "eth-base-fee-35",
-    title: "Ethereum average gas fee above 35 gwei this week",
+    title: "Hedge Ethereum gas above 35 gwei this week",
     category: "gas",
     categoryLabel: "Gas",
     icon: Fuel,
     iconTone: "#f5b84b",
     status: "Critical",
-    timeLeft: "03:40",
     minutesToExpiry: 4,
     maturity: "May 25, 2026",
     observation: "Last 7D",
@@ -175,23 +169,22 @@ const markets: Market[] = [
     volume: "$96K",
     liquidity: "$41K",
     openInterest: "$58K",
-    primaryAction: "Above",
-    secondaryAction: "Below",
+    primaryAction: "Buy YES",
+    secondaryAction: "Buy NO",
     primaryPrice: "46c",
     secondaryPrice: "55c",
-    payoutLabel: "Settles on weekly TWA",
+    payoutLabel: "YES pays if weekly average gas finishes above 35 gwei.",
     sourceNote: "Base fee in gwei",
     trendingRank: 2,
   },
   {
     id: "btc-110k-month-end",
-    title: "BTC closes above $110K at month end",
+    title: "Trade BTC closing above $110K at month end",
     category: "crypto",
     categoryLabel: "Crypto",
     icon: Bitcoin,
     iconTone: "#f59f34",
     status: "Live",
-    timeLeft: "6d 9h",
     minutesToExpiry: 9200,
     maturity: "Jun 1, 2026",
     observation: "5:00 PM ET close",
@@ -208,23 +201,22 @@ const markets: Market[] = [
     volume: "$311K",
     liquidity: "$88K",
     openInterest: "$126K",
-    primaryAction: "Above",
-    secondaryAction: "Below",
+    primaryAction: "Buy YES",
+    secondaryAction: "Buy NO",
     primaryPrice: "58c",
     secondaryPrice: "43c",
-    payoutLabel: "Spot close threshold",
+    payoutLabel: "YES pays if BTC closes above $110K.",
     sourceNote: "Reference exchange basket",
     trendingRank: 3,
   },
   {
     id: "morpho-usdc-floor",
-    title: "Morpho USDC supply APY below 6% over next 30D",
+    title: "Protect Morpho USDC yield below 6% APY",
     category: "yields",
     categoryLabel: "Yields",
     icon: Gauge,
     iconTone: "#4c8dff",
     status: "Live",
-    timeLeft: "9d 11h",
     minutesToExpiry: 13620,
     maturity: "Jul 3, 2026",
     observation: "30D rolling window",
@@ -241,22 +233,21 @@ const markets: Market[] = [
     volume: "$72K",
     liquidity: "$29K",
     openInterest: "$37K",
-    primaryAction: "Buy Floor",
-    secondaryAction: "Sell Floor",
+    primaryAction: "Buy YES",
+    secondaryAction: "Buy NO",
     primaryPrice: "25c",
-    secondaryPrice: "22c",
-    payoutLabel: "Pays as APY falls below strike",
+    secondaryPrice: "76c",
+    payoutLabel: "YES pays if supply APY finishes below 6%.",
     sourceNote: "USDC supply side yield",
   },
   {
     id: "base-sequencer-revenue",
-    title: "Base sequencer revenue above $8M this month",
+    title: "Trade Base revenue above $8M this month",
     category: "protocol",
     categoryLabel: "Protocol",
     icon: Activity,
     iconTone: "#7aa7ff",
     status: "Live",
-    timeLeft: "5d 2h",
     minutesToExpiry: 7320,
     maturity: "Jun 30, 2026",
     observation: "Calendar month",
@@ -273,22 +264,21 @@ const markets: Market[] = [
     volume: "$64K",
     liquidity: "$21K",
     openInterest: "$42K",
-    primaryAction: "Above",
-    secondaryAction: "Below",
+    primaryAction: "Buy YES",
+    secondaryAction: "Buy NO",
     primaryPrice: "40c",
     secondaryPrice: "61c",
-    payoutLabel: "Cumulative settlement",
+    payoutLabel: "YES pays if monthly revenue clears $8M.",
     sourceNote: "Fees net of refunds",
   },
   {
     id: "tokenized-treasury-yield",
-    title: "Tokenized Treasury yield lands between 4.9% and 5.3%",
+    title: "Trade Treasury yield range 4.9%-5.3%",
     category: "rwa",
     categoryLabel: "RWA",
     icon: Landmark,
     iconTone: "#d4b06a",
     status: "Opening",
-    timeLeft: "28d",
     minutesToExpiry: 40320,
     maturity: "Sep 30, 2026",
     observation: "Q3 final print",
@@ -305,11 +295,11 @@ const markets: Market[] = [
     volume: "$53K",
     liquidity: "$34K",
     openInterest: "$25K",
-    primaryAction: "In Range",
-    secondaryAction: "Out",
+    primaryAction: "Buy YES",
+    secondaryAction: "Buy NO",
     primaryPrice: "21c",
     secondaryPrice: "80c",
-    payoutLabel: "Range settlement",
+    payoutLabel: "YES pays if the final yield lands in range.",
     sourceNote: "Tokenized T-bill basket",
   },
 ];
@@ -342,17 +332,41 @@ function formatShortHex(value: Hex) {
   return `${value.slice(0, 10)}...${value.slice(-8)}`;
 }
 
+function formatCountdown(totalSeconds: number) {
+  const clampedSeconds = Math.max(Math.floor(totalSeconds), 0);
+  const days = Math.floor(clampedSeconds / 86_400);
+  const hours = Math.floor((clampedSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((clampedSeconds % 3_600) / 60);
+  const seconds = clampedSeconds % 60;
+  const clock = [hours, minutes, seconds].map((value) => value.toString().padStart(2, "0")).join(":");
+
+  return days > 0 ? `${days}d ${clock}` : clock;
+}
+
+function useMarketCountdown(market: Market) {
+  const [remainingSeconds, setRemainingSeconds] = useState(market.minutesToExpiry * 60);
+
+  useEffect(() => {
+    const expiresAt = Date.now() + market.minutesToExpiry * 60_000;
+    const updateRemaining = () => {
+      setRemainingSeconds(Math.max(Math.ceil((expiresAt - Date.now()) / 1000), 0));
+    };
+
+    updateRemaining();
+    const interval = window.setInterval(updateRemaining, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [market.id, market.minutesToExpiry]);
+
+  return formatCountdown(remainingSeconds);
+}
+
 function parseCompactUsd(value: string) {
   const numericValue = Number(value.replace(/[^0-9.]/g, ""));
   if (!Number.isFinite(numericValue)) return 0;
   if (value.toLowerCase().includes("m")) return numericValue * 1_000_000;
   if (value.toLowerCase().includes("k")) return numericValue * 1_000;
   return numericValue;
-}
-
-function getDistanceToBoundary(market: Market) {
-  const denominator = Math.max(Math.abs(market.boundaryValue), 1);
-  return ((market.currentValue - market.boundaryValue) / denominator) * 100;
 }
 
 function getsPaidAboveBoundary(market: Market) {
@@ -369,18 +383,6 @@ function getMarketTone(market: Market) {
     soft: favorable ? "rgba(46, 229, 157, 0.14)" : "rgba(255, 92, 122, 0.12)",
     text: favorable ? "text-[#2ee59d]" : "text-[#ff5c7a]",
   };
-}
-
-function getProbabilityBars(market: Market) {
-  const distance = Math.max(Math.min(getDistanceToBoundary(market) / 18, 0.7), -0.7);
-  const center = 0.5 + distance * 0.18;
-
-  return Array.from({ length: 19 }, (_, index) => {
-    const x = index / 18;
-    const gaussian = Math.exp(-Math.pow((x - center) / 0.22, 2));
-    const skew = getsPaidAboveBoundary(market) ? x * 0.18 : (1 - x) * 0.18;
-    return Math.max(gaussian + skew, 0.08);
-  });
 }
 
 function getDepthRows(market: Market, levels = 7) {
@@ -415,15 +417,70 @@ function getMovingAverageValues(points: number[], windowSize = 7) {
   });
 }
 
-function getSeriesAverageMove(points: number[]) {
-  if (points.length < 2) return 0;
-  const totalMove = points.slice(1).reduce((sum, point, index) => sum + Math.abs(point - points[index]), 0);
-  return totalMove / (points.length - 1);
+function getChartAverageWindow(range: ChartRange) {
+  if (range === "1H") return 3;
+  if (range === "1D") return 12;
+  if (range === "2D") return 16;
+  return 32;
 }
 
-function getMarketImpliedValue(market: Market) {
-  const priceWeight = parseCentsPrice(market.primaryPrice);
-  return market.currentValue + (market.boundaryValue - market.currentValue) * priceWeight;
+function getSeriesNoiseAmplitude(market: Market) {
+  if (market.format === "usd") return Math.max(market.currentValue * 0.0025, 250);
+  if (market.format === "gwei") return 1.35;
+  if (market.format === "million") return 0.045;
+  return Math.max(market.currentValue * 0.015, 0.06);
+}
+
+function getStableSeed(value: string) {
+  return value.split("").reduce((seed, character) => (seed * 31 + character.charCodeAt(0)) % 9973, 17);
+}
+
+function getHistoricalMarketPoints(market: Market) {
+  const totalPoints = chartRangePointCounts["1W"];
+  const intervalSeconds = chartPointIntervalMinutes * 60;
+  const end = Date.UTC(2026, 5, 10, 12, 0, 0) / 1000;
+  const seed = getStableSeed(market.id);
+  const amplitude = getSeriesNoiseAmplitude(market);
+  const anchors = market.points;
+  const historicalPoints: number[] = [];
+
+  for (let index = 0; index < totalPoints; index += 1) {
+    const progress = index / (totalPoints - 1);
+    const anchorPosition = progress * (anchors.length - 1);
+    const leftIndex = Math.floor(anchorPosition);
+    const rightIndex = Math.min(leftIndex + 1, anchors.length - 1);
+    const mix = anchorPosition - leftIndex;
+    const base = anchors[leftIndex] + (anchors[rightIndex] - anchors[leftIndex]) * mix;
+    const intradayWave = Math.sin(index * 0.23 + seed) * amplitude;
+    const weeklyWave = Math.sin(index * 0.037 + seed * 0.11) * amplitude * 0.75;
+    const microMove = Math.sin(index * 0.91 + seed * 0.07) * amplitude * 0.22;
+    const eventPulse = Math.exp(-Math.pow((progress - 0.58) / 0.045, 2)) * amplitude * (getsPaidAboveBoundary(market) ? 1.65 : -1.65);
+    let value = base + intradayWave + weeklyWave + microMove + eventPulse;
+
+    if (market.resolution === "Cumulative" && historicalPoints.length > 0) {
+      value = Math.max(value, historicalPoints[historicalPoints.length - 1] + 0.002);
+    }
+
+    if (market.format !== "usd") value = Math.max(value, 0);
+    historicalPoints.push(value);
+  }
+
+  historicalPoints[historicalPoints.length - 1] = market.currentValue;
+
+  return historicalPoints.map((value, index) => ({
+    time: (end - (totalPoints - index - 1) * intervalSeconds) as UTCTimestamp,
+    value,
+  }));
+}
+
+function formatChartTimestamp(timestamp: UTCTimestamp) {
+  const date = new Date(Number(timestamp) * 1000);
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][date.getUTCMonth()];
+  const day = date.getUTCDate();
+  const hours = date.getUTCHours().toString().padStart(2, "0");
+  const minutes = date.getUTCMinutes().toString().padStart(2, "0");
+
+  return `${month} ${day} ${hours}:${minutes} UTC`;
 }
 
 function buildPath(points: number[], width: number, height: number, min: number, max: number, padding = 18) {
@@ -464,36 +521,30 @@ interface TradingChartPoint {
   label: string;
   value: number;
   average: number;
-  implied: number;
 }
 
-function getChartTimestamp(index: number, total: number) {
-  const end = Date.UTC(2026, 5, 5, 12, 0, 0) / 1000;
-  return (end - (total - index - 1) * 60 * 60) as UTCTimestamp;
-}
-
-function TradingUnderlyingChart({ market }: { market: Market }) {
+function TradingMetricChart({ market, range }: { market: Market; range: ChartRange }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const history = useMemo(() => getHistoricalMarketPoints(market), [market]);
+  const visiblePoints = useMemo(() => {
+    const pointCount = chartRangePointCounts[range];
+    return history.slice(-Math.min(pointCount, history.length));
+  }, [history, range]);
   const chartData = useMemo<TradingChartPoint[]>(() => {
-    const averages = getMovingAverageValues(market.points);
-    const implied = getMarketImpliedValue(market);
+    const values = visiblePoints.map((point) => point.value);
+    const averages = getMovingAverageValues(values, getChartAverageWindow(range));
 
-    return market.points.map((value, index) => ({
-      time: getChartTimestamp(index, market.points.length),
-      label: index === market.points.length - 1 ? "Live" : `T-${market.points.length - index - 1}h`,
-      value,
+    return visiblePoints.map((point, index) => ({
+      time: point.time,
+      label: index === visiblePoints.length - 1 ? "Live" : formatChartTimestamp(point.time),
+      value: point.value,
       average: averages[index],
-      implied,
     }));
-  }, [market]);
+  }, [range, visiblePoints]);
   const dataByTime = useMemo(() => new Map(chartData.map((point) => [point.time, point])), [chartData]);
   const latestPoint = chartData[chartData.length - 1];
   const [activePoint, setActivePoint] = useState<TradingChartPoint>(latestPoint);
   const [tooltipPoint, setTooltipPoint] = useState<{ x: number; y: number } | null>(null);
-  const openValue = market.points[0];
-  const highValue = Math.max(...market.points);
-  const lowValue = Math.min(...market.points);
-  const seriesNoun = market.format === "percent" ? "rate" : "metric";
 
   useEffect(() => {
     setActivePoint(latestPoint);
@@ -556,7 +607,7 @@ function TradingUnderlyingChart({ market }: { market: Market }) {
       },
     });
 
-    const underlyingSeries = chart.addSeries(AreaSeries, {
+    const metricSeries = chart.addSeries(AreaSeries, {
       lineColor: "#6f86ff",
       topColor: "rgba(111,134,255,0.24)",
       bottomColor: "rgba(111,134,255,0.02)",
@@ -572,32 +623,14 @@ function TradingUnderlyingChart({ market }: { market: Market }) {
       priceLineVisible: false,
       lastValueVisible: false,
     });
-    const impliedSeries = chart.addSeries(LineSeries, {
-      color: "#b86cff",
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-
-    underlyingSeries.setData(chartData.map(({ time, value }) => ({ time, value })));
+    metricSeries.setData(chartData.map(({ time, value }) => ({ time, value })));
     averageSeries.setData(chartData.map(({ time, average }) => ({ time, value: average })));
-    impliedSeries.setData(chartData.map(({ time, implied }) => ({ time, value: implied })));
-    underlyingSeries.createPriceLine({
+    metricSeries.createPriceLine({
       price: market.boundaryValue,
       color: "#f5b84b",
       lineWidth: 2,
       lineStyle: LineStyle.Dashed,
       axisLabelVisible: true,
-      title: "Strike",
-    });
-    impliedSeries.createPriceLine({
-      price: latestPoint.implied,
-      color: "#b86cff",
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      axisLabelVisible: true,
-      title: "Implied",
     });
 
     const handleCrosshairMove = (param: MouseEventParams<Time>) => {
@@ -607,7 +640,7 @@ function TradingUnderlyingChart({ market }: { market: Market }) {
         return;
       }
 
-      const seriesPoint = param.seriesData.get(underlyingSeries) as LineData<Time> | undefined;
+      const seriesPoint = param.seriesData.get(metricSeries) as LineData<Time> | undefined;
       const matchedPoint = dataByTime.get(Number(param.time) as UTCTimestamp);
       setActivePoint(matchedPoint ?? latestPoint);
       setTooltipPoint(seriesPoint ? { x: param.point.x, y: param.point.y } : null);
@@ -639,16 +672,6 @@ function TradingUnderlyingChart({ market }: { market: Market }) {
 
   return (
     <div className="relative h-full min-h-[280px] w-full overflow-hidden rounded-md bg-[rgba(2,5,5,0.62)]">
-      <div className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-[rgba(4,8,10,0.78)] px-3 py-2 text-xs shadow-[0_12px_30px_rgba(0,0,0,0.26)]">
-        <div className="font-mono font-semibold text-[#8da0b8]">
-          {market.metric} O {formatValue(openValue, market.format)} H {formatValue(highValue, market.format)} L {formatValue(lowValue, market.format)} C {formatValue(activePoint.value, market.format)}
-        </div>
-        <div className="mt-2 grid gap-1 font-mono font-semibold">
-          <div className="text-[#8ea0ff]">Underlying {seriesNoun} {formatValue(activePoint.value, market.format)}</div>
-          <div className="text-[#d9deff]">7 obs average {seriesNoun} {formatValue(activePoint.average, market.format)}</div>
-          <div className="text-[#d49aff]">Market implied {seriesNoun} {formatValue(activePoint.implied, market.format)}</div>
-        </div>
-      </div>
       {tooltipPoint ? (
         <div
           className="pointer-events-none absolute z-20 w-[190px] rounded-md border border-[#31405f] bg-[rgba(5,9,13,0.96)] p-3 font-mono text-xs shadow-[0_18px_40px_rgba(0,0,0,0.38)]"
@@ -656,16 +679,12 @@ function TradingUnderlyingChart({ market }: { market: Market }) {
         >
           <div className="font-semibold text-[#f2f5f3]">{activePoint.label}</div>
           <div className="mt-2 flex justify-between gap-3 text-[#8ea0ff]">
-            <span>Underlying</span>
+            <span>{market.metric}</span>
             <span className="font-semibold text-[#c9d2ff]">{formatValue(activePoint.value, market.format)}</span>
           </div>
           <div className="mt-1 flex justify-between gap-3 text-[#d9deff]">
             <span>Average</span>
             <span className="font-semibold text-[#f2f5f3]">{formatValue(activePoint.average, market.format)}</span>
-          </div>
-          <div className="mt-1 flex justify-between gap-3 text-[#d49aff]">
-            <span>Implied</span>
-            <span className="font-semibold">{formatValue(activePoint.implied, market.format)}</span>
           </div>
         </div>
       ) : null}
@@ -674,107 +693,52 @@ function TradingUnderlyingChart({ market }: { market: Market }) {
   );
 }
 
-function FeaturedChart({ market, mode }: { market: Market; mode: ChartMode }) {
-  const width = 760;
-  const height = 288;
+function FeaturedChart({ market }: { market: Market }) {
+  const [activeRange, setActiveRange] = useState<ChartRange>("1W");
+  const chartLabel = market.format === "percent" ? "APR Chart" : `${market.metric} Chart`;
 
-  if (mode === "underlying") {
-    return <TradingUnderlyingChart market={market} />;
-  }
-
-  if (mode === "depth") {
-    const rows = getDepthRows(market);
-    const maxSize = Math.max(...rows.flatMap((row) => [row.bidSize, row.askSize]));
-    const centerX = width / 2;
-
-    return (
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full min-h-[280px] w-full" role="img" aria-label={`${market.title} market depth chart`}>
-        <rect x="24" y="20" width={width - 48} height={height - 40} rx="8" fill="rgba(2,5,5,0.54)" stroke="#16241f" />
-        <text x="34" y="44" fill="#72e6b8" fontSize="11" fontWeight="800">BID DEPTH</text>
-        <text x={width - 100} y="44" fill="#ff9cad" fontSize="11" fontWeight="800">ASK DEPTH</text>
-        <line x1={centerX} x2={centerX} y1="54" y2={height - 24} stroke="#3f504a" strokeWidth="1" />
-        {rows.map((row, index) => {
-          const y = 62 + index * 29;
-          const bidWidth = (row.bidSize / maxSize) * 270;
-          const askWidth = (row.askSize / maxSize) * 270;
-
-          return (
-            <g key={row.level}>
-              <rect x={centerX - bidWidth - 12} y={y} width={bidWidth} height="19" rx="3" fill="rgba(46,229,157,0.18)" />
-              <rect x={centerX + 12} y={y} width={askWidth} height="19" rx="3" fill="rgba(255,92,122,0.16)" />
-              <text x={centerX - 64} y={y + 14} fill="#d7ddd9" fontSize="12" fontWeight="700" textAnchor="end">{row.bidPrice.toFixed(0)}c</text>
-              <text x={centerX - 20} y={y + 14} fill="#72e6b8" fontSize="11" textAnchor="end">{row.bidSize}K</text>
-              <text x={centerX + 20} y={y + 14} fill="#ff9cad" fontSize="11">{row.askSize}K</text>
-              <text x={centerX + 64} y={y + 14} fill="#d7ddd9" fontSize="12" fontWeight="700">{row.askPrice.toFixed(0)}c</text>
-              {index < rows.length - 1 ? <line x1="34" x2={width - 34} y1={y + 25} y2={y + 25} stroke="#0c1916" /> : null}
-            </g>
-          );
-        })}
-        <text x={centerX - 8} y={height - 10} fill="#66756f" fontSize="12" textAnchor="end">Buy side</text>
-        <text x={centerX + 8} y={height - 10} fill="#66756f" fontSize="12">Sell side</text>
-      </svg>
-    );
-  }
-
-  if (mode === "probability") {
-    const bars = getProbabilityBars(market);
-    const maxBar = Math.max(...bars);
-    const barWidth = 22;
-    const chartTop = 34;
-    const chartBottom = height - 42;
-    const strikeX = width / 2;
-
-    return (
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full min-h-[280px] w-full" role="img" aria-label={`${market.title} probability distribution`}>
-        <defs>
-          <linearGradient id={`${market.id}-probability-fill`} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#7cf3bd" stopOpacity="0.36" />
-            <stop offset="100%" stopColor="#2ee59d" stopOpacity="0.08" />
-          </linearGradient>
-        </defs>
-        <rect x="24" y="20" width={width - 48} height={height - 54} rx="8" fill="rgba(2,5,5,0.54)" stroke="#16241f" />
-        {[0.25, 0.5, 0.75].map((tick) => {
-          const y = chartTop + tick * (chartBottom - chartTop);
-          return <line key={tick} x1="32" x2={width - 32} y1={y} y2={y} stroke="#0c1916" />;
-        })}
-        {bars.map((value, index) => {
-          const x = 42 + index * ((width - 84) / (bars.length - 1));
-          const barHeight = (value / maxBar) * (chartBottom - chartTop);
-          const isAboveStrike = index / (bars.length - 1) >= 0.5;
-          const favorable = getsPaidAboveBoundary(market) ? isAboveStrike : !isAboveStrike;
-
-          return (
-            <rect
-              key={index}
-              x={x - barWidth / 2}
-              y={chartBottom - barHeight}
-              width={barWidth}
-              height={barHeight}
-              rx="4"
-              fill={favorable ? "url(#" + market.id + "-probability-fill)" : "rgba(255,92,122,0.16)"}
-              stroke={favorable ? "rgba(46,229,157,0.18)" : "rgba(255,92,122,0.18)"}
-            />
-          );
-        })}
-        <line x1={strikeX} x2={strikeX} y1="28" y2={chartBottom} stroke="#f5b84b" strokeDasharray="8 7" strokeWidth="1.5" />
-        <text x={strikeX + 10} y="48" fill="#f5c873" fontSize="12" fontWeight="700">Strike boundary</text>
-        <text x="36" y="44" fill="#66756f" fontSize="11" fontWeight="800">IMPLIED DISTRIBUTION</text>
-        <text x="34" y={height - 10} fill="#66756f" fontSize="12">Lower settlement</text>
-        <text x={width - 136} y={height - 10} fill="#66756f" fontSize="12">Higher settlement</text>
-      </svg>
-    );
-  }
-
-  return null;
+  return (
+    <div className="flex h-full min-h-[280px] w-full flex-col overflow-hidden rounded-md bg-[rgba(2,5,5,0.62)]">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[#1b2d28] bg-[rgba(4,10,10,0.74)] px-3 py-2">
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-xs font-semibold text-[#c9d2ff]">{chartLabel}</span>
+          <span className="rounded border border-[#25372f] bg-[rgba(8,17,15,0.72)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#7d8996]">
+            {chartPointIntervalMinutes}m history
+          </span>
+        </div>
+        <div className="flex rounded bg-[rgba(2,5,5,0.42)] p-0.5">
+          {chartRanges.map((range) => (
+            <button
+              key={range}
+              type="button"
+              onClick={() => setActiveRange(range)}
+              className={`h-7 rounded px-2.5 font-mono text-[11px] font-semibold transition ${
+                activeRange === range
+                  ? "bg-[#101735] text-[#f2f5f3]"
+                  : "text-[#8a968f] hover:bg-[#0c1514] hover:text-[#d7ddd9]"
+              }`}
+            >
+              {range}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="min-h-0 flex-1">
+        <TradingMetricChart market={market} range={activeRange} />
+      </div>
+    </div>
+  );
 }
 
 function MiniChart({ market }: { market: Market }) {
   const width = 220;
   const height = 74;
-  const { min, max } = getChartRange(market.points, market.boundaryValue);
-  const path = buildPath(market.points, width, height, min, max, 8);
+  const history = useMemo(() => getHistoricalMarketPoints(market), [market]);
+  const points = history.filter((_, index) => index % 12 === 0 || index === history.length - 1).map((point) => point.value);
+  const { min, max } = getChartRange(points, market.boundaryValue);
+  const path = buildPath(points, width, height, min, max, 8);
   const boundaryY = getBoundaryY(market.boundaryValue, height, min, max, 8);
-  const latest = getPoint(market.points, market.points.length - 1, width, height, min, max, 8);
+  const latest = getPoint(points, points.length - 1, width, height, min, max, 8);
   const tone = getMarketTone(market);
 
   return (
@@ -806,23 +770,24 @@ function MiniChart({ market }: { market: Market }) {
 
 function OrderFlowPanel({ market }: { market: Market }) {
   const [activeTab, setActiveTab] = useState<"orderbook" | "settlement">("orderbook");
-  const rows = getDepthRows(market, 12);
+  const countdownLabel = useMarketCountdown(market);
+  const rows = getDepthRows(market, 8);
   const maxTotal = Math.max(...rows.flatMap((row) => [row.bidSize, row.askSize]));
-  const askRows = rows
+  const noRows = rows
     .map((row) => ({
       price: row.askPrice,
       size: row.askSize,
       total: Math.round(row.askSize * (row.askPrice / 100) * 100) / 100,
     }))
     .reverse();
-  const bidRows = rows.map((row) => ({
+  const yesRows = rows.map((row) => ({
     price: row.bidPrice,
     size: row.bidSize,
     total: Math.round(row.bidSize * (row.bidPrice / 100) * 100) / 100,
   }));
   const activeOrders = [
-    { side: market.primaryAction, price: market.primaryPrice, size: "120", status: "Open" },
-    { side: market.secondaryAction, price: market.secondaryPrice, size: "80", status: "Resting" },
+    { side: "Buy YES", price: market.primaryPrice, size: "120", status: "Open" },
+    { side: "Buy NO", price: market.secondaryPrice, size: "80", status: "Resting" },
   ];
   const settlementRows = [
     { label: "Oracle observation", detail: market.oracle, status: "Live", hash: "0x8f2...a91" },
@@ -860,47 +825,48 @@ function OrderFlowPanel({ market }: { market: Market }) {
 
       {activeTab === "orderbook" ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center justify-between border-b border-[#15231f] px-3 py-2">
-            <span className="font-mono text-[#8a968f]">0.1%</span>
-            <span className="rounded border border-[#f5b84b]/35 bg-[#2c2212] px-2 py-1 font-mono font-semibold text-[#f5c873]">
-              {market.primaryPrice} / {market.secondaryPrice}
-            </span>
+          <div className="border-b border-[#15231f] px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-[#f2f5f3]">YES / NO token book</div>
+              <span className="shrink-0 rounded border border-[#f5b84b]/35 bg-[#2c2212] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#f5c873]">
+                YES {market.primaryPrice} · NO {market.secondaryPrice}
+              </span>
+            </div>
+            <div className="mt-0.5 text-[11px] text-[#66756f]">Prices are cents per $1 payout</div>
           </div>
 
-          <div className="grid grid-cols-[58px_1fr_1fr] gap-2 px-3 py-2 font-semibold uppercase tracking-[0.08em] text-[#66756f]">
-            <span>Rate</span>
-            <span className="text-right">Size</span>
-            <span className="text-right">Total</span>
+          <div className="grid grid-cols-[58px_64px_minmax(64px,1fr)] gap-2 px-3 py-2 font-semibold uppercase tracking-[0.08em] text-[#66756f]">
+            <span>Outcome</span>
+            <span className="text-right">Price</span>
+            <span className="text-right">USDC</span>
           </div>
 
           <div className="min-h-0 flex-1 overflow-hidden px-2">
-            {askRows.map((row) => (
-              <div key={`ask-${row.price}`} className="relative grid h-6 grid-cols-[58px_1fr_1fr] items-center gap-2 overflow-hidden rounded-sm px-2 font-mono">
+            {noRows.map((row, index) => (
+              <div key={`no-${row.price}-${index}`} className="relative grid h-6 grid-cols-[58px_64px_minmax(64px,1fr)] items-center gap-2 overflow-hidden rounded-sm px-2 font-mono text-[13px]">
                 <div
                   className="absolute inset-y-0 right-0 bg-[#ff5c7a]/12"
                   style={{ width: `${Math.max((row.size / maxTotal) * 100, 8)}%` }}
                 />
-                <span className="relative text-[#c97884]">{(row.price / 10).toFixed(1)}</span>
-                <span className="relative text-right text-[#b6c0cf]">{row.size.toLocaleString("en-US")}</span>
+                <span className="relative text-xs font-semibold text-[#ff9cad]">NO</span>
+                <span className="relative text-right text-[#c97884]">{row.price.toFixed(0)}c</span>
                 <span className="relative text-right text-[#b6c0cf]">{row.total.toLocaleString("en-US")}</span>
               </div>
             ))}
 
             <div className="my-2 flex items-center justify-between border-y border-[#15231f] px-2 py-2">
-              <span className="font-semibold text-[#8a968f]">Mid</span>
-              <span className="font-mono text-sm font-semibold text-[#f2f5f3]">
-                {((Number(market.primaryPrice.replace(/[^0-9.]/g, "")) + Number(market.secondaryPrice.replace(/[^0-9.]/g, ""))) / 20).toFixed(1)}
-              </span>
+              <span className="font-semibold text-[#8a968f]">Best prices</span>
+              <span className="font-mono text-xs font-semibold text-[#f2f5f3]">YES {market.primaryPrice} · NO {market.secondaryPrice}</span>
             </div>
 
-            {bidRows.map((row) => (
-              <div key={`bid-${row.price}`} className="relative grid h-6 grid-cols-[58px_1fr_1fr] items-center gap-2 overflow-hidden rounded-sm px-2 font-mono">
+            {yesRows.map((row, index) => (
+              <div key={`yes-${row.price}-${index}`} className="relative grid h-6 grid-cols-[58px_64px_minmax(64px,1fr)] items-center gap-2 overflow-hidden rounded-sm px-2 font-mono text-[13px]">
                 <div
                   className="absolute inset-y-0 right-0 bg-[#2ee59d]/12"
                   style={{ width: `${Math.max((row.size / maxTotal) * 100, 8)}%` }}
                 />
-                <span className="relative text-[#72e6b8]">{(row.price / 10).toFixed(1)}</span>
-                <span className="relative text-right text-[#b6c0cf]">{row.size.toLocaleString("en-US")}</span>
+                <span className="relative text-xs font-semibold text-[#72e6b8]">YES</span>
+                <span className="relative text-right text-[#72e6b8]">{row.price.toFixed(0)}c</span>
                 <span className="relative text-right text-[#b6c0cf]">{row.total.toLocaleString("en-US")}</span>
               </div>
             ))}
@@ -924,7 +890,7 @@ function OrderFlowPanel({ market }: { market: Market }) {
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-[#f2f5f3]">Settlement queue</div>
-              <div className="mt-1 text-[11px] text-[#66756f]">{market.timeLeft} left</div>
+              <div className="mt-1 font-mono text-[11px] text-[#66756f]">{countdownLabel} left</div>
             </div>
             <span className="rounded border border-[#2ee59d]/30 bg-[#10261f] px-2 py-1 font-mono text-[#72e6b8]">Live</span>
           </div>
@@ -951,7 +917,6 @@ function FeaturedMarket({ market }: { market: Market }) {
   const Icon = market.icon;
   const wallet = useWallet();
   const [orderAmount, setOrderAmount] = useState("100");
-  const [chartMode, setChartMode] = useState<ChartMode>("underlying");
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome>("yes");
   const [selectedSide, setSelectedSide] = useState<Side>("buy");
   const [signingStatus, setSigningStatus] = useState<"idle" | "connecting" | "signing" | "submitting" | "signed" | "submitted" | "error">("idle");
@@ -971,17 +936,7 @@ function FeaturedMarket({ market }: { market: Market }) {
   const payoutMultiple = orderValue > 0 ? maxPayout / orderValue : 0;
   const primaryPayoutMultiple = entryPrice > 0 ? 1 / entryPrice : 0;
   const secondaryPayoutMultiple = secondaryEntryPrice > 0 ? 1 / secondaryEntryPrice : 0;
-  const impliedMetricValue = getMarketImpliedValue(market);
-  const averageMove = getSeriesAverageMove(market.points);
-  const chartLabel = market.format === "percent" ? "APR Chart" : `${market.metric} Chart`;
-  const chartStats = [
-    { label: "Underlying", value: formatValue(market.currentValue, market.format), tone: "text-[#c9d2ff]" },
-    { label: "Market implied", value: formatValue(impliedMetricValue, market.format), tone: "text-[#d49aff]" },
-    { label: "Strike", value: formatValue(market.boundaryValue, market.format), tone: "text-[#f5c873]" },
-    { label: "Notional OI", value: market.openInterest, tone: "text-[#f2f5f3]" },
-    { label: "24h volume", value: market.volume, tone: "text-[#f2f5f3]" },
-    { label: "Avg move", value: `±${formatValue(averageMove, market.format)}`, tone: "text-[#f2f5f3]" },
-  ];
+  const countdownLabel = useMarketCountdown(market);
   const isSigning = signingStatus === "connecting" || signingStatus === "signing" || signingStatus === "submitting";
   const ticketButtonLabel = isSigning
     ? signingStatus === "connecting" ? "Connecting wallet" : signingStatus === "submitting" ? "Submitting order" : "Open wallet request"
@@ -1071,8 +1026,8 @@ function FeaturedMarket({ market }: { market: Market }) {
     <article className="glass-panel overflow-hidden rounded-lg">
       <div className="grid xl:grid-cols-[minmax(0,1fr)_286px_280px] 2xl:grid-cols-[minmax(0,1fr)_318px_292px]">
         <div className="min-w-0 p-3 sm:p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#15231f] pb-3">
+            <div className="min-w-0 flex-1">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${getStatusStyle(market.status)}`}>
                   <span className="h-1.5 w-1.5 rounded-full bg-current" />
@@ -1091,96 +1046,32 @@ function FeaturedMarket({ market }: { market: Market }) {
                   <h1 className="max-w-4xl text-lg font-semibold leading-tight text-[#f2f5f3] sm:text-xl">
                     {market.title}
                   </h1>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px] font-semibold text-[#8a96a3]">
-                    <span className="glass-control rounded-md px-2 py-0.5">{market.resolution}</span>
-                    <span className="glass-control rounded-md px-2 py-0.5">{market.payoff}</span>
-                    <span className="glass-control rounded-md px-2 py-0.5">Scalar option</span>
-                    <span className="glass-control rounded-md px-2 py-0.5">{market.observation}</span>
-                    <span className="glass-control rounded-md px-2 py-0.5">{market.maturity}</span>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold text-[#8a96a3]">
+                    <span className="rounded-md border border-[#25372f] bg-[rgba(8,17,15,0.72)] px-2 py-1 text-[#aab5b0]">
+                      Settle type: <span className="font-mono text-[#d7ddd9]">{market.resolution}</span>
+                    </span>
+                    <span className="rounded-md border border-[#25372f] bg-[rgba(8,17,15,0.72)] px-2 py-1 text-[#aab5b0]">
+                      Vol: <span className="font-mono text-[#d7ddd9]">{market.volume}</span>
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button className="glass-control flex h-9 w-9 items-center justify-center rounded-md text-[#8a96a3] transition hover:text-[#f2f5f3]">
-                <Bookmark className="h-4 w-4" />
-              </button>
-              <button className="glass-control flex h-9 w-9 items-center justify-center rounded-md text-[#8a96a3] transition hover:text-[#f2f5f3]">
-                <LineChart className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 border-y border-[#15231f] py-2 sm:grid-cols-3 xl:grid-cols-6">
-            {chartStats.map((stat) => (
-              <div key={stat.label} className="min-w-0">
-                <div className={`font-mono text-sm font-semibold leading-tight ${stat.tone}`}>{stat.value}</div>
-                <div className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-[#66756f]">{stat.label}</div>
+            <div className="min-w-[210px] rounded-md border border-[#f5b84b]/24 bg-[rgba(31,24,12,0.42)] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:min-w-[248px]">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a968f]">Expires</span>
+                <span className="font-mono text-xs font-semibold text-[#d7c38d]">{market.maturity}</span>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setChartMode("underlying")}
-                className={`h-8 rounded-md border px-3 text-xs font-semibold transition ${
-                  chartMode === "underlying"
-                    ? "border-[#6f86ff] bg-[#101735] text-[#c9d2ff]"
-                    : "border-[#1d312b] bg-[rgba(4,10,10,0.72)] text-[#8a968f] hover:border-[#2b4c41] hover:text-[#f2f5f3]"
-                }`}
-              >
-                {chartLabel}
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {["5m", "1H", "1D", "1W"].map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={`h-8 rounded-md px-2.5 text-xs font-semibold transition ${
-                    label === "5m" ? "bg-[#101735] text-[#f2f5f3]" : "text-[#8a968f] hover:bg-[#0c1514] hover:text-[#f2f5f3]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-              {chartModes.map((mode) => {
-                if (mode.id === "underlying" || mode.id === "depth") return null;
-                const isActive = mode.id === chartMode;
-
-                return (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => setChartMode(mode.id)}
-                    className={`h-8 rounded-md border px-3 text-left text-xs font-semibold transition ${
-                      isActive
-                        ? "border-[#2ee59d]/45 bg-[#123026] text-[#2ee59d]"
-                        : "border-[#1d312b] bg-[rgba(4,10,10,0.72)] text-[#8a968f] hover:border-[#2b4c41] hover:text-[#f2f5f3]"
-                    }`}
-                    title={mode.description}
-                  >
-                    {mode.label}
-                  </button>
-                );
-              })}
-              <button className="h-8 rounded-md border border-[#1d312b] bg-[rgba(4,10,10,0.72)] px-3 text-xs font-semibold text-[#8a968f] transition hover:border-[#2b4c41] hover:text-[#f2f5f3]">
-                Indicators
-              </button>
-              <div className="ml-0 flex h-8 items-center gap-2 rounded-md border border-[#f5b84b]/30 bg-[rgba(44,34,18,0.62)] px-3 lg:ml-2">
-                <span className="font-mono text-sm font-semibold text-[#f5c873]">{market.timeLeft}</span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8a968f]">left</span>
-                <span className="hidden text-xs text-[#66756f] sm:inline">Matures {market.maturity}</span>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="font-mono text-2xl font-semibold leading-none text-[#f5c873]">{countdownLabel}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a968f]">left</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-2 h-[430px] overflow-hidden rounded-md border border-[#1b2d28] bg-[rgba(2,5,5,0.72)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] 2xl:h-[480px]">
-            <FeaturedChart market={market} mode={chartMode} />
+          <div className="mt-3 h-[540px] overflow-hidden rounded-md border border-[#1b2d28] bg-[rgba(2,5,5,0.74)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035),0_18px_60px_rgba(0,0,0,0.18)] 2xl:h-[600px]">
+            <FeaturedChart market={market} />
           </div>
           <div className="mt-1 flex justify-end">
             <a
@@ -1389,6 +1280,7 @@ function MarketCard({ market }: { market: Market }) {
   const isPositive = market.change >= 0;
   const tone = getMarketTone(market);
   const payoutMultiple = 1 / parseCentsPrice(market.primaryPrice);
+  const countdownLabel = useMarketCountdown(market);
 
   return (
     <article className="glass-card group rounded-lg p-4 transition hover:border-[#416070]">
@@ -1444,7 +1336,7 @@ function MarketCard({ market }: { market: Market }) {
       <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
         <div>
           <div className="text-[#65717d]">Ends</div>
-          <div className="mt-1 font-mono font-semibold text-[#f5c873]">{market.timeLeft}</div>
+          <div className="mt-1 font-mono font-semibold text-[#f5c873]">{countdownLabel}</div>
         </div>
         <div>
           <div className="text-[#65717d]">Volume</div>
