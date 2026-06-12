@@ -12,7 +12,7 @@ interface PageLayoutProps {
 
 export const PageLayout: React.FC<PageLayoutProps> = ({ children, headerFilters }) => {
   return (
-    <div className="min-h-screen bg-[#030506] font-sans text-[#f2f5f3]">
+    <div className="min-h-screen bg-[var(--terminal-bg)] font-sans text-[var(--terminal-ink)]">
       <SpaceBackground />
       <WalletProvider>
         <div className="relative z-10 flex flex-col">

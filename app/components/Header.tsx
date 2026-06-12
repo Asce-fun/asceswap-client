@@ -10,15 +10,15 @@ interface HeaderProps {
 
 export const Header = ({ filters }: HeaderProps) => {
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-[#15231f] bg-[rgba(3,5,6,0.86)] backdrop-blur-[18px]">
-      <div className="mx-auto flex h-14 max-w-[1760px] items-center gap-3 px-4 sm:px-6">
-        <Link href="/" className="flex shrink-0 items-center gap-3">
+    <nav className="sticky top-0 z-50 w-full border-b border-[#cfe0d8] bg-[rgba(251,253,252,0.84)] backdrop-blur-[18px]">
+      <div className="mx-auto flex h-16 max-w-[1760px] items-center gap-3 px-4 sm:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-3.5">
           <svg
-            width="26"
-            height="26"
+            width="34"
+            height="36"
             viewBox="0 0 140 150"
             fill="none"
-            className="logo-a"
+            className="logo-a shrink-0"
             aria-hidden="true"
           >
             <defs>
@@ -45,28 +45,28 @@ export const Header = ({ filters }: HeaderProps) => {
               strokeLinejoin="round"
             />
             <circle cx="105" cy="130" r="6" fill="#064e3b" />
-            <circle cx="105" cy="130" r="2.5" fill="#0e0e13" />
+            <circle cx="105" cy="130" r="2.5" fill="#fbfdfc" />
           </svg>
 
-          <span className="text-lg font-semibold text-[#f2f5f3]">
-            Asce<span className="text-[#2ee59d]">Swap</span>
+          <span className="whitespace-nowrap text-xl font-semibold leading-none text-[#0c1a15] sm:text-[22px]">
+            Asce<span className="text-[#059669]">Swap</span>
           </span>
         </Link>
 
         <div className="relative hidden min-w-0 md:block md:w-[clamp(250px,26vw,500px)]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#65717d]" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8aa096]" />
           <input
-            aria-label="Search scalar markets"
-            placeholder="Search scalar markets..."
-            className="h-9 w-full rounded-md border border-[#1d312b] bg-[rgba(5,11,11,0.82)] pl-9 pr-9 text-sm text-[#f2f5f3] outline-none transition placeholder:text-[#66756f] focus:border-[#2ee59d]/55"
+            aria-label="Search markets"
+            placeholder="Search markets — rates, gas, yields..."
+            className="h-9 w-full rounded-md border border-[#cfe0d8] bg-white/70 pl-9 pr-9 text-sm text-[#0c1a15] outline-none transition placeholder:text-[#8aa096] focus:border-[#059669]/55"
           />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-sm text-[#66756f]">/</span>
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-sm text-[#8aa096]">/</span>
         </div>
 
         {filters ? <div className="hidden min-w-0 items-center lg:flex lg:flex-1 2xl:flex-none">{filters}</div> : null}
 
         <div className="ml-auto hidden items-center gap-2 md:flex">
-          <button className="h-9 rounded-md px-3 text-sm font-semibold text-[#8a968f] transition hover:bg-[#0c1514] hover:text-[#f2f5f3]">
+          <button className="h-9 rounded-md px-3 text-sm font-semibold text-[#5c6b64] transition hover:bg-[#eef7f2] hover:text-[#0c1a15]">
             Portfolio
           </button>
           <WalletConnectButton />
@@ -74,7 +74,7 @@ export const Header = ({ filters }: HeaderProps) => {
 
         <div className="ml-auto flex items-center gap-2 md:hidden">
           <WalletConnectButton compact />
-          <button className="flex h-9 w-9 items-center justify-center rounded-md border border-[#1d312b] bg-[rgba(5,11,11,0.82)] text-[#8a968f]">
+          <button className="flex h-9 w-9 items-center justify-center rounded-md border border-[#cfe0d8] bg-white/70 text-[#5c6b64]">
             <Menu className="h-5 w-5" />
           </button>
         </div>

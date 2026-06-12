@@ -24,8 +24,8 @@ export function WalletConnectButton({ compact = false }: { compact?: boolean }) 
         title={error ?? (account ? formatAddress(account) : label)}
         className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition ${
           account
-            ? "border-[#2ee59d]/28 bg-[rgba(18,48,38,0.72)] text-[#d7fff0] hover:border-[#2ee59d]/55"
-            : "border-[#7cf3bd]/40 bg-[#7cf3bd] text-[#03100b] hover:border-[#a7ffd4] hover:bg-[#9af7ca]"
+            ? "border-[#059669]/28 bg-[#e3f5ee] text-[#047857] hover:border-[#059669]/55"
+            : "border-[#059669]/40 bg-[#059669] text-white hover:border-[#047857] hover:bg-[#047857]"
         } ${isUnavailable ? "cursor-not-allowed opacity-60" : ""} ${compact ? "w-9 justify-center px-0" : "w-[106px] justify-center overflow-hidden"}`}
       >
         {isBusy ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Wallet className="h-4 w-4 shrink-0" />}
