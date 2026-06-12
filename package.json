@@ -7,11 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:protocol": "node --test tests/protocol.test.mjs"
+    "test:protocol": "node --test tests/protocol.test.mjs",
+    "test:landing": "node --test tests/drawTheLine.test.mjs",
+    "test:markets": "node --test tests/marketsCopy.test.mjs"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.0",
     "lucide-react": "^0.562.0",
+    "motion": "^12.40.0",
     "next": "16.1.2",
     "react": "19.2.3",
     "react-dom": "19.2.3"
