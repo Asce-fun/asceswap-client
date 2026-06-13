@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Menu, Search } from "lucide-react";
 
+import { FaucetButton } from "./FaucetButton";
 import { WalletConnectButton } from "./WalletConnectButton";
 
 interface HeaderProps {
@@ -66,13 +67,12 @@ export const Header = ({ filters }: HeaderProps) => {
         {filters ? <div className="hidden min-w-0 items-center lg:flex lg:flex-1 2xl:flex-none">{filters}</div> : null}
 
         <div className="ml-auto hidden items-center gap-2 md:flex">
-          <button className="h-9 rounded-md px-3 text-sm font-semibold text-[#5c6b64] transition hover:bg-[#eef7f2] hover:text-[#0c1a15]">
-            Portfolio
-          </button>
+          <FaucetButton />
           <WalletConnectButton />
         </div>
 
         <div className="ml-auto flex items-center gap-2 md:hidden">
+          <FaucetButton compact />
           <WalletConnectButton compact />
           <button className="flex h-9 w-9 items-center justify-center rounded-md border border-[#cfe0d8] bg-white/70 text-[#5c6b64]">
             <Menu className="h-5 w-5" />

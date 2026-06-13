@@ -1,4 +1,4 @@
-import { type Address, type Hex, isHex } from "../protocol/order";
+import { type Address, type Bytes32, type Hex, isHex } from "../protocol/order";
 import type { EthereumProvider } from "../wallet/WalletProvider";
 
 export type TransactionRequest = Readonly<{
@@ -39,6 +39,10 @@ export async function sendTransaction(provider: EthereumProvider, tx: Transactio
 
 export function encodeAddress(address: Address) {
   return address.slice(2).padStart(64, "0");
+}
+
+export function encodeBytes32(value: Bytes32) {
+  return value.slice(2).padStart(64, "0");
 }
 
 export function encodeUint256(value: bigint) {

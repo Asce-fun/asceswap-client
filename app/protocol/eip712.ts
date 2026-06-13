@@ -63,3 +63,23 @@ export function buildOrderTypedData(order: ApiOrder, domain: AsceSwapTypedDataDo
     message: toOrderTypedDataMessage(order),
   };
 }
+
+export type SignedOrderPayload = Readonly<{
+  chainId: number;
+  verifyingContract: Address;
+  order: OrderTypedDataMessage;
+  signature: string;
+}>;
+
+export function buildSignedOrderPayload(
+  order: ApiOrder,
+  signature: string,
+  domain: AsceSwapTypedDataDomain,
+): SignedOrderPayload {
+  return {
+    chainId: domain.chainId,
+    verifyingContract: domain.verifyingContract,
+    order: toOrderTypedDataMessage(order),
+    signature,
+  };
+}

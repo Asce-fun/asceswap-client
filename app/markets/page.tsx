@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AreaSeries,
@@ -15,15 +16,27 @@ import {
   ArrowUpRight,
   Bookmark,
   CheckCircle2,
+  ExternalLink,
   FileSignature,
   Loader2,
   ShieldAlert,
 } from "lucide-react";
 
 import { PageLayout } from "../components/PageLayout";
+import { getErc1155Balance, getErc20Balance, getMakerEpoch, getPositionIds } from "../contracts/asceswap";
+import { ensureClaimApprovalForAll, ensureErc20Approval } from "../contracts/approvals";
+import { getTwaSamples } from "../contracts/events";
 import { createOrderbookClient } from "../orderbook/client";
 import type { SubmitOrderOutcome } from "../orderbook/schemas";
+import {
+  ASCESWAP_ADDRESSES,
+  ASCESWAP_CHAIN_ID,
+  ASCESWAP_CHAIN_NAME,
+  MUSDC_DECIMALS,
+  getExplorerAddressUrl,
+} from "../protocol/constants";
 import { resolveSigningConfig } from "../protocol/clientConfig";
+import { formatUnits } from "../protocol/amounts";
 import {
   type ApiOrder,
   type Hex,
@@ -58,8 +71,18 @@ function formatValue(value: number, format: MetricFormat) {
   }
 
   if (format === "million") return `$${value.toFixed(2)}M`;
-  if (format === "gwei") return `${value.toFixed(1)} gwei`;
+  if (format === "gwei") return `${value < 1 ? value.toFixed(4) : value.toFixed(1)} gwei`;
   return `${value.toFixed(2)}%`;
+}
+
+function getOutcomeLabel(outcome: Outcome) {
+  return outcome === "yes" ? "PAYOFF" : "RESIDUAL";
+}
+
+function getChainMismatchMessage(chainId: number | null) {
+  return chainId && chainId !== ASCESWAP_CHAIN_ID
+    ? `Switch wallet to ${ASCESWAP_CHAIN_NAME} (${ASCESWAP_CHAIN_ID}).`
+    : null;
 }
 
 function parseCentsPrice(price: string) {
@@ -80,6 +103,14 @@ function formatCentsPrice(value: number) {
 
 function formatShortHex(value: Hex) {
   return `${value.slice(0, 10)}...${value.slice(-8)}`;
+}
+
+function formatShortAddress(value: Hex) {
+  return `${value.slice(0, 6)}...${value.slice(-4)}`;
+}
+
+function formatMusdc(value: bigint) {
+  return `${formatUnits(value, MUSDC_DECIMALS, 2)} mUSDC`;
 }
 
 function formatCountdown(totalSeconds: number) {
@@ -176,7 +207,7 @@ function getChartAverageWindow(range: ChartRange) {
 
 function getSeriesNoiseAmplitude(market: Market) {
   if (market.format === "usd") return Math.max(market.currentValue * 0.0025, 250);
-  if (market.format === "gwei") return 1.35;
+  if (market.format === "gwei") return Math.max(market.currentValue * 0.08, 0.0008);
   if (market.format === "million") return 0.045;
   return Math.max(market.currentValue * 0.015, 0.06);
 }
@@ -188,7 +219,7 @@ function getStableSeed(value: string) {
 function getHistoricalMarketPoints(market: Market) {
   const totalPoints = chartRangePointCounts["1W"];
   const intervalSeconds = chartPointIntervalMinutes * 60;
-  const end = Date.UTC(2026, 5, 10, 12, 0, 0) / 1000;
+  const end = Date.UTC(2026, 5, 13, 10, 19, 38) / 1000;
   const seed = getStableSeed(market.id);
   const amplitude = getSeriesNoiseAmplitude(market);
   const anchors = market.points;
@@ -307,9 +338,109 @@ interface TradingChartPoint {
   average: number;
 }
 
-function TradingMetricChart({ market, range }: { market: Market; range: ChartRange }) {
+type MarketMetricPoint = Readonly<{
+  time: UTCTimestamp;
+  value: number;
+}>;
+
+type LiveSamplesState = Readonly<{
+  points: readonly MarketMetricPoint[];
+  status: "idle" | "loading" | "live" | "fallback";
+  message: string | null;
+}>;
+
+function useLiveTwaSamples(market: Market, chainId: number | null): LiveSamplesState {
+  const [state, setState] = useState<LiveSamplesState>({
+    points: [],
+    status: "idle",
+    message: null,
+  });
+
+  useEffect(() => {
+    const provider = typeof window === "undefined" ? null : window.ethereum;
+
+    if (!provider) {
+      queueMicrotask(() => {
+        setState({ points: [], status: "fallback", message: "Connect a wallet for live oracle samples." });
+      });
+      return;
+    }
+
+    if (chainId && chainId !== ASCESWAP_CHAIN_ID) {
+      queueMicrotask(() => {
+        setState({ points: [], status: "fallback", message: getChainMismatchMessage(chainId) });
+      });
+      return;
+    }
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setState((current) => ({ ...current, status: "loading", message: "Loading oracle samples..." }));
+      }
+    });
+
+    const loadSamples = async () => {
+      try {
+        const samples = await getTwaSamples({
+          provider,
+          adapter: market.adapter,
+          marketId: market.id,
+          fromBlock: market.chartFromBlock,
+        });
+        if (cancelled) return;
+
+        const points = samples.map((sample) => ({
+          time: Number(sample.sampleAt) as UTCTimestamp,
+          value: formatTwaSampleValue(market, sample.valueWad),
+        }));
+
+        setState({
+          points,
+          status: points.length > 0 ? "live" : "fallback",
+          message: points.length > 0 ? "Live adapter samples" : "No adapter samples found yet.",
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setState({
+          points: [],
+          status: "fallback",
+          message: error instanceof Error ? error.message : "Could not load oracle samples.",
+        });
+      }
+    };
+
+    void loadSamples();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chainId, market]);
+
+  return state;
+}
+
+function formatTwaSampleValue(market: Market, valueWad: bigint) {
+  if (market.valueDisplay === "aprPercent") {
+    return Number(valueWad) / 1e18 * 100;
+  }
+
+  return Number(valueWad) / 1e18;
+}
+
+function TradingMetricChart({
+  market,
+  range,
+  livePoints,
+}: {
+  market: Market;
+  range: ChartRange;
+  livePoints: readonly MarketMetricPoint[];
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const history = useMemo(() => getHistoricalMarketPoints(market), [market]);
+  const history = useMemo(() => (
+    livePoints.length > 0 ? livePoints : getHistoricalMarketPoints(market)
+  ), [livePoints, market]);
   const visiblePoints = useMemo(() => {
     const pointCount = chartRangePointCounts[range];
     return history.slice(-Math.min(pointCount, history.length));
@@ -478,7 +609,13 @@ function TradingMetricChart({ market, range }: { market: Market; range: ChartRan
   );
 }
 
-function FeaturedChart({ market }: { market: Market }) {
+function FeaturedChart({
+  market,
+  liveSamples,
+}: {
+  market: Market;
+  liveSamples: LiveSamplesState;
+}) {
   const [activeRange, setActiveRange] = useState<ChartRange>("1W");
   const chartLabel = market.metric;
 
@@ -489,6 +626,15 @@ function FeaturedChart({ market }: { market: Market }) {
           <span className="text-xs font-semibold text-[#0c1a15]">{chartLabel}</span>
           <span className="rounded border border-[#cfe0d8] bg-[#eef7f2] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5c6b64]">
             {chartPointIntervalMinutes}-min intervals
+          </span>
+          <span className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+            liveSamples.status === "live"
+              ? "border-[#b7decf] bg-[#e3f5ee] text-[#047857]"
+              : liveSamples.status === "loading"
+                ? "border-[#c9d8f4] bg-[#f3f7ff] text-[#315f9c]"
+                : "border-[#edcf94] bg-[#fff6df] text-[#8a5a12]"
+          }`}>
+            {liveSamples.status === "live" ? "adapter live" : liveSamples.status}
           </span>
         </div>
         <div className="flex rounded bg-[#edf7f2] p-0.5">
@@ -509,8 +655,13 @@ function FeaturedChart({ market }: { market: Market }) {
         </div>
       </div>
       <div className="min-h-0 flex-1">
-        <TradingMetricChart market={market} range={activeRange} />
+        <TradingMetricChart market={market} range={activeRange} livePoints={liveSamples.points} />
       </div>
+      {liveSamples.message ? (
+        <div className="border-t border-[#cfe0d8] bg-white/72 px-3 py-1.5 text-[11px] text-[#5c6b64]">
+          {liveSamples.message}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -578,14 +729,14 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
   }));
   const activeOrders = [
     ...(userLimitOrder ? [userLimitOrder] : []),
-    { side: "Buy YES", price: market.primaryPrice, size: "120", status: "Open" },
-    { side: "Buy NO", price: market.secondaryPrice, size: "80", status: "Resting" },
+    { side: "Buy PAYOFF", price: market.primaryPrice, size: "120", status: "Open" },
+    { side: "Buy RESIDUAL", price: market.secondaryPrice, size: "80", status: "Resting" },
   ];
   const settlementRows = [
-    { label: "Observe", detail: market.oracle, status: "Live" },
-    { label: "Settlement window", detail: market.observation, status: "Pending" },
+    { label: "Adapter", detail: market.adapterLabel, status: "Live" },
+    { label: "Settlement window", detail: market.settlementWindow, status: "Pending" },
     { label: "Maturity check", detail: market.maturity, status: "Queued" },
-    { label: "Payout", detail: market.payoutLabel, status: "Ready" },
+    { label: "Payout", detail: market.payoffSummary, status: "Ready" },
   ];
 
   return (
@@ -619,9 +770,9 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="border-b border-[#cfe0d8] px-3 py-2">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-sm font-semibold text-[#0c1a15]">YES / NO token book</div>
+              <div className="text-sm font-semibold text-[#0c1a15]">PAYOFF / RESIDUAL book</div>
               <span className="shrink-0 rounded border border-[#edcf94] bg-[#fff6df] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#8a5a12]">
-                YES {market.primaryPrice} · NO {market.secondaryPrice}
+                PAYOFF {market.primaryPrice} - RESIDUAL {market.secondaryPrice}
               </span>
             </div>
             <div className="mt-0.5 text-[11px] text-[#5c6b64]">Prices are cents per $1 payout</div>
@@ -640,7 +791,7 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
                   className="absolute inset-y-0 right-0 bg-[#b94a5a]/12"
                   style={{ width: `${Math.max((row.size / maxTotal) * 100, 8)}%` }}
                 />
-                <span className="relative text-xs font-semibold text-[#9f3448]">NO</span>
+                <span className="relative text-xs font-semibold text-[#9f3448]">RESID</span>
                 <span className="relative text-right text-[#9f3448]">{row.price.toFixed(0)}c</span>
                 <span className="relative text-right text-[#41514a]">{row.total.toLocaleString("en-US")}</span>
               </div>
@@ -648,7 +799,7 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
 
             <div className="my-2 flex items-center justify-between border-y border-[#cfe0d8] px-2 py-2">
               <span className="font-semibold text-[#5c6b64]">Best prices</span>
-              <span className="font-mono text-xs font-semibold text-[#0c1a15]">YES {market.primaryPrice} · NO {market.secondaryPrice}</span>
+              <span className="font-mono text-xs font-semibold text-[#0c1a15]">PAYOFF {market.primaryPrice} - RESIDUAL {market.secondaryPrice}</span>
             </div>
 
             {yesRows.map((row, index) => (
@@ -657,7 +808,7 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
                   className="absolute inset-y-0 right-0 bg-[#059669]/12"
                   style={{ width: `${Math.max((row.size / maxTotal) * 100, 8)}%` }}
                 />
-                <span className="relative text-xs font-semibold text-[#047857]">YES</span>
+                <span className="relative text-xs font-semibold text-[#047857]">PAYOFF</span>
                 <span className="relative text-right text-[#047857]">{row.price.toFixed(0)}c</span>
                 <span className="relative text-right text-[#41514a]">{row.total.toLocaleString("en-US")}</span>
               </div>
@@ -701,6 +852,14 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
               </div>
             ))}
           </div>
+          <div className="mt-3 rounded border border-[#cfe0d8] bg-white/70 p-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#5c6b64]">Curve points</div>
+            <div className="mt-2 space-y-1 font-mono text-[11px] text-[#41514a]">
+              {market.payoffPoints.map((point) => (
+                <div key={point}>{point}</div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </aside>
@@ -710,12 +869,15 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
 function FeaturedMarket({ market }: { market: Market }) {
   const Icon = market.icon;
   const wallet = useWallet();
+  const liveSamples = useLiveTwaSamples(market, wallet.chainId);
   const [orderAmount, setOrderAmount] = useState("100");
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome>("yes");
   const [selectedSide, setSelectedSide] = useState<Side>("buy");
   const [limitPriceCents, setLimitPriceCents] = useState(() => getCentsInputValue(market.primaryPrice));
+  const [expiryMinutes, setExpiryMinutes] = useState("60");
+  const [maxFeeRateBps, setMaxFeeRateBps] = useState("50");
   const [postOnly, setPostOnly] = useState(true);
-  const [signingStatus, setSigningStatus] = useState<"idle" | "connecting" | "signing" | "submitting" | "signed" | "submitted" | "error">("idle");
+  const [signingStatus, setSigningStatus] = useState<"idle" | "connecting" | "checking" | "approving" | "signing" | "submitting" | "signed" | "submitted" | "error">("idle");
   const [signingError, setSigningError] = useState<string | null>(null);
   const [submitWarning, setSubmitWarning] = useState<string | null>(null);
   const [submitOutcome, setSubmitOutcome] = useState<SubmitOrderOutcome | null>(null);
@@ -727,6 +889,10 @@ function FeaturedMarket({ market }: { market: Market }) {
   const marketSecondaryEntryPrice = parseCentsPrice(market.secondaryPrice);
   const limitPriceValue = Number(limitPriceCents);
   const isLimitPriceValid = Number.isFinite(limitPriceValue) && limitPriceValue > 0 && limitPriceValue <= 100;
+  const parsedExpiryMinutes = Number(expiryMinutes);
+  const isExpiryValid = Number.isFinite(parsedExpiryMinutes) && parsedExpiryMinutes > 0;
+  const parsedMaxFeeRateBps = Number(maxFeeRateBps);
+  const isMaxFeeValid = Number.isInteger(parsedMaxFeeRateBps) && parsedMaxFeeRateBps >= 0 && parsedMaxFeeRateBps <= 1_000;
   const ticketPriceLabel = isLimitPriceValid ? formatCentsPrice(limitPriceValue) : `${limitPriceCents || "0"}c`;
   const entryPrice = isLimitPriceValid ? limitPriceValue / 100 : 0;
   const orderValue = Math.max(Number(orderAmount) || 0, 0);
@@ -746,13 +912,22 @@ function FeaturedMarket({ market }: { market: Market }) {
   const primaryPayoutMultiple = selectedOutcome === "yes" && entryPrice > 0 ? 1 / entryPrice : 1 / marketPrimaryEntryPrice;
   const secondaryPayoutMultiple = selectedOutcome === "no" && entryPrice > 0 ? 1 / entryPrice : 1 / marketSecondaryEntryPrice;
   const countdownLabel = useMarketCountdown(market);
-  const isSigning = signingStatus === "connecting" || signingStatus === "signing" || signingStatus === "submitting";
-  const ticketButtonLabel = !isLimitPriceValid ? "Enter limit price" : isSigning
-    ? signingStatus === "connecting" ? "Connecting wallet" : signingStatus === "submitting" ? "Submitting order" : "Open wallet request"
+  const chainMismatch = getChainMismatchMessage(wallet.chainId);
+  const isSigning = signingStatus === "connecting"
+    || signingStatus === "checking"
+    || signingStatus === "approving"
+    || signingStatus === "signing"
+    || signingStatus === "submitting";
+  const ticketButtonLabel = !isLimitPriceValid ? "Enter limit price" : !isExpiryValid ? "Enter expiry" : !isMaxFeeValid ? "Enter max fee" : isSigning
+    ? signingStatus === "connecting" ? "Connecting wallet"
+      : signingStatus === "checking" ? "Checking approvals"
+        : signingStatus === "approving" ? "Open approval request"
+          : signingStatus === "submitting" ? "Submitting order"
+            : "Open wallet request"
     : signingStatus === "submitted" ? "Place again" : signingStatus === "signed" ? "Sign again" : wallet.account ? "Place limit order" : "Connect and place";
   const submitOutcomeCopy = getSubmitOutcomeCopy(submitOutcome);
   const userLimitOrder = submitOutcome?.outcome === "rested" ? {
-    side: `${selectedSide === "buy" ? "Buy" : "Sell"} ${selectedOutcome.toUpperCase()}`,
+    side: `${selectedSide === "buy" ? "Buy" : "Sell"} ${getOutcomeLabel(selectedOutcome)}`,
     price: ticketPriceLabel,
     status: "Resting",
   } : null;
@@ -769,37 +944,53 @@ function FeaturedMarket({ market }: { market: Market }) {
     setSubmitOutcome(null);
     setUsedDemoConfig(false);
     setSigningStatus((currentStatus) => currentStatus === "signed" || currentStatus === "submitted" ? "idle" : currentStatus);
-  }, [market.id, ticketPriceLabel, orderAmount, selectedOutcome, selectedSide, postOnly]);
+  }, [market.id, ticketPriceLabel, orderAmount, selectedOutcome, selectedSide, postOnly, expiryMinutes, maxFeeRateBps]);
 
   const handleSignPreview = async () => {
     try {
       setSigningError(null);
+      setSubmitWarning(null);
       setSigningStatus(wallet.account && wallet.chainId ? "signing" : "connecting");
 
       const connection = wallet.account && wallet.chainId
         ? { account: wallet.account, chainId: wallet.chainId }
         : await wallet.connect();
       const config = resolveSigningConfig(connection.chainId);
+      const provider = wallet.provider ?? window.ethereum;
 
       if (config.chainId !== connection.chainId) {
         throw new Error(`Switch wallet to chain ${config.chainId} before signing.`);
+      }
+
+      if (!provider) {
+        throw new Error("No injected wallet was found.");
       }
 
       if (!isLimitPriceValid) {
         throw new Error("Limit price must be greater than 0c and at most 100c.");
       }
 
-      const inputAmount = parseDecimalToUnits(orderAmount, 18);
+      if (!isExpiryValid) {
+        throw new Error("Order expiry must be greater than zero minutes.");
+      }
+
+      if (!isMaxFeeValid) {
+        throw new Error("Max fee must be a whole number from 0 to 1000 bps.");
+      }
+
+      setSigningStatus("checking");
+      const inputAmount = parseDecimalToUnits(orderAmount, MUSDC_DECIMALS);
       const priceWad = parseCentsLabelToPriceWad(ticketPriceLabel);
-      const expiration = BigInt(Math.floor(Date.now() / 1000) + 60 * 60);
+      const expiration = BigInt(Math.floor(Date.now() / 1000) + Math.floor(parsedExpiryMinutes * 60));
+      const epoch = await getMakerEpoch(provider, connection.account, config.verifyingContract);
       const commonOrderInput = {
         maker: connection.account,
         marketId: market.id,
         outcome: selectedOutcome,
         priceWad,
         expiration,
-        epoch: 0n,
-        maxFeeRateBps: 50,
+        epoch,
+        maxFeeRateBps: parsedMaxFeeRateBps,
       };
       const order = selectedSide === "buy"
         ? buildBuyOrderFromCollateral({
@@ -817,6 +1008,53 @@ function FeaturedMarket({ market }: { market: Market }) {
         chainId: config.chainId,
         verifyingContract: config.verifyingContract,
       };
+
+      if (selectedSide === "buy") {
+        const requiredCollateral = BigInt(order.maker_amount);
+        const balance = await getErc20Balance(provider, ASCESWAP_ADDRESSES.demoMusdc, connection.account);
+
+        if (balance < requiredCollateral) {
+          throw new Error(`Insufficient demo mUSDC. Need ${formatMusdc(requiredCollateral)}, wallet has ${formatMusdc(balance)}. Use the faucet first.`);
+        }
+
+        setSigningStatus("approving");
+        const approval = await ensureErc20Approval(
+          provider,
+          ASCESWAP_ADDRESSES.demoMusdc,
+          connection.account,
+          config.verifyingContract,
+          requiredCollateral,
+        );
+
+        if (!approval.approved) {
+          setSubmitWarning(`mUSDC approval sent: ${approval.transactionHash ? formatShortHex(approval.transactionHash) : "pending"}. Place again after it confirms.`);
+          setSigningStatus("idle");
+          return;
+        }
+      } else {
+        const { payoffPositionId, residualPositionId } = await getPositionIds(provider, market.id, config.verifyingContract);
+        const positionId = selectedOutcome === "yes" ? payoffPositionId : residualPositionId;
+        const requiredClaims = BigInt(order.maker_amount);
+        const balance = await getErc1155Balance(provider, ASCESWAP_ADDRESSES.ctf, connection.account, positionId);
+
+        if (balance < requiredClaims) {
+          throw new Error(`Insufficient ${getOutcomeLabel(selectedOutcome)} claims. Need ${formatMusdc(requiredClaims)}, wallet has ${formatMusdc(balance)}.`);
+        }
+
+        setSigningStatus("approving");
+        const approval = await ensureClaimApprovalForAll(
+          provider,
+          ASCESWAP_ADDRESSES.ctf,
+          connection.account,
+          config.verifyingContract,
+        );
+
+        if (!approval.approved) {
+          setSubmitWarning(`CTF approval sent: ${approval.transactionHash ? formatShortHex(approval.transactionHash) : "pending"}. Place again after it confirms.`);
+          setSigningStatus("idle");
+          return;
+        }
+      }
 
       setSigningStatus("signing");
       const nextSignature = await signOrder(order, wallet, domain);
@@ -866,13 +1104,26 @@ function FeaturedMarket({ market }: { market: Market }) {
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="glass-control flex h-9 w-9 shrink-0 items-center justify-center rounded-md">
-                  <Icon className="h-5 w-5" style={{ color: market.iconTone }} />
+                <div className="glass-control flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md">
+                  {market.logoSrc ? (
+                    <Image
+                      src={market.logoSrc}
+                      alt={market.logoAlt ?? market.title}
+                      width={36}
+                      height={36}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Icon className="h-5 w-5" style={{ color: market.iconTone }} />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <h1 className="max-w-4xl text-lg font-semibold leading-tight text-[#0c1a15] sm:text-xl">
                     {market.title}
                   </h1>
+                  <p className="mt-1 max-w-3xl text-sm leading-snug text-[#41514a]">
+                    {market.subtitle}
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold text-[#5c6b64]">
                     <span className="rounded-md border border-[#cfe0d8] bg-[#eef7f2] px-2 py-1 text-[#5c6b64]">
                       Settles on: <span className="font-mono text-[#0c1a15]">{market.settlesOn}</span>
@@ -880,6 +1131,15 @@ function FeaturedMarket({ market }: { market: Market }) {
                     <span className="rounded-md border border-[#cfe0d8] bg-[#eef7f2] px-2 py-1 text-[#5c6b64]">
                       Vol: <span className="font-mono text-[#0c1a15]">{market.volume}</span>
                     </span>
+                    <a
+                      href={getExplorerAddressUrl(market.adapter)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border border-[#cfe0d8] bg-[#eef7f2] px-2 py-1 text-[#5c6b64] transition hover:border-[#9fcfba] hover:text-[#047857]"
+                    >
+                      Oracle: <span className="font-mono text-[#0c1a15]">{formatShortAddress(market.adapter)}</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                   </div>
                 </div>
               </div>
@@ -898,7 +1158,7 @@ function FeaturedMarket({ market }: { market: Market }) {
           </div>
 
           <div className="mt-3 h-[540px] overflow-hidden rounded-md border border-[#cfe0d8] bg-white/76 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78),0_18px_48px_rgba(64,86,74,0.1)] 2xl:h-[600px]">
-            <FeaturedChart market={market} />
+            <FeaturedChart market={market} liveSamples={liveSamples} />
           </div>
           <div className="mt-1 flex justify-end">
             <a
@@ -921,6 +1181,23 @@ function FeaturedMarket({ market }: { market: Market }) {
               <div className="mt-0.5 text-[11px] text-[#5c6b64]">{market.payoutLabel}</div>
             </div>
           </div>
+
+          {chainMismatch ? (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-[#edcf94] bg-[#fff6df] p-2 text-xs text-[#8a5a12]">
+              <span>{chainMismatch}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  wallet.switchChain(ASCESWAP_CHAIN_ID).catch((error) => {
+                    setSigningError(error instanceof Error ? error.message : "Network switch failed.");
+                  });
+                }}
+                className="h-7 shrink-0 rounded border border-[#edcf94] bg-white/70 px-2 font-semibold text-[#8a5a12] transition hover:border-[#d9b36f]"
+              >
+                Switch
+              </button>
+            </div>
+          ) : null}
 
           <div className="mt-3 grid grid-cols-2 gap-1 rounded-md border border-[#cfe0d8] bg-[#edf7f2] p-1">
             {(["buy", "sell"] as const).map((side) => (
@@ -950,7 +1227,7 @@ function FeaturedMarket({ market }: { market: Market }) {
               }`}
             >
               <span className="flex items-center justify-between gap-2 text-xs font-semibold text-[#047857]">
-                YES
+                PAYOFF
                 <span className="font-mono">{primaryPayoutMultiple.toFixed(1)}x</span>
               </span>
               <span className="mt-0.5 block font-mono text-lg font-semibold text-[#0c1a15]">{market.primaryPrice}</span>
@@ -966,7 +1243,7 @@ function FeaturedMarket({ market }: { market: Market }) {
               }`}
             >
               <span className="flex items-center justify-between gap-2 text-xs font-semibold text-[#9f3448]">
-                NO
+                RESIDUAL
                 <span className="font-mono">{secondaryPayoutMultiple.toFixed(1)}x</span>
               </span>
               <span className="mt-0.5 block font-mono text-lg font-semibold text-[#0c1a15]">{market.secondaryPrice}</span>
@@ -1032,7 +1309,7 @@ function FeaturedMarket({ market }: { market: Market }) {
                 <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#5c6b64]">
                   {selectedSide === "buy" ? "Order value" : "Contracts to sell"}
                 </span>
-                <span className="text-xs text-[#5c6b64]">{selectedSide === "buy" ? "USDC" : "Contracts"}</span>
+                <span className="text-xs text-[#5c6b64]">{selectedSide === "buy" ? "mUSDC" : getOutcomeLabel(selectedOutcome)}</span>
               </div>
               <label className="flex items-center gap-2">
                 {selectedSide === "buy" ? (
@@ -1045,6 +1322,38 @@ function FeaturedMarket({ market }: { market: Market }) {
                   onChange={(event) => setOrderAmount(event.target.value)}
                   className="h-8 min-w-0 flex-1 bg-transparent font-mono text-lg font-semibold text-[#0c1a15] outline-none"
                   aria-label={selectedSide === "buy" ? "Order value in USDC" : "Contracts to sell"}
+                />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="glass-control rounded-md p-2">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#5c6b64]">Expiry</span>
+                <select
+                  value={expiryMinutes}
+                  onChange={(event) => setExpiryMinutes(event.target.value)}
+                  className="mt-1 h-8 w-full bg-transparent font-mono text-sm font-semibold text-[#0c1a15] outline-none"
+                  aria-label="Order expiry"
+                >
+                  <option value="15">15 min</option>
+                  <option value="60">1 hour</option>
+                  <option value="240">4 hours</option>
+                  <option value="1440">1 day</option>
+                </select>
+              </label>
+
+              <label className="glass-control rounded-md p-2">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#5c6b64]">Max fee bps</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  step="1"
+                  value={maxFeeRateBps}
+                  onChange={(event) => setMaxFeeRateBps(event.target.value)}
+                  className="mt-1 h-8 w-full bg-transparent font-mono text-sm font-semibold text-[#0c1a15] outline-none"
+                  aria-label="Max fee rate in basis points"
+                  aria-invalid={!isMaxFeeValid}
                 />
               </label>
             </div>
@@ -1098,7 +1407,7 @@ function FeaturedMarket({ market }: { market: Market }) {
           <button
             type="button"
             onClick={handleSignPreview}
-            disabled={isSigning || wallet.status === "unavailable" || !isLimitPriceValid}
+            disabled={isSigning || wallet.status === "unavailable" || !isLimitPriceValid || !isExpiryValid || !isMaxFeeValid}
             className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#059669] text-sm font-bold text-white transition hover:bg-[#047857] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
@@ -1139,7 +1448,19 @@ function FeaturedMarket({ market }: { market: Market }) {
                 </div>
                 <div className="flex justify-between gap-3">
                   <span>Order</span>
-                  <span className="text-[#0c1a15]">{signedOrder.claim} {signedOrder.side}</span>
+                  <span className="text-[#0c1a15]">{signedOrder.claim.toUpperCase()} {signedOrder.side.toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span>Epoch</span>
+                  <span className="text-[#0c1a15]">{signedOrder.epoch}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span>Maker amount</span>
+                  <span className="text-[#0c1a15]">{formatMusdc(BigInt(signedOrder.maker_amount))}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span>Taker amount</span>
+                  <span className="text-[#0c1a15]">{formatMusdc(BigInt(signedOrder.taker_amount))}</span>
                 </div>
                 {submitOutcome && "order_hash" in submitOutcome && submitOutcome.order_hash ? (
                   <div className="flex justify-between gap-3">
@@ -1180,7 +1501,15 @@ function FeaturedMarket({ market }: { market: Market }) {
   );
 }
 
-function MarketCard({ market }: { market: Market }) {
+function MarketCard({
+  market,
+  isSelected,
+  onSelect,
+}: {
+  market: Market;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
   const Icon = market.icon;
   const isPositive = market.change >= 0;
   const tone = getMarketTone(market);
@@ -1188,11 +1517,34 @@ function MarketCard({ market }: { market: Market }) {
   const countdownLabel = useMarketCountdown(market);
 
   return (
-    <article className="group rounded-[10px] border border-[#cfe0d8] bg-white/82 p-4 shadow-[0_14px_36px_rgba(64,86,74,0.08)] transition hover:border-[#9fcfba]">
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`group cursor-pointer rounded-[10px] border bg-white/82 p-4 shadow-[0_14px_36px_rgba(64,86,74,0.08)] transition ${
+        isSelected ? "border-[#059669] ring-2 ring-[#059669]/14" : "border-[#cfe0d8] hover:border-[#9fcfba]"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#cfe0d8] bg-[#f7fbf9]">
-            <Icon className="h-5 w-5" style={{ color: market.iconTone }} />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#cfe0d8] bg-[#f7fbf9]">
+            {market.logoSrc ? (
+              <Image
+                src={market.logoSrc}
+                alt={market.logoAlt ?? market.title}
+                width={40}
+                height={40}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Icon className="h-5 w-5" style={{ color: market.iconTone }} />
+            )}
           </div>
           <div className="min-w-0">
             <div className="mb-1 flex flex-wrap items-center gap-1.5">
@@ -1200,10 +1552,14 @@ function MarketCard({ market }: { market: Market }) {
               <span className="rounded-sm bg-[#eef7f2] px-1.5 py-0.5 text-[11px] font-bold text-[#5c6b64]">{market.payoff}</span>
             </div>
             <h3 className="line-clamp-2 text-[15px] font-semibold leading-5 text-[#0c1a15]">{market.title}</h3>
-            <div className="mt-1 truncate text-xs text-[#5c6b64]">{market.sourceNote}</div>
+            <div className="mt-1 line-clamp-2 text-xs leading-snug text-[#5c6b64]">{market.subtitle}</div>
           </div>
         </div>
-        <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#8aa096] transition hover:bg-[#eef7f2] hover:text-[#0c1a15]">
+        <button
+          type="button"
+          onClick={(event) => event.stopPropagation()}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#8aa096] transition hover:bg-[#eef7f2] hover:text-[#0c1a15]"
+        >
           <Bookmark className="h-4 w-4" />
         </button>
       </div>
@@ -1228,11 +1584,19 @@ function MarketCard({ market }: { market: Market }) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <button className="h-11 rounded-md border border-[#b7decf] bg-[#e3f5ee] px-3 text-left transition hover:border-[#059669]">
+        <button
+          type="button"
+          onClick={onSelect}
+          className="h-11 rounded-md border border-[#b7decf] bg-[#e3f5ee] px-3 text-left transition hover:border-[#059669]"
+        >
           <span className="block text-[11px] font-semibold text-[#047857]">{market.primaryAction}</span>
           <span className="font-mono text-base font-semibold text-[#0c1a15]">{market.primaryPrice}</span>
         </button>
-        <button className="h-11 rounded-md border border-[#e4a4ae] bg-[#fff0f3] px-3 text-left transition hover:border-[#b94a5a]">
+        <button
+          type="button"
+          onClick={onSelect}
+          className="h-11 rounded-md border border-[#e4a4ae] bg-[#fff0f3] px-3 text-left transition hover:border-[#b94a5a]"
+        >
           <span className="block text-[11px] font-semibold text-[#9f3448]">{market.secondaryAction}</span>
           <span className="font-mono text-base font-semibold text-[#0c1a15]">{market.secondaryPrice}</span>
         </button>
@@ -1248,8 +1612,17 @@ function MarketCard({ market }: { market: Market }) {
           <div className="mt-1 font-mono font-semibold text-[#0c1a15]">{market.volume}</div>
         </div>
         <div>
-          <div className="text-[#5c6b64]">Open int.</div>
-          <div className="mt-1 font-mono font-semibold text-[#0c1a15]">{market.openInterest}</div>
+          <div className="text-[#5c6b64]">Oracle</div>
+          <a
+            href={getExplorerAddressUrl(market.adapter)}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            className="mt-1 inline-flex items-center gap-1 font-mono font-semibold text-[#0c1a15] hover:text-[#047857]"
+          >
+            {formatShortAddress(market.adapter)}
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
         <div>
           <div className="text-[#5c6b64]">Payout</div>
@@ -1272,7 +1645,6 @@ function MarketCategoryFilters({
       {categories.map((category) => {
         const Icon = category.icon;
         const isActive = category.id === activeCategory;
-        const compactLabel = category.id === "protocol" ? "Protocol" : category.label;
 
         return (
           <button
@@ -1287,7 +1659,7 @@ function MarketCategoryFilters({
             }`}
           >
             <Icon className={isActive ? "h-3.5 w-3.5 text-[#059669]" : "h-3.5 w-3.5 text-[#8aa096]"} />
-            <span className="hidden xl:inline">{compactLabel}</span>
+            <span className="hidden xl:inline">{category.label}</span>
           </button>
         );
       })}
@@ -1297,6 +1669,7 @@ function MarketCategoryFilters({
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<CategoryId>("trending");
+  const [selectedMarketId, setSelectedMarketId] = useState(markets[0].id);
 
   const visibleMarkets = useMemo(() => {
     if (activeCategory === "trending") {
@@ -1308,12 +1681,26 @@ export default function Home() {
     return markets.filter((market) => market.category === activeCategory);
   }, [activeCategory]);
 
-  const featured = markets[0];
+  const featured = markets.find((market) => market.id === selectedMarketId) ?? markets[0];
+
+  const selectCategory = (category: CategoryId) => {
+    setActiveCategory(category);
+    const nextVisibleMarkets = category === "trending"
+      ? markets
+          .filter((market) => market.trendingRank)
+          .sort((a, b) => Number(a.trendingRank) - Number(b.trendingRank))
+      : markets.filter((market) => market.category === category);
+    const [firstMarket] = nextVisibleMarkets;
+
+    if (firstMarket) {
+      setSelectedMarketId(firstMarket.id);
+    }
+  };
 
   return (
     <PageLayout
       headerFilters={
-        <MarketCategoryFilters activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+        <MarketCategoryFilters activeCategory={activeCategory} setActiveCategory={selectCategory} />
       }
     >
       <div className="page-enter space-y-3 pt-3">
@@ -1329,7 +1716,12 @@ export default function Home() {
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {visibleMarkets.map((market) => (
-              <MarketCard key={market.id} market={market} />
+              <MarketCard
+                key={market.id}
+                market={market}
+                isSelected={market.id === featured.id}
+                onSelect={() => setSelectedMarketId(market.id)}
+              />
             ))}
           </div>
         </section>

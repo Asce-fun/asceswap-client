@@ -22,6 +22,7 @@ const compile = spawnSync("./node_modules/.bin/tsc", [
   outDir,
   "app/protocol/order.ts",
   "app/protocol/eip712.ts",
+  "app/protocol/constants.ts",
   "app/trading/buildOrder.ts",
 ], {
   cwd: process.cwd(),
@@ -34,6 +35,7 @@ if (compile.status !== 0) {
 
 const orderModule = await import(pathToFileURL(`${outDir}/protocol/order.js`));
 const eip712Module = await import(pathToFileURL(`${outDir}/protocol/eip712.js`));
+const constantsModule = await import(pathToFileURL(`${outDir}/protocol/constants.js`));
 const buildOrderModule = await import(pathToFileURL(`${outDir}/trading/buildOrder.js`));
 
 const {
@@ -44,7 +46,9 @@ const {
   parseDecimalToUnits,
 } = orderModule;
 const { buildOrderTypedData } = eip712Module;
-const { buildBuyOrderFromCollateral } = buildOrderModule;
+const { buildSignedOrderPayload } = eip712Module;
+const { ASCESWAP_ADDRESSES, ASCESWAP_CHAIN_ID, ASCESWAP_DEMO_MARKETS, MUSDC_DECIMALS } = constantsModule;
+const { buildBuyOrderFromCollateral, buildOrder } = buildOrderModule;
 
 const maker = "0x1111111111111111111111111111111111111111";
 const exchange = "0x2222222222222222222222222222222222222222";
@@ -115,4 +119,54 @@ test("builds EIP-712 typed data with contract casing only", () => {
   assert.equal("market_id" in typedData.message, false);
   assert.equal("maker_amount" in typedData.message, false);
   assert.equal("max_fee_rate_bps" in typedData.message, false);
+});
+
+test("builds guide buy order in raw 6-decimal mUSDC units", () => {
+  const order = buildOrder({
+    maker,
+    marketId: ASCESWAP_DEMO_MARKETS.aaveBorrowInterest.marketId,
+    outcome: "yes",
+    side: "buy",
+    priceWad: parseCentsLabelToPriceWad("45c"),
+    claimAmount: parseDecimalToUnits("100", MUSDC_DECIMALS),
+    expiration: 1_800_000_000n,
+    epoch: 7n,
+    maxFeeRateBps: 50,
+    salt: 789n,
+  });
+
+  assert.equal(order.market_id, ASCESWAP_DEMO_MARKETS.aaveBorrowInterest.marketId);
+  assert.equal(order.maker_amount, "45000000");
+  assert.equal(order.taker_amount, "100000000");
+  assert.equal(order.claim, "payoff");
+  assert.equal(order.side, "buy");
+});
+
+test("builds signed payload with decimal strings and guide domain", () => {
+  const order = buildOrder({
+    maker,
+    marketId: ASCESWAP_DEMO_MARKETS.aaveBorrowInterest.marketId,
+    outcome: "yes",
+    side: "sell",
+    priceWad: parseCentsLabelToPriceWad("55c"),
+    claimAmount: parseDecimalToUnits("100", MUSDC_DECIMALS),
+    expiration: 1_800_000_000n,
+    epoch: 7n,
+    maxFeeRateBps: 50,
+    salt: 999n,
+  });
+  const payload = buildSignedOrderPayload(order, "0xabc", {
+    name: "AsceSwap",
+    version: "1",
+    chainId: ASCESWAP_CHAIN_ID,
+    verifyingContract: ASCESWAP_ADDRESSES.exchange,
+  });
+
+  assert.equal(payload.chainId, 421614);
+  assert.equal(payload.verifyingContract, ASCESWAP_ADDRESSES.exchange);
+  assert.equal(payload.order.makerAmount, "100000000");
+  assert.equal(payload.order.takerAmount, "55000000");
+  assert.equal(payload.order.claim, 1);
+  assert.equal(payload.order.side, 1);
+  assert.equal(payload.signature, "0xabc");
 });

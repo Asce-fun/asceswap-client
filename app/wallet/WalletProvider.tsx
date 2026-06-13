@@ -29,9 +29,11 @@ type WalletContextValue = Readonly<{
   account: Address | null;
   chainId: number | null;
   error: string | null;
+  provider: EthereumProvider | null;
   status: WalletStatus;
   connect: () => Promise<ConnectResult>;
   signTypedData: (typedData: object, signer?: Address) => Promise<Hex>;
+  switchChain: (chainId: number) => Promise<void>;
 }>;
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -118,6 +120,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return signature;
   }, []);
 
+  const switchChain = useCallback(async (targetChainId: number) => {
+    const provider = window.ethereum;
+
+    if (!provider) {
+      throw new Error("No injected wallet was found.");
+    }
+
+    const chainIdHex = `0x${targetChainId.toString(16)}`;
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: chainIdHex }],
+    });
+    setChainId(targetChainId);
+  }, []);
+
   useEffect(() => {
     const provider = window.ethereum;
 
@@ -175,9 +192,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     chainId,
     connect,
     error,
+    provider: typeof window === "undefined" ? null : window.ethereum ?? null,
     signTypedData,
+    switchChain,
     status,
-  }), [account, chainId, connect, error, signTypedData, status]);
+  }), [account, chainId, connect, error, signTypedData, status, switchChain]);
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
