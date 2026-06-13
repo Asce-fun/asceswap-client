@@ -1,23 +1,38 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Hero } from './components/Hero';
-import { LiveMarketsStrip } from './components/LiveMarketsStrip';
-import { HowItWorks } from './components/HowItWorks';
-import { FeaturesSection } from './components/FeaturesSection';
-import { UseCases } from './components/UseCases';
-import { NumbersStrip } from './components/NumbersStrip';
-import { PageLayout } from './components/PageLayout';
+import { useRef } from "react";
+import { motion } from "motion/react";
 
-export default function Home() {
+import { DrawTheLineAct } from "./landing/DrawTheLineAct";
+import { HeroAct } from "./landing/HeroAct";
+import { HowItWorksAct } from "./landing/HowItWorksAct";
+import { LandingHeader } from "./landing/LandingHeader";
+import { LaunchAct } from "./landing/LaunchAct";
+import { MarketsPreviewAct } from "./landing/MarketsPreviewAct";
+import { ProblemAct } from "./landing/ProblemAct";
+import { TrustAct } from "./landing/TrustAct";
+import { useScrollTheme } from "./landing/useScrollTheme";
+
+export default function Landing() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const backgroundColor = useScrollTheme(containerRef);
+
   return (
-    <PageLayout>
-      <Hero />
-      <LiveMarketsStrip />
-      <HowItWorks />
-      <FeaturesSection />
-      <UseCases />
-      <NumbersStrip />
-    </PageLayout>
+    <motion.div
+      ref={containerRef}
+      style={{ backgroundColor }}
+      className="landing-theme relative min-h-screen font-sans"
+    >
+      <LandingHeader />
+      <main>
+        <HeroAct />
+        <ProblemAct />
+        <DrawTheLineAct />
+        <HowItWorksAct />
+        <TrustAct />
+        <MarketsPreviewAct />
+        <LaunchAct />
+      </main>
+    </motion.div>
   );
 }

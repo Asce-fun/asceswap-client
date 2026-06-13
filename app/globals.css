@@ -1,45 +1,47 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
   /* Background Layers */
-  --bg-base: #030305;
-  --bg-card: rgba(12, 12, 18, 0.6);
-  --bg-elevated: rgba(17, 17, 24, 0.7);
-  --bg-surface: rgba(22, 22, 30, 0.8);
+  --bg-base: #030506;
+  --bg-card: #070d0d;
+  --bg-elevated: #0a1211;
+  --bg-surface: #0d1715;
 
   /* Borders */
-  --border-default: #1e1e2a;
-  --border-hover: rgba(52, 211, 153, 0.15);
-  --border-active: rgba(52, 211, 153, 0.35);
+  --border-default: #1b2d28;
+  --border-hover: #2b4c41;
+  --border-active: rgba(46, 229, 157, 0.4);
 
   /* Text Hierarchy */
-  --text-primary: #e8e6ee;
-  --text-secondary: #9896a3;
-  --text-muted: #5c5a66;
-  --text-dim: #3a3844;
+  --text-primary: #f2f5f3;
+  --text-secondary: #8a96a3;
+  --text-muted: #66756f;
+  --text-dim: #3f504a;
 
   /* Mint Accent */
-  --mint: #34d399;
-  --mint-light: #6ee7b7;
+  --mint: #2ee59d;
+  --mint-light: #6fdcb4;
   --mint-dark: #059669;
   --mint-deep: #064e3b;
-  --mint-glow: rgba(52, 211, 153, 0.08);
-  --mint-text: rgba(52, 211, 153, 0.7);
+  --mint-glow: rgba(46, 229, 157, 0.08);
+  --mint-text: rgba(46, 229, 157, 0.78);
 
   /* Semantic */
-  --positive: #34d399;
-  --positive-bg: rgba(52, 211, 153, 0.12);
-  --negative: #f87171;
-  --negative-bg: rgba(248, 113, 113, 0.12);
-  --neutral: #a78bfa;
-  --neutral-bg: rgba(167, 139, 250, 0.12);
+  --positive: #2ee59d;
+  --positive-bg: rgba(46, 229, 157, 0.12);
+  --negative: #ff5c7a;
+  --negative-bg: rgba(255, 92, 122, 0.12);
+  --neutral: #6ea8ff;
+  --neutral-bg: rgba(110, 168, 255, 0.1);
 
   /* Grid */
-  --grid-color: rgba(52, 211, 153, 0.025);
+  --grid-color: rgba(76, 141, 255, 0.05);
 
   /* Shadcn tokens — light (kept for future light mode) */
   --background: oklch(1 0 0);
@@ -77,7 +79,7 @@
 }
 
 .dark {
-  --grid-color: rgba(52, 211, 153, 0.025);
+  --grid-color: rgba(76, 141, 255, 0.05);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -117,59 +119,6 @@ body {
   scroll-behavior: smooth;
 }
 
-.bg-grid {
-  background-size: 80px 80px;
-  background-image: linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
-                    linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 100%);
-}
-
-/* Custom High-End Range Slider */
-input[type=range] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  width: 100%;
-}
-
-/* THUMB */
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 18px;
-  width: 18px;
-  border-radius: 50%;
-  background: #030305;
-  cursor: pointer;
-  margin-top: -7px;
-  border: 3px solid #34d399;
-  box-shadow:
-    0 0 10px rgba(52, 211, 153, 0.6),
-    0 0 20px rgba(52, 211, 153, 0.3);
-  transition: all 0.2s ease;
-}
-
-input[type=range]::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-  box-shadow:
-    0 0 18px rgba(52, 211, 153, 0.8),
-    0 0 30px rgba(52, 211, 153, 0.4);
-}
-
-/* TRACK */
-input[type=range]::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 6px;
-  cursor: pointer;
-  background: rgba(255,255,255,0.08);
-  border-radius: 9999px;
-}
-
-/* Dark mode track */
-.dark input[type=range]::-webkit-slider-runnable-track {
-  background: rgba(255,255,255,0.06);
-}
 /* Scrollbar Refinement */
 /* Scrollbar width */
 ::-webkit-scrollbar {
@@ -183,36 +132,21 @@ input[type=range]::-webkit-slider-runnable-track {
 
 /* Thumb */
 ::-webkit-scrollbar-thumb {
-  background: rgba(52, 211, 153, 0.25); /* emerald */
+  background: rgba(46, 229, 157, 0.25);
   border-radius: 10px;
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(52, 211, 153, 0.45);
-  box-shadow: 0 0 8px rgba(52, 211, 153, 0.4);
+  background: rgba(46, 229, 157, 0.45);
+  box-shadow: 0 0 8px rgba(46, 229, 157, 0.3);
 }
 
-
-@keyframes floatY {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-.float-css {
-  animation: floatY 6s ease-in-out infinite;
-}
 
 @theme inline {
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -262,35 +196,143 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 25px rgba(167,139,250,0.6);
-  }
-  50% {
-    box-shadow: 0 0 45px rgba(167,139,250,0.9);
-  }
-}
-
-/* AsceSwap 'a' mark — 3D hinge spin on hover */
-@keyframes spinLogo {
-  0%   { transform: perspective(600px) rotateY(0deg); }
-  100% { transform: perspective(600px) rotateY(360deg); }
-}
-
 .logo-a {
   cursor: pointer;
   transform-origin: 75% center;
-  transform-style: preserve-3d;
+  transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
-.group:hover .logo-a {
-  animation: spinLogo 1s linear infinite;
+.glass-panel {
+  border: 1px solid rgba(188, 213, 201, 0.92);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 251, 249, 0.86)),
+    rgba(255, 255, 255, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 24px 70px rgba(64, 86, 74, 0.12);
+  backdrop-filter: blur(18px) saturate(132%);
+  -webkit-backdrop-filter: blur(18px) saturate(132%);
 }
 
-/* Twinkle animations for space background stars */
-@keyframes twinkle1 { 0%,100%{opacity:0.5} 50%{opacity:0.2} }
-@keyframes twinkle2 { 0%,100%{opacity:0.35} 50%{opacity:0.6} }
-@keyframes twinkle3 { 0%,100%{opacity:0.4} 50%{opacity:0.15} }
-.tw1 { animation: twinkle1 4s ease-in-out infinite; }
-.tw2 { animation: twinkle2 5s ease-in-out infinite; }
-.tw3 { animation: twinkle3 6s ease-in-out infinite; }
+.glass-card {
+  border: 1px solid rgba(188, 213, 201, 0.86);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 250, 247, 0.82)),
+    rgba(255, 255, 255, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 16px 42px rgba(64, 86, 74, 0.1);
+  backdrop-filter: blur(16px) saturate(126%);
+  -webkit-backdrop-filter: blur(16px) saturate(126%);
+}
+
+.glass-control {
+  border: 1px solid rgba(207, 224, 216, 0.95);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Daylight (landing) tokens ───────────────────────────── */
+:root {
+  --day-bg-0: #fbfdfc;
+  --day-bg-1: #f4faf7;
+  --day-bg-2: #eef7f2;
+  --day-bg-3: #e6f2ec;
+  --day-bg-4: #d8e9e0;
+  --day-dusk: #1c2a25;
+  --day-ink: #0c1a15;
+  --day-ink-secondary: #5c6b64;
+  --day-hairline: #cfe0d8;
+  --day-accent: #059669;
+  --day-accent-deep: #047857;
+  --day-clay: #b4715a;
+
+  /* Daylight terminal tokens */
+  --terminal-bg: #e3eee8;
+  --terminal-bg-soft: #eef6f1;
+  --terminal-panel: #ffffff;
+  --terminal-panel-soft: #f7fbf9;
+  --terminal-elevated: #edf7f2;
+  --terminal-border: #cfe0d8;
+  --terminal-border-strong: #bcd5c9;
+  --terminal-ink: #0c1a15;
+  --terminal-ink-2: #41514a;
+  --terminal-muted: #5c6b64;
+  --terminal-faint: #8aa096;
+  --terminal-mint: #059669;
+  --terminal-mint-deep: #047857;
+  --terminal-mint-soft: #e3f5ee;
+  --terminal-rose: #b94a5a;
+  --terminal-rose-soft: #fff0f3;
+  --terminal-amber: #9c6b19;
+  --terminal-amber-soft: #fff6df;
+}
+
+/* Ambient hero rate line: svg is 200% wide with two identical halves,
+   so -50% loops seamlessly at any viewport width. */
+@keyframes rate-drift {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.rate-drift {
+  animation: rate-drift 24s linear infinite;
+}
+
+@keyframes hero-logo-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-3deg);
+  }
+  50% {
+    transform: translate3d(10px, -14px, 0) rotate(4deg);
+  }
+}
+.hero-logo-float {
+  animation: hero-logo-float 16s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Market preview strip: track contains the card list twice. */
+@keyframes marquee-drift {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-drift {
+  animation: marquee-drift 48s linear infinite;
+}
+.marquee-drift:hover {
+  animation-play-state: paused;
+}
+
+/* Subtle entrance for the trading app when arriving from the landing page. */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.page-enter {
+  animation: page-enter 0.5s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rate-drift,
+  .hero-logo-float,
+  .marquee-drift,
+  .page-enter {
+    animation: none;
+  }
+}
+
+/* Reduced motion: replace the scroll-linked landing background with the
+   same day→dark journey as a static gradient. !important is required to
+   out-rank the inline background-color set by the motion value. */
+@media (prefers-reduced-motion: reduce) {
+  .landing-theme {
+    background: linear-gradient(180deg, #fbfdfc 0%, #f4faf7 14%, #eef7f2 30%, #e6f2ec 46%, #d8e9e0 60%, #1c2a25 72%, #0b1512 84%, #030506 100%) !important;
+  }
+}

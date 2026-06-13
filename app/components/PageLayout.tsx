@@ -2,36 +2,27 @@
 
 import React from "react";
 import { Header } from "./Header";
-import { Footer } from "./Footer";
-import { NetworkStatusBar } from "./NetworkStatusBar";
 import { SpaceBackground } from "./SpaceBackground";
+import { WalletProvider } from "../wallet/WalletProvider";
 
 interface PageLayoutProps {
   children: React.ReactNode;
-  showFooter?: boolean;
+  headerFilters?: React.ReactNode;
 }
 
-export const PageLayout: React.FC<PageLayoutProps> = ({
-  children,
-  showFooter = true,
-}) => {
+export const PageLayout: React.FC<PageLayoutProps> = ({ children, headerFilters }) => {
   return (
-    <div className="min-h-screen font-sans text-[#e8e6ee] transition-colors duration-500 bg-[#030305]">
-      {/* Space Background */}
+    <div className="min-h-screen bg-[var(--terminal-bg)] font-sans text-[var(--terminal-ink)]">
       <SpaceBackground />
-      <div className="relative z-10 flex flex-col">
-        <Header />
+      <WalletProvider>
+        <div className="relative z-10 flex flex-col">
+          <Header filters={headerFilters} />
 
-        <main className="grow pt-12 pb-32">
-          <div className="max-w-7xl mx-auto px-6">{children}</div>
-        </main>
-
-        {showFooter && <Footer />}
-      </div>
-
-      <NetworkStatusBar />
-      {/* Spacer so content doesn't hide behind fixed status bar */}
-      <div className="h-8" />
+          <main className="grow pb-12">
+            <div className="mx-auto max-w-[1760px] px-4 sm:px-6">{children}</div>
+          </main>
+        </div>
+      </WalletProvider>
     </div>
   );
 };

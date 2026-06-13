@@ -12,48 +12,18 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-sans)', 'sans-serif'],
         mono: ['var(--font-mono)', 'monospace'],
-        serif: ['var(--font-sora)', 'sans-serif'],
       },
       colors: {
-        brand: {
-          50: '#f5f3ff',
-          100: '#ede9fe',
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#5b21b6',
-          800: '#4c1d95',
+        asce: {
+          mint: '#2ee59d',
+          blue: '#4c8dff',
+          amber: '#f5b84b',
+          red: '#ff5c7a',
+          base: '#080b0f',
+          panel: '#0d141a',
+          elevated: '#101820',
         },
-        trade: {
-          up: '#34d399',
-          down: '#f87171',
-        },
-        accent: {
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#5b21b6',
-        }
       },
-      animation: {
-        'fade-in': 'fadeIn 0.5s ease-out forwards',
-        'float': 'float 5s ease-in-out infinite',
-        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'shine': 'shine 1.5s ease-in-out infinite',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-35px)' },
-        },
-        shine: {
-          '100%': { left: '125%' },
-        },
-      }
     }
   },
   plugins: [],
