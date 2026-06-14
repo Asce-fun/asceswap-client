@@ -26,6 +26,12 @@ export type OrderTypedDataMessage = Readonly<{
 }>;
 
 export const orderTypedDataTypes = {
+  EIP712Domain: [
+    { name: "name", type: "string" },
+    { name: "version", type: "string" },
+    { name: "chainId", type: "uint256" },
+    { name: "verifyingContract", type: "address" },
+  ],
   Order: [
     { name: "salt", type: "uint256" },
     { name: "maker", type: "address" },

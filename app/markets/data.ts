@@ -9,6 +9,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { ASCESWAP_DEMO_MARKETS, ASCESWAP_DEMO_WINDOW } from "../protocol/constants";
 import type { Address, Bytes32, Hex } from "../protocol/order";
+import type { MarketRuntimeStatus } from "./timeline";
 
 export type CategoryId =
   | "trending"
@@ -38,8 +39,9 @@ export interface Market {
   categoryLabel: string;
   icon: LucideIcon;
   iconTone: string;
-  status: "Live" | "Opening" | "Closing soon" | "Settles soon";
-  minutesToExpiry: number;
+  status: MarketRuntimeStatus;
+  startTimestamp: number;
+  endTimestamp: number;
   maturity: string;
   observation: string;
   resolution: "Spot" | "TWA" | "TWAP" | "Cumulative" | "Max" | "Min" | "Range";
@@ -110,7 +112,8 @@ export const markets: Market[] = [
     icon: TrendingUp,
     iconTone: "#6fdcb4",
     status: "Live",
-    minutesToExpiry: 43_200,
+    startTimestamp: ASCESWAP_DEMO_WINDOW.startTimestamp,
+    endTimestamp: ASCESWAP_DEMO_WINDOW.endTimestamp,
     maturity: "Jul 13, 2026",
     observation: "30D TWAP window",
     resolution: "TWAP",
@@ -139,11 +142,11 @@ export const markets: Market[] = [
     noCondition: "final TWAP borrow APR stays near or below the low strike",
     sourceNote: "Demo mUSDC market on Arbitrum Sepolia",
     settlementWindow: ASCESWAP_DEMO_WINDOW.utcLabel,
-    payoffSummary: "PAYOFF scales from 0 to 1 mUSDC between 4% and 8% APR.",
+    payoffSummary: "Payout scales from 0 to 1 mUSDC between 4% and 8% APR.",
     payoffPoints: [
-      ASCESWAP_DEMO_MARKETS.aaveBorrowInterest.zeroPayoutLabel,
-      ASCESWAP_DEMO_MARKETS.aaveBorrowInterest.midpointPayoutLabel,
-      ASCESWAP_DEMO_MARKETS.aaveBorrowInterest.fullPayoutLabel,
+      "4% APR or lower: pays 0 mUSDC",
+      "6% APR: pays 0.5 mUSDC",
+      "8% APR or higher: pays 1 mUSDC",
     ],
     trendingRank: 1,
   },
@@ -164,7 +167,8 @@ export const markets: Market[] = [
     icon: Fuel,
     iconTone: "#f5b84b",
     status: "Live",
-    minutesToExpiry: 43_200,
+    startTimestamp: ASCESWAP_DEMO_WINDOW.startTimestamp,
+    endTimestamp: ASCESWAP_DEMO_WINDOW.endTimestamp,
     maturity: "Jul 13, 2026",
     observation: "30D TWAP window",
     resolution: "TWAP",
@@ -193,11 +197,11 @@ export const markets: Market[] = [
     noCondition: "final TWAP L2 basefee stays near or below the low strike",
     sourceNote: "Demo mUSDC market on Arbitrum Sepolia",
     settlementWindow: ASCESWAP_DEMO_WINDOW.utcLabel,
-    payoffSummary: "PAYOFF scales from 0 to 1 mUSDC between 0.015 and 0.030 gwei.",
+    payoffSummary: "Payout scales from 0 to 1 mUSDC between 0.015 and 0.030 gwei.",
     payoffPoints: [
-      ASCESWAP_DEMO_MARKETS.l2GasFees.zeroPayoutLabel,
-      ASCESWAP_DEMO_MARKETS.l2GasFees.midpointPayoutLabel,
-      ASCESWAP_DEMO_MARKETS.l2GasFees.fullPayoutLabel,
+      "0.015 gwei or lower: pays 0 mUSDC",
+      "0.020 gwei: pays 0.5 mUSDC",
+      "0.030 gwei or higher: pays 1 mUSDC",
     ],
     trendingRank: 2,
   },

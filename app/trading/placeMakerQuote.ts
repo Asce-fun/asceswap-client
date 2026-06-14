@@ -3,7 +3,7 @@ import type { OrderbookClient } from "../orderbook/client";
 import type { BuildOrderInput } from "./buildOrder";
 import { placeLimitOrder, type TypedDataSigner } from "./placeLimitOrder";
 
-export function placePostOnlyQuote(input: Readonly<{
+export function placeMakerQuote(input: Readonly<{
   orderInput: BuildOrderInput;
   domain: AsceSwapTypedDataDomain;
   signer: TypedDataSigner;
@@ -12,8 +12,9 @@ export function placePostOnlyQuote(input: Readonly<{
   return placeLimitOrder({
     ...input,
     submitOptions: {
-      postOnly: true,
+      postOnly: false,
       restOnNoMatch: true,
+      reservationTtlSecs: 300,
     },
   });
 }
