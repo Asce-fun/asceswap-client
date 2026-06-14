@@ -6,6 +6,10 @@ export type TransactionRequest = Readonly<{
   to: Address;
   data: Hex;
   value?: Hex;
+  gas?: Hex;
+  maxFeePerGas?: Hex;
+  maxPriorityFeePerGas?: Hex;
+  gasPrice?: Hex;
 }>;
 
 export async function ethCall(provider: EthereumProvider, tx: Omit<TransactionRequest, "from">, from?: Address): Promise<Hex> {
@@ -25,9 +29,10 @@ export async function ethCall(provider: EthereumProvider, tx: Omit<TransactionRe
 }
 
 export async function sendTransaction(provider: EthereumProvider, tx: TransactionRequest): Promise<Hex> {
+  const txWithFees = await withFreshFeeCaps(provider, tx);
   const hash = await provider.request<string>({
     method: "eth_sendTransaction",
-    params: [tx],
+    params: [txWithFees],
   });
 
   if (!isHex(hash)) {
@@ -35,6 +40,54 @@ export async function sendTransaction(provider: EthereumProvider, tx: Transactio
   }
 
   return hash;
+}
+
+async function withFreshFeeCaps(provider: EthereumProvider, tx: TransactionRequest): Promise<TransactionRequest> {
+  if (tx.gasPrice || tx.maxFeePerGas || tx.maxPriorityFeePerGas) {
+    return tx;
+  }
+
+  try {
+    const latestBlock = await provider.request<{ baseFeePerGas?: string }>({
+      method: "eth_getBlockByNumber",
+      params: ["latest", false],
+    });
+    const baseFeePerGas = latestBlock.baseFeePerGas && isHex(latestBlock.baseFeePerGas)
+      ? BigInt(latestBlock.baseFeePerGas)
+      : null;
+
+    if (baseFeePerGas === null) {
+      return tx;
+    }
+
+    const priorityFeePerGas = await getPriorityFeePerGas(provider);
+
+    return {
+      ...tx,
+      maxPriorityFeePerGas: toHex(priorityFeePerGas),
+      maxFeePerGas: toHex(baseFeePerGas * 2n + priorityFeePerGas),
+    };
+  } catch {
+    return tx;
+  }
+}
+
+async function getPriorityFeePerGas(provider: EthereumProvider) {
+  const fallbackPriorityFeePerGas = 1_000_000n;
+
+  try {
+    const priorityFee = await provider.request<string>({
+      method: "eth_maxPriorityFeePerGas",
+    });
+
+    if (isHex(priorityFee)) {
+      return maxBigInt(BigInt(priorityFee), fallbackPriorityFeePerGas);
+    }
+  } catch {
+    return fallbackPriorityFeePerGas;
+  }
+
+  return fallbackPriorityFeePerGas;
 }
 
 export function encodeAddress(address: Address) {
@@ -59,4 +112,12 @@ export function decodeUint256(value: Hex) {
 
 export function decodeBool(value: Hex) {
   return BigInt(value) !== 0n;
+}
+
+function toHex(value: bigint): Hex {
+  return `0x${value.toString(16)}`;
+}
+
+function maxBigInt(left: bigint, right: bigint) {
+  return left > right ? left : right;
 }

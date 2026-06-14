@@ -10,6 +10,13 @@ import React, {
   useState,
 } from "react";
 
+import {
+  ARBITRUM_SEPOLIA_EXPLORER_URL,
+  ARBITRUM_SEPOLIA_NATIVE_CURRENCY,
+  ARBITRUM_SEPOLIA_RPC_URLS,
+  ASCESWAP_CHAIN_ID,
+  ASCESWAP_CHAIN_NAME,
+} from "../protocol/constants";
 import { type Address, type Hex, isAddress, isHex } from "../protocol/order";
 
 type WalletStatus = "checking" | "idle" | "connecting" | "connected" | "unavailable";
@@ -128,10 +135,31 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
 
     const chainIdHex = `0x${targetChainId.toString(16)}`;
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: chainIdHex }],
-    });
+    try {
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chainIdHex }],
+      });
+    } catch (switchError) {
+      if (targetChainId !== ASCESWAP_CHAIN_ID || getWalletErrorCode(switchError) !== 4902) {
+        throw switchError;
+      }
+
+      await provider.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: chainIdHex,
+          chainName: ASCESWAP_CHAIN_NAME,
+          nativeCurrency: ARBITRUM_SEPOLIA_NATIVE_CURRENCY,
+          rpcUrls: [...ARBITRUM_SEPOLIA_RPC_URLS],
+          blockExplorerUrls: [ARBITRUM_SEPOLIA_EXPLORER_URL],
+        }],
+      });
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chainIdHex }],
+      });
+    }
     setChainId(targetChainId);
   }, []);
 
@@ -248,4 +276,14 @@ function getWalletErrorMessage(error: unknown) {
   }
 
   return "Wallet request failed.";
+}
+
+function getWalletErrorCode(error: unknown) {
+  if (typeof error === "object" && error && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === "number") return code;
+    if (typeof code === "string") return Number.parseInt(code, 10);
+  }
+
+  return null;
 }

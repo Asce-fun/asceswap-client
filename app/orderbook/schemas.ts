@@ -1,8 +1,10 @@
 import {
+  type Address,
   type ApiOrder,
   type ClaimSide,
   type Hex,
   type Side,
+  isAddress,
   isBytes32,
   isHex,
 } from "../protocol/order";
@@ -11,7 +13,7 @@ export type SignatureValidationState = "unchecked" | "valid" | "invalid";
 
 export type SubmitOrderValidation = Readonly<{
   now: number;
-  expected_order_hash: Hex;
+  expected_order_hash?: Hex;
   filled_claim_amount: string;
   cancelled: boolean;
   maker_epoch: string;
@@ -62,6 +64,8 @@ export type DepthLevel = Readonly<{
   order_count?: number;
 }>;
 
+export type MarketRecord = Readonly<Record<string, unknown>>;
+
 export type MarketDepthResponse = Readonly<{
   market_id: Hex;
   claim: ClaimSide;
@@ -70,9 +74,32 @@ export type MarketDepthResponse = Readonly<{
   levels: readonly DepthLevel[];
 }>;
 
+export type MarketListResponse = Readonly<{
+  markets: readonly MarketRecord[];
+  sequence?: number;
+}>;
+
+export type OrderbookOrderStatus = "open" | "filled" | "cancelled" | "inactive" | "rejected" | "settled" | "unknown";
+
+export type OrderbookOrder = Readonly<{
+  order_hash?: Hex;
+  status: OrderbookOrderStatus;
+  order: ApiOrder;
+  filled_claim_amount?: string;
+  remaining_claim_amount?: string;
+  resting_claim_amount?: string;
+  reservation_id?: string;
+  sequence?: number;
+}>;
+
+export type OrderListResponse = Readonly<{
+  orders: readonly OrderbookOrder[];
+  sequence?: number;
+}>;
+
 export type OrderStatusResponse = Readonly<{
   order_hash: Hex;
-  status: "open" | "filled" | "cancelled" | "inactive" | "unknown";
+  status: OrderbookOrderStatus;
   order?: ApiOrder;
   filled_claim_amount?: string;
   remaining_claim_amount?: string;
@@ -91,16 +118,37 @@ export type SettlementPayload = Readonly<{
   maker_claim_fill_amounts?: readonly string[];
 }>;
 
+export type ReservationRecord = Readonly<{
+  reservation_id: string;
+  status?: string;
+  order_hash?: Hex;
+  market_id?: Hex;
+  tx_hash?: Hex;
+  sequence?: number;
+  payload?: unknown;
+}>;
+
+export type ReservationListResponse = Readonly<{
+  reservations: readonly ReservationRecord[];
+  sequence?: number;
+}>;
+
 export type ApiEvent = Readonly<{
   sequence: number;
+  kind: string;
+  /** Backward-compatible alias for older consumers that used `type`. */
   type: string;
   order_hash?: Hex;
   reservation_id?: string;
   market_id?: Hex;
+  tx_hash?: Hex;
   payload?: unknown;
 }>;
 
-export const ZERO_BYTES32 = `0x${"0".repeat(64)}` as Hex;
+export type EventListResponse = Readonly<{
+  events: readonly ApiEvent[];
+  sequence?: number;
+}>;
 
 export function buildSubmitOrderRequest(
   order: ApiOrder,
@@ -111,7 +159,7 @@ export function buildSubmitOrderRequest(
     order,
     validation: {
       now: Math.floor(Date.now() / 1000),
-      expected_order_hash: options.expectedOrderHash ?? ZERO_BYTES32,
+      ...(options.expectedOrderHash ? { expected_order_hash: options.expectedOrderHash } : {}),
       filled_claim_amount: options.filledClaimAmount ?? "0",
       cancelled: options.cancelled ?? false,
       maker_epoch: options.makerEpoch ?? order.epoch,
@@ -122,44 +170,45 @@ export function buildSubmitOrderRequest(
     signature_bytes: signature,
     post_only: options.postOnly ?? false,
     rest_on_no_match: options.restOnNoMatch ?? true,
-    reservation_ttl_secs: options.reservationTtlSecs ?? 10,
+    reservation_ttl_secs: options.reservationTtlSecs ?? 300,
   };
 }
 
 export function parseSubmitOrderResponse(value: unknown): SubmitOrderOutcome {
   const record = requireRecord(value, "submit order response");
-  const outcome = readOutcome(record);
-  const orderHash = readOptionalHex(record, "order_hash");
+  const outcomeRecord = getOptionalRecord(record, "outcome") ?? record;
+  const outcome = readOutcome(outcomeRecord);
+  const orderHash = readOptionalHex(record, "order_hash") ?? readOptionalHex(outcomeRecord, "order_hash");
 
   if (outcome === "rejected") {
-    return { outcome, reason: readOptionalString(record, "reason") ?? "Order rejected.", order_hash: orderHash };
+    return { outcome, reason: readOptionalString(outcomeRecord, "reason") ?? "Order rejected.", order_hash: orderHash };
   }
 
   if (outcome === "rested") {
-    const hash = orderHash ?? readHex(record, "hash");
+    const hash = orderHash ?? readHex(outcomeRecord, "hash");
     return {
       outcome,
       order_hash: hash,
-      resting_claim_amount: readOptionalString(record, "resting_claim_amount"),
+      resting_claim_amount: readOptionalString(outcomeRecord, "resting_claim_amount"),
     };
   }
 
   if (outcome === "post_only_would_cross") {
-    return { outcome, reason: readOptionalString(record, "reason"), order_hash: orderHash };
+    return { outcome, reason: readOptionalString(outcomeRecord, "reason"), order_hash: orderHash };
   }
 
   if (outcome === "inactive") {
-    return { outcome, reason: readOptionalString(record, "reason"), order_hash: orderHash };
+    return { outcome, reason: readOptionalString(outcomeRecord, "reason"), order_hash: orderHash };
   }
 
   return {
     outcome,
     order_hash: orderHash,
-    reservation_id: readString(record, "reservation_id"),
-    match_kind: readOptionalString(record, "match_kind"),
-    maker_count: readOptionalNumber(record, "maker_count") ?? 0,
-    taker_claim_fill_amount: readOptionalString(record, "taker_claim_fill_amount") ?? "0",
-    settlement: parseOptionalSettlement(record.settlement),
+    reservation_id: readString(outcomeRecord, "reservation_id"),
+    match_kind: readOptionalString(outcomeRecord, "match_kind"),
+    maker_count: readOptionalNumber(outcomeRecord, "maker_count") ?? 0,
+    taker_claim_fill_amount: readOptionalString(outcomeRecord, "taker_claim_fill_amount") ?? "0",
+    settlement: parseOptionalSettlement(outcomeRecord.settlement),
   };
 }
 
@@ -179,13 +228,41 @@ export function parseMarketDepthResponse(value: unknown): MarketDepthResponse {
   };
 }
 
-export function parseOrderStatusResponse(value: unknown): OrderStatusResponse {
-  const record = requireRecord(value, "order status response");
-  const status = readOptionalString(record, "status") ?? "unknown";
+export function parseMarketListResponse(value: unknown): MarketListResponse {
+  const record = Array.isArray(value) ? undefined : requireRecord(value, "market list response");
+  const marketsValue = readListPayload(value, "market list response", ["markets", "items", "data"]);
 
   return {
-    order_hash: readHex(record, "order_hash"),
+    markets: marketsValue.map((item) => requireRecord(item, "market record")),
+    sequence: record ? readOptionalNumber(record, "sequence") : undefined,
+  };
+}
+
+export function parseOrderListResponse(value: unknown): OrderListResponse {
+  const record = Array.isArray(value) ? undefined : requireRecord(value, "order list response");
+  const ordersValue = readListPayload(value, "order list response", ["orders", "items", "data"]);
+
+  return {
+    orders: ordersValue.map(parseOrderbookOrder),
+    sequence: record ? readOptionalNumber(record, "sequence") : undefined,
+  };
+}
+
+export function parseOrderStatusResponse(value: unknown): OrderStatusResponse {
+  const record = requireRecord(value, "order status response");
+  const status = readOptionalString(record, "state")
+    ?? readOptionalString(record, "status")
+    ?? "unknown";
+  const orderHash = readOptionalHex(record, "order_hash") ?? readOptionalHex(record, "hash");
+
+  if (!orderHash) {
+    throw new Error("Missing order hash in order status response.");
+  }
+
+  return {
+    order_hash: orderHash,
     status: isOrderStatus(status) ? status : "unknown",
+    order: record.order ? parseApiOrder(record.order) : undefined,
     filled_claim_amount: readOptionalString(record, "filled_claim_amount"),
     remaining_claim_amount: readOptionalString(record, "remaining_claim_amount"),
     reservation_id: readOptionalString(record, "reservation_id"),
@@ -198,21 +275,75 @@ export function parseSettlementPayload(value: unknown): SettlementPayload {
     to: readOptionalHex(record, "to"),
     data: readOptionalHex(record, "data"),
     value: readOptionalString(record, "value"),
+    taker_order: record.taker_order ? parseApiOrder(record.taker_order) : undefined,
+    taker_signature: readOptionalHex(record, "taker_signature"),
+    maker_orders: readOptionalOrderArray(record, "maker_orders"),
+    maker_signatures: readOptionalHexArray(record, "maker_signatures"),
     taker_claim_fill_amount: readOptionalString(record, "taker_claim_fill_amount"),
     maker_claim_fill_amounts: readOptionalStringArray(record, "maker_claim_fill_amounts"),
   };
 }
 
+export function parseReservationListResponse(value: unknown): ReservationListResponse {
+  const record = Array.isArray(value) ? undefined : requireRecord(value, "reservation list response");
+  const reservationsValue = readListPayload(value, "reservation list response", ["reservations", "items", "data"]);
+
+  return {
+    reservations: reservationsValue.map(parseReservationRecord),
+    sequence: record ? readOptionalNumber(record, "sequence") : undefined,
+  };
+}
+
+export function parseEventListResponse(value: unknown): EventListResponse {
+  const record = Array.isArray(value) ? undefined : requireRecord(value, "event list response");
+  const eventsValue = readListPayload(value, "event list response", ["events", "items", "data"]);
+
+  return {
+    events: eventsValue.map(parseApiEvent),
+    sequence: record ? readOptionalNumber(record, "sequence") : undefined,
+  };
+}
+
 export function parseApiEvent(value: unknown): ApiEvent {
   const record = requireRecord(value, "api event");
+  const kind = readOptionalString(record, "kind") ?? readOptionalString(record, "type") ?? "unknown";
 
   return {
     sequence: readOptionalNumber(record, "sequence") ?? 0,
-    type: readOptionalString(record, "type") ?? "unknown",
+    kind,
+    type: kind,
     order_hash: readOptionalHex(record, "order_hash"),
     reservation_id: readOptionalString(record, "reservation_id"),
     market_id: readOptionalHex(record, "market_id"),
+    tx_hash: readOptionalHex(record, "tx_hash"),
     payload: record.payload,
+  };
+}
+
+export function parseApiOrder(value: unknown): ApiOrder {
+  const record = requireRecord(value, "api order");
+  const maker = readString(record, "maker");
+  const marketId = readString(record, "market_id");
+
+  if (!isAddress(maker)) {
+    throw new Error("Invalid address field: maker");
+  }
+
+  if (!isBytes32(marketId)) {
+    throw new Error("Invalid bytes32 field: market_id");
+  }
+
+  return {
+    salt: readString(record, "salt"),
+    maker: maker as Address,
+    market_id: marketId as Hex,
+    claim: readClaim(record, "claim"),
+    maker_amount: readString(record, "maker_amount"),
+    taker_amount: readString(record, "taker_amount"),
+    side: readSide(record, "side"),
+    expiration: readString(record, "expiration"),
+    epoch: readString(record, "epoch"),
+    max_fee_rate_bps: readNumber(record, "max_fee_rate_bps"),
   };
 }
 
@@ -227,13 +358,51 @@ function parseDepthLevel(value: unknown): DepthLevel {
   };
 }
 
+function parseOrderbookOrder(value: unknown): OrderbookOrder {
+  const record = requireRecord(value, "order record");
+  const status = readOptionalString(record, "state")
+    ?? readOptionalString(record, "status")
+    ?? "unknown";
+
+  return {
+    order_hash: readOptionalHex(record, "order_hash") ?? readOptionalHex(record, "hash"),
+    status: isOrderStatus(status) ? status : "unknown",
+    order: parseApiOrder(record.order ?? record),
+    filled_claim_amount: readOptionalString(record, "filled_claim_amount"),
+    remaining_claim_amount: readOptionalString(record, "remaining_claim_amount"),
+    resting_claim_amount: readOptionalString(record, "resting_claim_amount"),
+    reservation_id: readOptionalString(record, "reservation_id"),
+    sequence: readOptionalNumber(record, "sequence"),
+  };
+}
+
+function parseReservationRecord(value: unknown): ReservationRecord {
+  const record = requireRecord(value, "reservation record");
+  const reservationId = readOptionalString(record, "reservation_id") ?? readOptionalString(record, "id");
+
+  if (!reservationId) {
+    throw new Error("Missing reservation id.");
+  }
+
+  return {
+    reservation_id: reservationId,
+    status: readOptionalString(record, "status"),
+    order_hash: readOptionalHex(record, "order_hash"),
+    market_id: readOptionalHex(record, "market_id"),
+    tx_hash: readOptionalHex(record, "tx_hash"),
+    sequence: readOptionalNumber(record, "sequence"),
+    payload: record.payload,
+  };
+}
+
 function parseOptionalSettlement(value: unknown) {
   if (value === undefined || value === null) return undefined;
   return parseSettlementPayload(value);
 }
 
 function readOutcome(record: Record<string, unknown>): SubmitOrderOutcome["outcome"] {
-  const rawOutcome = readOptionalString(record, "outcome")
+  const rawOutcome = readOptionalString(record, "type")
+    ?? readOptionalString(record, "outcome")
     ?? readOptionalString(record, "status")
     ?? readOptionalString(record, "result");
 
@@ -263,7 +432,25 @@ function readSide(record: Record<string, unknown>, key: string): Side {
 }
 
 function isOrderStatus(value: string): value is OrderStatusResponse["status"] {
-  return value === "open" || value === "filled" || value === "cancelled" || value === "inactive" || value === "unknown";
+  return value === "open"
+    || value === "filled"
+    || value === "cancelled"
+    || value === "inactive"
+    || value === "rejected"
+    || value === "settled"
+    || value === "unknown";
+}
+
+function readListPayload(value: unknown, label: string, keys: readonly string[]) {
+  if (Array.isArray(value)) return value;
+
+  const record = requireRecord(value, label);
+  for (const key of keys) {
+    const item = record[key];
+    if (Array.isArray(item)) return item;
+  }
+
+  throw new Error(`Missing list field in ${label}.`);
 }
 
 function requireRecord(value: unknown, label: string): Record<string, unknown> {
@@ -274,6 +461,12 @@ function requireRecord(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function getOptionalRecord(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
 function readString(record: Record<string, unknown>, key: string) {
   const value = record[key];
   if (typeof value !== "string" || !value) {
@@ -281,6 +474,13 @@ function readString(record: Record<string, unknown>, key: string) {
   }
 
   return value;
+}
+
+function readNumber(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
+  throw new Error(`Missing number field: ${key}`);
 }
 
 function readOptionalString(record: Record<string, unknown>, key: string) {
@@ -322,4 +522,18 @@ function readOptionalStringArray(record: Record<string, unknown>, key: string) {
   if (!Array.isArray(value)) return undefined;
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function readOptionalHexArray(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  if (!Array.isArray(value)) return undefined;
+
+  return value.filter((item): item is Hex => typeof item === "string" && isHex(item));
+}
+
+function readOptionalOrderArray(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  if (!Array.isArray(value)) return undefined;
+
+  return value.map(parseApiOrder);
 }

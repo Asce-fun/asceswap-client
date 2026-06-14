@@ -19,7 +19,9 @@ import {
   ExternalLink,
   FileSignature,
   Loader2,
+  RefreshCw,
   ShieldAlert,
+  X,
 } from "lucide-react";
 
 import { PageLayout } from "../components/PageLayout";
@@ -27,17 +29,19 @@ import { getErc1155Balance, getErc20Balance, getMakerEpoch, getPositionIds } fro
 import { ensureClaimApprovalForAll, ensureErc20Approval } from "../contracts/approvals";
 import { getTwaSamples } from "../contracts/events";
 import { createOrderbookClient } from "../orderbook/client";
-import type { SubmitOrderOutcome } from "../orderbook/schemas";
+import type { ApiEvent, OrderbookOrder, ReservationRecord, SubmitOrderOutcome } from "../orderbook/schemas";
 import {
   ASCESWAP_ADDRESSES,
   ASCESWAP_CHAIN_ID,
   ASCESWAP_CHAIN_NAME,
   MUSDC_DECIMALS,
   getExplorerAddressUrl,
+  getExplorerTxUrl,
 } from "../protocol/constants";
 import { resolveSigningConfig } from "../protocol/clientConfig";
 import { formatUnits } from "../protocol/amounts";
 import {
+  type Address,
   type ApiOrder,
   type Hex,
   type Outcome,
@@ -48,14 +52,22 @@ import {
 import { pendingRecordFromSubmission, upsertPendingOrder } from "../state/orderStore";
 import { buildBuyOrderFromCollateral, buildOrder } from "../trading/buildOrder";
 import { signOrder, submitSignedOrder } from "../trading/placeLimitOrder";
-import { formatAddress, useWallet } from "../wallet/WalletProvider";
+import { useWallet } from "../wallet/WalletProvider";
 import { dealSentence, formatContracts, formatUsd } from "./copy";
 import { categories, markets } from "./data";
 import type { CategoryId, Market, MetricFormat } from "./data";
+import { formatCountdown, formatMarketDate, getMarketTimeline } from "./timeline";
 
 const chartRanges = ["1H", "1D", "2D", "1W"] as const;
 type ChartRange = (typeof chartRanges)[number];
 const chartPointIntervalMinutes = 15;
+const activityFastPollMs = 2_000;
+const activitySlowPollMs = 12_000;
+const activityFastPollDurationMs = 30_000;
+const maxCachedActivityEvents = 24;
+const defaultOrderExpiryMinutes = 60;
+const defaultMaxFeeRateBps = 50;
+const submittedPopupAutoCloseMs = 3_000;
 const chartRangePointCounts: Record<ChartRange, number> = {
   "1H": 5,
   "1D": 97,
@@ -73,10 +85,6 @@ function formatValue(value: number, format: MetricFormat) {
   if (format === "million") return `$${value.toFixed(2)}M`;
   if (format === "gwei") return `${value < 1 ? value.toFixed(4) : value.toFixed(1)} gwei`;
   return `${value.toFixed(2)}%`;
-}
-
-function getOutcomeLabel(outcome: Outcome) {
-  return outcome === "yes" ? "PAYOFF" : "RESIDUAL";
 }
 
 function getChainMismatchMessage(chainId: number | null) {
@@ -105,6 +113,10 @@ function formatShortHex(value: Hex) {
   return `${value.slice(0, 10)}...${value.slice(-8)}`;
 }
 
+function formatCompactHex(value: Hex) {
+  return `${value.slice(0, 6)}...${value.slice(-4)}`;
+}
+
 function formatShortAddress(value: Hex) {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
@@ -113,33 +125,35 @@ function formatMusdc(value: bigint) {
   return `${formatUnits(value, MUSDC_DECIMALS, 2)} mUSDC`;
 }
 
-function formatCountdown(totalSeconds: number) {
-  const clampedSeconds = Math.max(Math.floor(totalSeconds), 0);
-  const days = Math.floor(clampedSeconds / 86_400);
-  const hours = Math.floor((clampedSeconds % 86_400) / 3_600);
-  const minutes = Math.floor((clampedSeconds % 3_600) / 60);
-  const seconds = clampedSeconds % 60;
-  const clock = [hours, minutes, seconds].map((value) => value.toString().padStart(2, "0")).join(":");
-
-  return days > 0 ? `${days}d ${clock}` : clock;
-}
-
-function useMarketCountdown(market: Market) {
-  const [remainingSeconds, setRemainingSeconds] = useState(market.minutesToExpiry * 60);
+function useMarketClock(market: Market) {
+  const [nowMs, setNowMs] = useState<number | null>(null);
 
   useEffect(() => {
-    const expiresAt = Date.now() + market.minutesToExpiry * 60_000;
-    const updateRemaining = () => {
-      setRemainingSeconds(Math.max(Math.ceil((expiresAt - Date.now()) / 1000), 0));
-    };
+    const updateClock = () => setNowMs(Date.now());
 
-    updateRemaining();
-    const interval = window.setInterval(updateRemaining, 1000);
+    updateClock();
+    const interval = window.setInterval(updateClock, 1000);
 
     return () => window.clearInterval(interval);
-  }, [market.id, market.minutesToExpiry]);
+  }, [market.id, market.startTimestamp, market.endTimestamp]);
 
-  return formatCountdown(remainingSeconds);
+  const timeline = nowMs === null ? null : getMarketTimeline(market, nowMs);
+  const phase = timeline?.phase ?? "live";
+  const targetTimestamp = timeline?.targetTimestamp ?? market.endTimestamp;
+  const countdownLabel = timeline ? formatCountdown(timeline.remainingSeconds) : "--:--:--";
+  const countdownSuffix = phase === "upcoming" ? "until open" : phase === "ended" ? "ended" : "left";
+  const heading = phase === "upcoming" ? "Opens" : phase === "ended" ? "Ended" : "Expires";
+
+  return {
+    phase,
+    status: timeline?.status ?? market.status,
+    heading,
+    countdownLabel,
+    countdownSuffix,
+    targetDateLabel: formatMarketDate(targetTimestamp),
+    startDateLabel: formatMarketDate(market.startTimestamp),
+    endDateLabel: formatMarketDate(market.endTimestamp),
+  };
 }
 
 function parseCompactUsd(value: string) {
@@ -219,7 +233,7 @@ function getStableSeed(value: string) {
 function getHistoricalMarketPoints(market: Market) {
   const totalPoints = chartRangePointCounts["1W"];
   const intervalSeconds = chartPointIntervalMinutes * 60;
-  const end = Date.UTC(2026, 5, 13, 10, 19, 38) / 1000;
+  const end = Math.min(Math.max(Math.floor(Date.now() / 1000), market.startTimestamp), market.endTimestamp);
   const seed = getStableSeed(market.id);
   const amplitude = getSeriesNoiseAmplitude(market);
   const anchors = market.points;
@@ -297,40 +311,6 @@ function getStatusStyle(status: Market["status"]) {
   return "border-[#b7decf] bg-[#e3f5ee] text-[#047857]";
 }
 
-function getSubmitOutcomeCopy(outcome: SubmitOrderOutcome | null) {
-  if (!outcome) return null;
-
-  if (outcome.outcome === "rested") {
-    return {
-      label: "Limit order resting",
-      detail: "Your signed limit order is resting on the orderbook.",
-      className: "border-[#b7decf] bg-[#e3f5ee] text-[#047857]",
-    };
-  }
-
-  if (outcome.outcome === "matched") {
-    return {
-      label: "Limit order matched",
-      detail: "Match is pending execution and indexer confirmation.",
-      className: "border-[#c9d8f4] bg-[#f3f7ff] text-[#315f9c]",
-    };
-  }
-
-  if (outcome.outcome === "post_only_would_cross") {
-    return {
-      label: "Would cross the book",
-      detail: outcome.reason ?? "Post-only limit orders must rest. Adjust the price or turn off post-only.",
-      className: "border-[#edcf94] bg-[#fff6df] text-[#8a5a12]",
-    };
-  }
-
-  return {
-    label: "Limit order not placed",
-    detail: outcome.reason ?? "The orderbook did not accept this order.",
-    className: "border-[#e4a4ae] bg-[#fff0f3] text-[#9f3448]",
-  };
-}
-
 interface TradingChartPoint {
   time: UTCTimestamp;
   label: string;
@@ -347,6 +327,15 @@ type LiveSamplesState = Readonly<{
   points: readonly MarketMetricPoint[];
   status: "idle" | "loading" | "live" | "fallback";
   message: string | null;
+}>;
+
+type MarketActivityState = Readonly<{
+  orders: readonly OrderbookOrder[];
+  events: readonly ApiEvent[];
+  reservations: readonly ReservationRecord[];
+  status: "idle" | "loading" | "live" | "error";
+  message: string | null;
+  updatedAt: number | null;
 }>;
 
 function useLiveTwaSamples(market: Market, chainId: number | null): LiveSamplesState {
@@ -420,12 +409,348 @@ function useLiveTwaSamples(market: Market, chainId: number | null): LiveSamplesS
   return state;
 }
 
+function useMarketActivity(
+  market: Market,
+  maker: Address | null,
+  refreshKey: number,
+  trackedOrderHash: Hex | null,
+  trackedReservationId: string | null,
+): MarketActivityState {
+  const [state, setState] = useState<MarketActivityState>({
+    orders: [],
+    events: [],
+    reservations: [],
+    status: "idle",
+    message: null,
+    updatedAt: null,
+  });
+  const fastPollUntilRef = useRef(0);
+  const loadActivityRef = useRef<((options: Readonly<{ showLoading: boolean; forceOrders: boolean }>) => void) | null>(null);
+  const trackedOrderHashRef = useRef<Hex | null>(trackedOrderHash);
+  const trackedReservationIdRef = useRef<string | null>(trackedReservationId);
+
+  useEffect(() => {
+    trackedOrderHashRef.current = trackedOrderHash;
+    trackedReservationIdRef.current = trackedReservationId;
+  }, [trackedOrderHash, trackedReservationId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: number | null = null;
+    let nextEventSequence = 0;
+    let cachedOrders: readonly OrderbookOrder[] = [];
+    let cachedEvents: readonly ApiEvent[] = [];
+    let cachedReservations: readonly ReservationRecord[] = [];
+    let loading = false;
+    const makerAddress = maker?.toLowerCase() ?? null;
+
+    if (!makerAddress || !maker) {
+      loadActivityRef.current = null;
+      setState({
+        orders: [],
+        events: [],
+        reservations: [],
+        status: "idle",
+        message: "Connect wallet to view account activity.",
+        updatedAt: null,
+      });
+      return () => {
+        cancelled = true;
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
+      };
+    }
+
+    const publishActivity = (message: string | null = null) => {
+      setState({
+        orders: cachedOrders.slice(0, 8),
+        events: cachedEvents,
+        reservations: cachedReservations,
+        status: "live",
+        message,
+        updatedAt: Date.now(),
+      });
+    };
+
+    const loadOrders = async (orderbookClient: ReturnType<typeof createOrderbookClient>) => {
+      const ordersResponse = await orderbookClient.getOrders({ maker });
+      cachedOrders = ordersResponse.orders
+        .filter((row) => row.order.market_id.toLowerCase() === market.id.toLowerCase())
+        .filter((row) => row.order.maker.toLowerCase() === makerAddress);
+    };
+
+    const loadReservations = async (orderbookClient: ReturnType<typeof createOrderbookClient>) => {
+      const orderHash = trackedOrderHashRef.current;
+      if (!orderHash) {
+        cachedReservations = [];
+        return;
+      }
+
+      const reservationsResponse = await orderbookClient.getReservations({ orderHash, limit: 10 });
+      const reservationId = trackedReservationIdRef.current;
+      cachedReservations = reservationsResponse.reservations.filter((reservation) => {
+        if (reservationId && reservation.reservation_id !== reservationId) return false;
+        return !reservation.order_hash || reservation.order_hash.toLowerCase() === orderHash.toLowerCase();
+      });
+    };
+
+    const loadEvents = async (orderbookClient: ReturnType<typeof createOrderbookClient>) => {
+      const eventsResponse = await orderbookClient.getEvents({ fromSequence: nextEventSequence, limit: 100 });
+      const highestSequence = getHighestActivitySequence(eventsResponse.events, eventsResponse.sequence);
+
+      if (highestSequence >= nextEventSequence) {
+        nextEventSequence = highestSequence + 1;
+      } else if (nextEventSequence === 0) {
+        nextEventSequence = 1;
+      }
+
+      const relevantEvents = filterAccountEvents(
+        eventsResponse.events,
+        market.id,
+        cachedOrders,
+        trackedOrderHashRef.current,
+        trackedReservationIdRef.current,
+      );
+      cachedEvents = mergeActivityEvents(cachedEvents, relevantEvents);
+
+      return relevantEvents.some(isExecutionConfirmedEvent);
+    };
+
+    const loadActivity = async (options: Readonly<{ showLoading: boolean; forceOrders: boolean }>) => {
+      if (loading) return;
+      loading = true;
+
+      if (options.showLoading) {
+        setState((current) => ({ ...current, status: "loading", message: "Loading account activity..." }));
+      }
+
+      try {
+        const orderbookClient = createOrderbookClient();
+        if (options.forceOrders || cachedOrders.length === 0) {
+          await loadOrders(orderbookClient);
+        }
+        await loadReservations(orderbookClient);
+
+        const shouldRefetchOrders = await loadEvents(orderbookClient);
+
+        if (shouldRefetchOrders) {
+          await loadOrders(orderbookClient);
+          await loadReservations(orderbookClient);
+        }
+
+        if (cancelled) return;
+
+        publishActivity();
+      } catch (error) {
+        if (cancelled) return;
+        setState((current) => ({
+          ...current,
+          status: "error",
+          message: error instanceof Error ? error.message : "Could not load orderbook activity.",
+          updatedAt: Date.now(),
+        }));
+      } finally {
+        loading = false;
+      }
+    };
+
+    const scheduleNextPoll = () => {
+      if (cancelled) return;
+
+      const delay = Date.now() < fastPollUntilRef.current ? activityFastPollMs : activitySlowPollMs;
+      timeoutId = window.setTimeout(() => {
+        void loadActivity({ showLoading: false, forceOrders: false }).finally(scheduleNextPoll);
+      }, delay);
+    };
+
+    loadActivityRef.current = (options) => {
+      void loadActivity(options);
+    };
+
+    void loadActivity({ showLoading: true, forceOrders: true }).finally(scheduleNextPoll);
+
+    return () => {
+      cancelled = true;
+      loadActivityRef.current = null;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [maker, market.id]);
+
+  useEffect(() => {
+    if (refreshKey <= 0) return;
+
+    fastPollUntilRef.current = Date.now() + activityFastPollDurationMs;
+    loadActivityRef.current?.({ showLoading: false, forceOrders: true });
+  }, [refreshKey]);
+
+  return state;
+}
+
+function filterAccountEvents(
+  events: readonly ApiEvent[],
+  marketId: Hex,
+  orders: readonly OrderbookOrder[],
+  trackedOrderHash: Hex | null,
+  trackedReservationId: string | null,
+) {
+  const orderHashes = new Set(
+    orders
+      .map((row) => row.order_hash?.toLowerCase())
+      .filter((orderHash): orderHash is string => Boolean(orderHash)),
+  );
+  if (trackedOrderHash) {
+    orderHashes.add(trackedOrderHash.toLowerCase());
+  }
+
+  const reservationIds = new Set(
+    orders
+      .map((row) => row.reservation_id)
+      .filter((reservationId): reservationId is string => Boolean(reservationId)),
+  );
+  if (trackedReservationId) {
+    reservationIds.add(trackedReservationId);
+  }
+
+  const marketEvents = events.filter((event) => !event.market_id || event.market_id.toLowerCase() === marketId.toLowerCase());
+
+  for (const event of marketEvents) {
+    if (event.order_hash && orderHashes.has(event.order_hash.toLowerCase()) && event.reservation_id) {
+      reservationIds.add(event.reservation_id);
+    }
+  }
+
+  return marketEvents.filter((event) => {
+    if (event.order_hash && orderHashes.has(event.order_hash.toLowerCase())) return true;
+    return Boolean(event.reservation_id && reservationIds.has(event.reservation_id));
+  });
+}
+
+function getHighestActivitySequence(events: readonly ApiEvent[], responseSequence?: number) {
+  return events.reduce((highest, event) => Math.max(highest, event.sequence), responseSequence ?? -1);
+}
+
+function mergeActivityEvents(existingEvents: readonly ApiEvent[], incomingEvents: readonly ApiEvent[]) {
+  const eventsByKey = new Map<string, ApiEvent>();
+
+  for (const event of [...existingEvents, ...incomingEvents]) {
+    eventsByKey.set(getActivityEventKey(event), event);
+  }
+
+  return [...eventsByKey.values()]
+    .sort((left, right) => left.sequence - right.sequence)
+    .slice(-maxCachedActivityEvents);
+}
+
+function getActivityEventKey(event: ApiEvent) {
+  return `${event.sequence}:${event.kind}:${event.order_hash ?? ""}:${event.reservation_id ?? ""}`;
+}
+
+function isExecutionConfirmedEvent(event: ApiEvent) {
+  const kind = normalizeEventKind(event.kind);
+  return kind === "reservation_committed" || kind === "order_filled";
+}
+
+function normalizeEventKind(kind: string) {
+  return kind.replace(/\./g, "_");
+}
+
+function isCommittedReservationStatus(status: string | undefined) {
+  const normalizedStatus = status?.replace(/\./g, "_");
+  return normalizedStatus === "reservation_committed"
+    || normalizedStatus === "committed"
+    || normalizedStatus === "filled"
+    || normalizedStatus === "order_filled";
+}
+
+function getActivityOrderTxHash(
+  row: OrderbookOrder,
+  events: readonly ApiEvent[],
+  reservations: readonly ReservationRecord[],
+) {
+  const orderHash = row.order_hash ?? null;
+  const reservationId = row.reservation_id ?? null;
+  const submittedEvent = [...events].reverse().find((event) => (
+    event.tx_hash && isOrderActivityMatch(event, orderHash, reservationId)
+  ));
+
+  if (submittedEvent?.tx_hash) return submittedEvent.tx_hash;
+
+  return reservations.find((reservation) => (
+    reservation.tx_hash && isOrderActivityMatch(reservation, orderHash, reservationId)
+  ))?.tx_hash;
+}
+
+function isOrderActivityExecuted(
+  row: OrderbookOrder,
+  events: readonly ApiEvent[],
+  reservations: readonly ReservationRecord[],
+) {
+  const orderHash = row.order_hash ?? null;
+  const reservationId = row.reservation_id ?? null;
+
+  return row.status === "filled"
+    || row.status === "settled"
+    || events.some((event) => isOrderActivityMatch(event, orderHash, reservationId) && isExecutionConfirmedEvent(event))
+    || reservations.some((reservation) => (
+      isOrderActivityMatch(reservation, orderHash, reservationId)
+      && isCommittedReservationStatus(reservation.status)
+    ));
+}
+
+function isOrderActivityMatch(
+  record: Readonly<{ order_hash?: Hex; reservation_id?: string }>,
+  orderHash: Hex | null,
+  reservationId: string | null,
+) {
+  if (orderHash && record.order_hash?.toLowerCase() === orderHash.toLowerCase()) return true;
+  return Boolean(reservationId && record.reservation_id === reservationId);
+}
+
+function getActivityStatusClassName(status: OrderbookOrder["status"], hasTxHash: boolean) {
+  if (hasTxHash || status === "filled" || status === "settled") return "text-[#315f9c]";
+  if (status === "rejected" || status === "cancelled" || status === "inactive") return "text-[#9f3448]";
+  if (status === "open") return "text-[#047857]";
+  return "text-[#5c6b64]";
+}
+
 function formatTwaSampleValue(market: Market, valueWad: bigint) {
   if (market.valueDisplay === "aprPercent") {
     return Number(valueWad) / 1e18 * 100;
   }
 
   return Number(valueWad) / 1e18;
+}
+
+function getOrderClaimAmount(order: ApiOrder) {
+  return BigInt(order.side === "buy" ? order.taker_amount : order.maker_amount);
+}
+
+function getOrderCollateralAmount(order: ApiOrder) {
+  return BigInt(order.side === "buy" ? order.maker_amount : order.taker_amount);
+}
+
+function formatOrderPrice(order: ApiOrder) {
+  const claimAmount = getOrderClaimAmount(order);
+  const collateralAmount = getOrderCollateralAmount(order);
+  if (claimAmount <= 0n) return "--";
+
+  const centsTimes100 = (collateralAmount * 10_000n) / claimAmount;
+  const whole = centsTimes100 / 100n;
+  const fraction = centsTimes100 % 100n;
+  return fraction === 0n ? `${whole}c` : `${whole}.${fraction.toString().padStart(2, "0")}c`;
+}
+
+function formatActivityTime(timestamp: number | null) {
+  if (!timestamp) return "never";
+
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(timestamp));
 }
 
 function TradingMetricChart({
@@ -666,6 +991,147 @@ function FeaturedChart({
   );
 }
 
+function MarketActivityPanel({
+  market,
+  activity,
+  onRefresh,
+}: {
+  market: Market;
+  activity: MarketActivityState;
+  onRefresh: () => void;
+}) {
+  const visibleOrders = activity.orders.slice(0, 5);
+  const hasOrders = visibleOrders.length > 0;
+  const isLoading = activity.status === "loading";
+
+  return (
+    <section className="mt-2 overflow-hidden rounded-md border border-[#cfe0d8] bg-white/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#cfe0d8] px-3 py-2">
+        <div>
+          <div className="text-sm font-semibold text-[#0c1a15]">Market activity</div>
+          <div className="mt-0.5 font-mono text-[11px] text-[#5c6b64]">Updated {formatActivityTime(activity.updatedAt)}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`rounded border px-2 py-1 font-mono text-[11px] ${
+            activity.status === "error"
+              ? "border-[#e4a4ae] bg-[#fff0f3] text-[#9f3448]"
+              : "border-[#b7decf] bg-[#e3f5ee] text-[#047857]"
+          }`}>
+            {activity.status === "error" ? "API error" : isLoading ? "Loading" : activity.status === "idle" ? "Wallet" : "Live"}
+          </span>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="flex h-7 w-7 items-center justify-center rounded border border-[#cfe0d8] bg-[#eef7f2] text-[#5c6b64] transition hover:border-[#9fcfba] hover:text-[#047857]"
+            aria-label="Refresh market activity"
+            title="Refresh market activity"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {activity.message ? (
+        <div className="border-b border-[#cfe0d8] bg-[#fff6df] px-3 py-1.5 text-xs text-[#8a5a12]">{activity.message}</div>
+      ) : null}
+
+      <div className="p-2.5">
+        <div className="min-w-0">
+          <div className="mb-1.5 flex items-center justify-between gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#5c6b64]">Your orders in this market</span>
+            <span className="font-mono text-[11px] text-[#5c6b64]">{activity.orders.length} rows</span>
+          </div>
+          <div className="grid grid-cols-[52px_58px_minmax(56px,1fr)_86px] gap-1.5 border-b border-[#cfe0d8] px-1.5 pb-1.5 font-semibold uppercase tracking-[0.08em] text-[#5c6b64] text-[10px]">
+            <span>Side</span>
+            <span className="text-right">Price</span>
+            <span className="text-right">Size</span>
+            <span className="text-right">Status</span>
+          </div>
+          <div className="max-h-[164px] overflow-auto pr-1">
+            {hasOrders ? visibleOrders.map((row, index) => {
+              const order = row.order;
+              const isBuy = order.side === "buy";
+              const txHash = getActivityOrderTxHash(row, activity.events, activity.reservations);
+              const isExecuted = isOrderActivityExecuted(row, activity.events, activity.reservations);
+              const statusLabel = txHash ? isExecuted ? "filled" : "tx sent" : row.status;
+              const statusClassName = getActivityStatusClassName(row.status, Boolean(txHash));
+              return (
+                <div
+                  key={`${row.order_hash ?? order.salt}-${index}`}
+                  className="grid min-h-8 grid-cols-[52px_58px_minmax(56px,1fr)_86px] items-center gap-1.5 border-b border-[#edf4f0] px-1.5 py-1 font-mono text-[11px] last:border-b-0"
+                >
+                  <span className={isBuy ? "font-semibold text-[#047857]" : "font-semibold text-[#9f3448]"}>{order.side.toUpperCase()}</span>
+                  <span className="text-right font-semibold text-[#0c1a15]">{formatOrderPrice(order)}</span>
+                  <span className="text-right text-[#41514a]">{formatUnits(getOrderClaimAmount(order), MUSDC_DECIMALS, 2)}</span>
+                  <span className="min-w-0 text-right">
+                    {txHash ? (
+                      <a
+                        href={getExplorerTxUrl(txHash)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex max-w-full items-center justify-end gap-1 text-[#315f9c] underline-offset-2 hover:underline"
+                        title={txHash}
+                      >
+                        <span className="truncate">{statusLabel}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className={`truncate ${statusClassName}`} title={row.order_hash ?? undefined}>{statusLabel}</span>
+                    )}
+                  </span>
+                </div>
+              );
+            }) : (
+              <div className="flex h-20 items-center justify-center rounded bg-[#f7fbf9] text-xs text-[#5c6b64]">
+                No account orders for {market.resolutionShort} yet.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OrderSubmittedPopup({
+  signature,
+  onDismiss,
+}: {
+  signature: Hex;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-1/2 z-50 flex -translate-y-1/2 justify-center px-4">
+      <div
+        className="pointer-events-auto w-full max-w-[520px] rounded-lg border border-[#b7decf] bg-white/96 p-5 shadow-[0_28px_80px_rgba(64,86,74,0.26)] backdrop-blur-xl"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-[#047857]" />
+            <div className="min-w-0">
+              <div className="truncate text-lg font-semibold text-[#0c1a15]">Your order has been submitted</div>
+              <div className="mt-2 truncate rounded border border-[#cfe0d8] bg-[#eef7f2] px-2 py-1 font-mono text-sm text-[#5c6b64]">
+                Signature {formatCompactHex(signature)}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-[#cfe0d8] bg-[#eef7f2] text-[#5c6b64] transition hover:border-[#9fcfba] hover:text-[#047857]"
+            aria-label="Dismiss submitted order notice"
+            title="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MiniChart({ market }: { market: Market }) {
   const width = 220;
   const height = 74;
@@ -712,7 +1178,7 @@ type TicketLimitOrder = Readonly<{
 
 function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitOrder?: TicketLimitOrder | null }) {
   const [activeTab, setActiveTab] = useState<"orderbook" | "settlement">("orderbook");
-  const countdownLabel = useMarketCountdown(market);
+  const marketClock = useMarketClock(market);
   const rows = getDepthRows(market, 8);
   const maxTotal = Math.max(...rows.flatMap((row) => [row.bidSize, row.askSize]));
   const noRows = rows
@@ -729,13 +1195,13 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
   }));
   const activeOrders = [
     ...(userLimitOrder ? [userLimitOrder] : []),
-    { side: "Buy PAYOFF", price: market.primaryPrice, size: "120", status: "Open" },
-    { side: "Buy RESIDUAL", price: market.secondaryPrice, size: "80", status: "Resting" },
+    { side: "Buy", price: market.primaryPrice, size: "120", status: "Open" },
+    { side: "Buy", price: market.secondaryPrice, size: "80", status: "Resting" },
   ];
   const settlementRows = [
     { label: "Adapter", detail: market.adapterLabel, status: "Live" },
     { label: "Settlement window", detail: market.settlementWindow, status: "Pending" },
-    { label: "Maturity check", detail: market.maturity, status: "Queued" },
+    { label: "Maturity check", detail: marketClock.endDateLabel, status: marketClock.phase === "ended" ? "Ready" : "Queued" },
     { label: "Payout", detail: market.payoffSummary, status: "Ready" },
   ];
 
@@ -770,16 +1236,16 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="border-b border-[#cfe0d8] px-3 py-2">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-sm font-semibold text-[#0c1a15]">PAYOFF / RESIDUAL book</div>
+              <div className="text-sm font-semibold text-[#0c1a15]">Orderbook</div>
               <span className="shrink-0 rounded border border-[#edcf94] bg-[#fff6df] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#8a5a12]">
-                PAYOFF {market.primaryPrice} - RESIDUAL {market.secondaryPrice}
+                {market.primaryPrice} / {market.secondaryPrice}
               </span>
             </div>
             <div className="mt-0.5 text-[11px] text-[#5c6b64]">Prices are cents per $1 payout</div>
           </div>
 
           <div className="grid grid-cols-[58px_64px_minmax(64px,1fr)] gap-2 px-3 py-2 font-semibold uppercase tracking-[0.08em] text-[#5c6b64]">
-            <span>Outcome</span>
+            <span>Level</span>
             <span className="text-right">Price</span>
             <span className="text-right">USDC</span>
           </div>
@@ -791,7 +1257,7 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
                   className="absolute inset-y-0 right-0 bg-[#b94a5a]/12"
                   style={{ width: `${Math.max((row.size / maxTotal) * 100, 8)}%` }}
                 />
-                <span className="relative text-xs font-semibold text-[#9f3448]">RESID</span>
+                <span className="relative text-xs font-semibold text-[#9f3448]">Ask</span>
                 <span className="relative text-right text-[#9f3448]">{row.price.toFixed(0)}c</span>
                 <span className="relative text-right text-[#41514a]">{row.total.toLocaleString("en-US")}</span>
               </div>
@@ -799,7 +1265,7 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
 
             <div className="my-2 flex items-center justify-between border-y border-[#cfe0d8] px-2 py-2">
               <span className="font-semibold text-[#5c6b64]">Best prices</span>
-              <span className="font-mono text-xs font-semibold text-[#0c1a15]">PAYOFF {market.primaryPrice} - RESIDUAL {market.secondaryPrice}</span>
+              <span className="font-mono text-xs font-semibold text-[#0c1a15]">{market.primaryPrice} / {market.secondaryPrice}</span>
             </div>
 
             {yesRows.map((row, index) => (
@@ -808,7 +1274,7 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
                   className="absolute inset-y-0 right-0 bg-[#059669]/12"
                   style={{ width: `${Math.max((row.size / maxTotal) * 100, 8)}%` }}
                 />
-                <span className="relative text-xs font-semibold text-[#047857]">PAYOFF</span>
+                <span className="relative text-xs font-semibold text-[#047857]">Bid</span>
                 <span className="relative text-right text-[#047857]">{row.price.toFixed(0)}c</span>
                 <span className="relative text-right text-[#41514a]">{row.total.toLocaleString("en-US")}</span>
               </div>
@@ -818,8 +1284,8 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
           <div className="border-t border-[#cfe0d8] p-3">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#5c6b64]">Open orders</div>
             <div className="space-y-1.5">
-              {activeOrders.map((order) => (
-                <div key={order.side} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded border border-[#cfe0d8] bg-white/70 px-2 py-1.5">
+              {activeOrders.map((order, index) => (
+                <div key={`${order.side}-${order.price}-${index}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded border border-[#cfe0d8] bg-white/70 px-2 py-1.5">
                   <span className="truncate font-semibold text-[#0c1a15]">{order.side}</span>
                   <span className="font-mono text-[#8a5a12]">{order.price}</span>
                   <span className="font-mono text-[#5c6b64]">{order.status}</span>
@@ -833,9 +1299,9 @@ function OrderFlowPanel({ market, userLimitOrder }: { market: Market; userLimitO
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-[#0c1a15]">How this settles</div>
-              <div className="mt-1 font-mono text-[11px] text-[#5c6b64]">{countdownLabel} left</div>
+              <div className="mt-1 font-mono text-[11px] text-[#5c6b64]">{marketClock.countdownLabel} {marketClock.countdownSuffix}</div>
             </div>
-            <span className="rounded border border-[#b7decf] bg-[#e3f5ee] px-2 py-1 font-mono text-[#047857]">Live</span>
+            <span className={`rounded border px-2 py-1 font-mono ${getStatusStyle(marketClock.status)}`}>{marketClock.status}</span>
           </div>
 
           <div className="space-y-2">
@@ -870,29 +1336,32 @@ function FeaturedMarket({ market }: { market: Market }) {
   const Icon = market.icon;
   const wallet = useWallet();
   const liveSamples = useLiveTwaSamples(market, wallet.chainId);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+  const [trackedActivityOrderHash, setTrackedActivityOrderHash] = useState<Hex | null>(null);
+  const [trackedActivityReservationId, setTrackedActivityReservationId] = useState<string | null>(null);
+  const marketActivity = useMarketActivity(
+    market,
+    wallet.account,
+    activityRefreshKey,
+    trackedActivityOrderHash,
+    trackedActivityReservationId,
+  );
   const [orderAmount, setOrderAmount] = useState("100");
   const [selectedOutcome, setSelectedOutcome] = useState<Outcome>("yes");
   const [selectedSide, setSelectedSide] = useState<Side>("buy");
   const [limitPriceCents, setLimitPriceCents] = useState(() => getCentsInputValue(market.primaryPrice));
-  const [expiryMinutes, setExpiryMinutes] = useState("60");
-  const [maxFeeRateBps, setMaxFeeRateBps] = useState("50");
-  const [postOnly, setPostOnly] = useState(true);
-  const [signingStatus, setSigningStatus] = useState<"idle" | "connecting" | "checking" | "approving" | "signing" | "submitting" | "signed" | "submitted" | "error">("idle");
+  const [signingStatus, setSigningStatus] = useState<"idle" | "connecting" | "checking" | "approving" | "signing" | "signed" | "submitted" | "error">("idle");
   const [signingError, setSigningError] = useState<string | null>(null);
   const [submitWarning, setSubmitWarning] = useState<string | null>(null);
   const [submitOutcome, setSubmitOutcome] = useState<SubmitOrderOutcome | null>(null);
   const [signedOrder, setSignedOrder] = useState<ApiOrder | null>(null);
   const [signature, setSignature] = useState<Hex | null>(null);
-  const [usedDemoConfig, setUsedDemoConfig] = useState(false);
+  const [submittedPopupDismissed, setSubmittedPopupDismissed] = useState(false);
   const marketPriceLabel = selectedOutcome === "yes" ? market.primaryPrice : market.secondaryPrice;
   const marketPrimaryEntryPrice = parseCentsPrice(market.primaryPrice);
   const marketSecondaryEntryPrice = parseCentsPrice(market.secondaryPrice);
   const limitPriceValue = Number(limitPriceCents);
   const isLimitPriceValid = Number.isFinite(limitPriceValue) && limitPriceValue > 0 && limitPriceValue <= 100;
-  const parsedExpiryMinutes = Number(expiryMinutes);
-  const isExpiryValid = Number.isFinite(parsedExpiryMinutes) && parsedExpiryMinutes > 0;
-  const parsedMaxFeeRateBps = Number(maxFeeRateBps);
-  const isMaxFeeValid = Number.isInteger(parsedMaxFeeRateBps) && parsedMaxFeeRateBps >= 0 && parsedMaxFeeRateBps <= 1_000;
   const ticketPriceLabel = isLimitPriceValid ? formatCentsPrice(limitPriceValue) : `${limitPriceCents || "0"}c`;
   const entryPrice = isLimitPriceValid ? limitPriceValue / 100 : 0;
   const orderValue = Math.max(Number(orderAmount) || 0, 0);
@@ -911,23 +1380,24 @@ function FeaturedMarket({ market }: { market: Market }) {
   });
   const primaryPayoutMultiple = selectedOutcome === "yes" && entryPrice > 0 ? 1 / entryPrice : 1 / marketPrimaryEntryPrice;
   const secondaryPayoutMultiple = selectedOutcome === "no" && entryPrice > 0 ? 1 / entryPrice : 1 / marketSecondaryEntryPrice;
-  const countdownLabel = useMarketCountdown(market);
+  const marketClock = useMarketClock(market);
   const chainMismatch = getChainMismatchMessage(wallet.chainId);
   const isSigning = signingStatus === "connecting"
     || signingStatus === "checking"
     || signingStatus === "approving"
-    || signingStatus === "signing"
-    || signingStatus === "submitting";
-  const ticketButtonLabel = !isLimitPriceValid ? "Enter limit price" : !isExpiryValid ? "Enter expiry" : !isMaxFeeValid ? "Enter max fee" : isSigning
+    || signingStatus === "signing";
+  const ticketButtonLabel = !isLimitPriceValid ? "Enter limit price" : isSigning
     ? signingStatus === "connecting" ? "Connecting wallet"
       : signingStatus === "checking" ? "Checking approvals"
         : signingStatus === "approving" ? "Open approval request"
-          : signingStatus === "submitting" ? "Submitting order"
-            : "Open wallet request"
+          : "Open wallet request"
     : signingStatus === "submitted" ? "Place again" : signingStatus === "signed" ? "Sign again" : wallet.account ? "Place limit order" : "Connect and place";
-  const submitOutcomeCopy = getSubmitOutcomeCopy(submitOutcome);
+  const showSubmittedPopup = Boolean(signature && signedOrder && !submittedPopupDismissed && (
+    signingStatus === "submitted"
+    || signingStatus === "signed"
+  ));
   const userLimitOrder = submitOutcome?.outcome === "rested" ? {
-    side: `${selectedSide === "buy" ? "Buy" : "Sell"} ${getOutcomeLabel(selectedOutcome)}`,
+    side: selectedSide === "buy" ? "Buy" : "Sell",
     price: ticketPriceLabel,
     status: "Resting",
   } : null;
@@ -942,14 +1412,32 @@ function FeaturedMarket({ market }: { market: Market }) {
     setSigningError(null);
     setSubmitWarning(null);
     setSubmitOutcome(null);
-    setUsedDemoConfig(false);
+    setTrackedActivityOrderHash(null);
+    setTrackedActivityReservationId(null);
+    setSubmittedPopupDismissed(false);
     setSigningStatus((currentStatus) => currentStatus === "signed" || currentStatus === "submitted" ? "idle" : currentStatus);
-  }, [market.id, ticketPriceLabel, orderAmount, selectedOutcome, selectedSide, postOnly, expiryMinutes, maxFeeRateBps]);
+  }, [market.id, ticketPriceLabel, orderAmount, selectedOutcome, selectedSide]);
+
+  useEffect(() => {
+    if (!signature || !signedOrder || submittedPopupDismissed) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setSubmittedPopupDismissed(true);
+    }, submittedPopupAutoCloseMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [signature, signedOrder, submittedPopupDismissed]);
 
   const handleSignPreview = async () => {
     try {
       setSigningError(null);
       setSubmitWarning(null);
+      setSubmitOutcome(null);
+      setSignedOrder(null);
+      setSignature(null);
+      setTrackedActivityOrderHash(null);
+      setTrackedActivityReservationId(null);
+      setSubmittedPopupDismissed(false);
       setSigningStatus(wallet.account && wallet.chainId ? "signing" : "connecting");
 
       const connection = wallet.account && wallet.chainId
@@ -970,18 +1458,10 @@ function FeaturedMarket({ market }: { market: Market }) {
         throw new Error("Limit price must be greater than 0c and at most 100c.");
       }
 
-      if (!isExpiryValid) {
-        throw new Error("Order expiry must be greater than zero minutes.");
-      }
-
-      if (!isMaxFeeValid) {
-        throw new Error("Max fee must be a whole number from 0 to 1000 bps.");
-      }
-
       setSigningStatus("checking");
       const inputAmount = parseDecimalToUnits(orderAmount, MUSDC_DECIMALS);
       const priceWad = parseCentsLabelToPriceWad(ticketPriceLabel);
-      const expiration = BigInt(Math.floor(Date.now() / 1000) + Math.floor(parsedExpiryMinutes * 60));
+      const expiration = BigInt(Math.floor(Date.now() / 1000) + defaultOrderExpiryMinutes * 60);
       const epoch = await getMakerEpoch(provider, connection.account, config.verifyingContract);
       const commonOrderInput = {
         maker: connection.account,
@@ -990,7 +1470,7 @@ function FeaturedMarket({ market }: { market: Market }) {
         priceWad,
         expiration,
         epoch,
-        maxFeeRateBps: parsedMaxFeeRateBps,
+        maxFeeRateBps: defaultMaxFeeRateBps,
       };
       const order = selectedSide === "buy"
         ? buildBuyOrderFromCollateral({
@@ -1038,7 +1518,7 @@ function FeaturedMarket({ market }: { market: Market }) {
         const balance = await getErc1155Balance(provider, ASCESWAP_ADDRESSES.ctf, connection.account, positionId);
 
         if (balance < requiredClaims) {
-          throw new Error(`Insufficient ${getOutcomeLabel(selectedOutcome)} claims. Need ${formatMusdc(requiredClaims)}, wallet has ${formatMusdc(balance)}.`);
+          throw new Error(`Insufficient contracts. Need ${formatMusdc(requiredClaims)}, wallet has ${formatMusdc(balance)}.`);
         }
 
         setSigningStatus("approving");
@@ -1057,21 +1537,28 @@ function FeaturedMarket({ market }: { market: Market }) {
       }
 
       setSigningStatus("signing");
+      if (order.maker.toLowerCase() !== connection.account.toLowerCase()) {
+        throw new Error("Order maker must match the signing wallet.");
+      }
       const nextSignature = await signOrder(order, wallet, domain);
       setSignedOrder(order);
       setSignature(nextSignature);
-      setUsedDemoConfig(config.isDemoConfig);
+      setSigningStatus("submitted");
       upsertPendingOrder(pendingRecordFromSubmission({ order, signature: nextSignature }));
 
       try {
         const orderbookClient = createOrderbookClient();
-        setSigningStatus("submitting");
+        setSubmittedPopupDismissed(false);
         const response = await submitSignedOrder(orderbookClient, order, nextSignature, {
-          postOnly,
+          postOnly: false,
           restOnNoMatch: true,
+          reservationTtlSecs: 300,
         });
         setSubmitOutcome(response);
         upsertPendingOrder(pendingRecordFromSubmission({ order, signature: nextSignature, response }));
+        setTrackedActivityOrderHash("order_hash" in response ? response.order_hash ?? null : null);
+        setTrackedActivityReservationId(response.outcome === "matched" ? response.reservation_id : null);
+        setActivityRefreshKey((current) => current + 1);
         if (response.outcome === "rested" || response.outcome === "matched") {
           setSigningStatus("submitted");
         } else {
@@ -1088,15 +1575,22 @@ function FeaturedMarket({ market }: { market: Market }) {
   };
 
   return (
-    <article className="glass-panel overflow-hidden rounded-lg">
+    <>
+      {showSubmittedPopup && signature ? (
+        <OrderSubmittedPopup
+          signature={signature}
+          onDismiss={() => setSubmittedPopupDismissed(true)}
+        />
+      ) : null}
+      <article className="glass-panel overflow-hidden rounded-lg">
       <div className="grid xl:grid-cols-[minmax(0,1fr)_286px_280px] 2xl:grid-cols-[minmax(0,1fr)_318px_292px]">
         <div className="min-w-0 p-3 sm:p-4">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#cfe0d8] pb-3">
             <div className="min-w-0 flex-1">
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${getStatusStyle(market.status)}`}>
+                <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${getStatusStyle(marketClock.status)}`}>
                   <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                  {market.status}
+                  {marketClock.status}
                 </span>
                 <span className="glass-control rounded-md px-2 py-0.5 text-[11px] font-semibold text-[#5c6b64]">
                   {market.categoryLabel}
@@ -1147,12 +1641,12 @@ function FeaturedMarket({ market }: { market: Market }) {
 
             <div className="min-w-[210px] rounded-md border border-[#edcf94] bg-[#fff6df] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:min-w-[248px]">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7a673d]">Expires</span>
-                <span className="font-mono text-xs font-semibold text-[#8a5a12]">{market.maturity}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7a673d]">{marketClock.heading}</span>
+                <span className="font-mono text-xs font-semibold text-[#8a5a12]">{marketClock.targetDateLabel}</span>
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="font-mono text-2xl font-semibold leading-none text-[#8a5a12]">{countdownLabel}</span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7a673d]">left</span>
+                <span className="font-mono text-2xl font-semibold leading-none text-[#8a5a12]">{marketClock.countdownLabel}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7a673d]">{marketClock.countdownSuffix}</span>
               </div>
             </div>
           </div>
@@ -1170,6 +1664,11 @@ function FeaturedMarket({ market }: { market: Market }) {
               Charting by TradingView
             </a>
           </div>
+          <MarketActivityPanel
+            market={market}
+            activity={marketActivity}
+            onRefresh={() => setActivityRefreshKey((current) => current + 1)}
+          />
         </div>
 
         <OrderFlowPanel market={market} userLimitOrder={userLimitOrder} />
@@ -1178,7 +1677,7 @@ function FeaturedMarket({ market }: { market: Market }) {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-[#0c1a15]">Trade ticket</div>
-              <div className="mt-0.5 text-[11px] text-[#5c6b64]">{market.payoutLabel}</div>
+              <div className="mt-0.5 text-[11px] text-[#5c6b64]">{market.sourceNote}</div>
             </div>
           </div>
 
@@ -1286,30 +1785,12 @@ function FeaturedMarket({ market }: { market: Market }) {
               </div>
             </div>
 
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-[#cfe0d8] bg-white/70 p-2">
-              <span>
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#5c6b64]">
-                  Post only
-                </span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-[#41514a]">
-                  Rest on the book. Do not take existing orders.
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                checked={postOnly}
-                onChange={(event) => setPostOnly(event.target.checked)}
-                className="h-4 w-4 accent-[#059669]"
-                aria-label="Post only limit order"
-              />
-            </label>
-
             <div className="glass-control rounded-md p-2">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#5c6b64]">
                   {selectedSide === "buy" ? "Order value" : "Contracts to sell"}
                 </span>
-                <span className="text-xs text-[#5c6b64]">{selectedSide === "buy" ? "mUSDC" : getOutcomeLabel(selectedOutcome)}</span>
+                <span className="text-xs text-[#5c6b64]">{selectedSide === "buy" ? "mUSDC" : "contracts"}</span>
               </div>
               <label className="flex items-center gap-2">
                 {selectedSide === "buy" ? (
@@ -1322,38 +1803,6 @@ function FeaturedMarket({ market }: { market: Market }) {
                   onChange={(event) => setOrderAmount(event.target.value)}
                   className="h-8 min-w-0 flex-1 bg-transparent font-mono text-lg font-semibold text-[#0c1a15] outline-none"
                   aria-label={selectedSide === "buy" ? "Order value in USDC" : "Contracts to sell"}
-                />
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <label className="glass-control rounded-md p-2">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#5c6b64]">Expiry</span>
-                <select
-                  value={expiryMinutes}
-                  onChange={(event) => setExpiryMinutes(event.target.value)}
-                  className="mt-1 h-8 w-full bg-transparent font-mono text-sm font-semibold text-[#0c1a15] outline-none"
-                  aria-label="Order expiry"
-                >
-                  <option value="15">15 min</option>
-                  <option value="60">1 hour</option>
-                  <option value="240">4 hours</option>
-                  <option value="1440">1 day</option>
-                </select>
-              </label>
-
-              <label className="glass-control rounded-md p-2">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#5c6b64]">Max fee bps</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="1"
-                  value={maxFeeRateBps}
-                  onChange={(event) => setMaxFeeRateBps(event.target.value)}
-                  className="mt-1 h-8 w-full bg-transparent font-mono text-sm font-semibold text-[#0c1a15] outline-none"
-                  aria-label="Max fee rate in basis points"
-                  aria-invalid={!isMaxFeeValid}
                 />
               </label>
             </div>
@@ -1407,7 +1856,7 @@ function FeaturedMarket({ market }: { market: Market }) {
           <button
             type="button"
             onClick={handleSignPreview}
-            disabled={isSigning || wallet.status === "unavailable" || !isLimitPriceValid || !isExpiryValid || !isMaxFeeValid}
+            disabled={isSigning || wallet.status === "unavailable" || !isLimitPriceValid}
             className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#059669] text-sm font-bold text-white transition hover:bg-[#047857] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
@@ -1435,69 +1884,10 @@ function FeaturedMarket({ market }: { market: Market }) {
             </div>
           ) : null}
 
-          {signature && signedOrder ? (
-            <div className="mt-2 rounded-md border border-[#b7decf] bg-[#e3f5ee] p-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-[#047857]">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {submitOutcomeCopy?.label ?? "Signed only, not submitted"}
-              </div>
-              <div className="mt-2 grid gap-1 font-mono text-[11px] text-[#5c6b64]">
-                <div className="flex justify-between gap-3">
-                  <span>Maker</span>
-                  <span className="text-[#0c1a15]">{formatAddress(signedOrder.maker)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span>Order</span>
-                  <span className="text-[#0c1a15]">{signedOrder.claim.toUpperCase()} {signedOrder.side.toUpperCase()}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span>Epoch</span>
-                  <span className="text-[#0c1a15]">{signedOrder.epoch}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span>Maker amount</span>
-                  <span className="text-[#0c1a15]">{formatMusdc(BigInt(signedOrder.maker_amount))}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span>Taker amount</span>
-                  <span className="text-[#0c1a15]">{formatMusdc(BigInt(signedOrder.taker_amount))}</span>
-                </div>
-                {submitOutcome && "order_hash" in submitOutcome && submitOutcome.order_hash ? (
-                  <div className="flex justify-between gap-3">
-                    <span>Hash</span>
-                    <span className="text-[#0c1a15]">{formatShortHex(submitOutcome.order_hash)}</span>
-                  </div>
-                ) : null}
-                {submitOutcome?.outcome === "matched" ? (
-                  <div className="flex justify-between gap-3">
-                    <span>Reservation</span>
-                    <span className="text-[#0c1a15]">{submitOutcome.reservation_id}</span>
-                  </div>
-                ) : null}
-                <div className="flex justify-between gap-3">
-                  <span>Salt</span>
-                  <span className="text-[#0c1a15]">{signedOrder.salt.slice(0, 8)}...{signedOrder.salt.slice(-6)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span>Signature</span>
-                  <span className="text-[#0c1a15]">{formatShortHex(signature)}</span>
-                </div>
-              </div>
-              {submitOutcomeCopy ? (
-                <div className={`mt-2 rounded border px-2 py-1 text-[11px] ${submitOutcomeCopy.className}`}>
-                  {submitOutcomeCopy.detail}
-                </div>
-              ) : null}
-              {usedDemoConfig ? (
-                <div className="mt-2 rounded border border-[#edcf94] bg-[#fff6df] px-2 py-1 text-[11px] text-[#8a5a12]">
-                  Demo domain: set NEXT_PUBLIC_ASCESWAP_CHAIN_ID and NEXT_PUBLIC_ASCESWAP_EXCHANGE_ADDRESS before production signing.
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </aside>
       </div>
-    </article>
+      </article>
+    </>
   );
 }
 
@@ -1514,7 +1904,8 @@ function MarketCard({
   const isPositive = market.change >= 0;
   const tone = getMarketTone(market);
   const payoutMultiple = 1 / parseCentsPrice(market.primaryPrice);
-  const countdownLabel = useMarketCountdown(market);
+  const marketClock = useMarketClock(market);
+  const clockCardLabel = marketClock.phase === "upcoming" ? "Starts" : marketClock.phase === "ended" ? "Ended" : "Ends";
 
   return (
     <article
@@ -1589,7 +1980,7 @@ function MarketCard({
           onClick={onSelect}
           className="h-11 rounded-md border border-[#b7decf] bg-[#e3f5ee] px-3 text-left transition hover:border-[#059669]"
         >
-          <span className="block text-[11px] font-semibold text-[#047857]">{market.primaryAction}</span>
+          <span className="block text-[11px] font-semibold text-[#047857]">Buy</span>
           <span className="font-mono text-base font-semibold text-[#0c1a15]">{market.primaryPrice}</span>
         </button>
         <button
@@ -1597,15 +1988,15 @@ function MarketCard({
           onClick={onSelect}
           className="h-11 rounded-md border border-[#e4a4ae] bg-[#fff0f3] px-3 text-left transition hover:border-[#b94a5a]"
         >
-          <span className="block text-[11px] font-semibold text-[#9f3448]">{market.secondaryAction}</span>
+          <span className="block text-[11px] font-semibold text-[#9f3448]">Buy</span>
           <span className="font-mono text-base font-semibold text-[#0c1a15]">{market.secondaryPrice}</span>
         </button>
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
         <div>
-          <div className="text-[#5c6b64]">Ends</div>
-          <div className="mt-1 font-mono font-semibold text-[#8a5a12]">{countdownLabel}</div>
+          <div className="text-[#5c6b64]">{clockCardLabel}</div>
+          <div className="mt-1 font-mono font-semibold text-[#8a5a12]">{marketClock.countdownLabel}</div>
         </div>
         <div>
           <div className="text-[#5c6b64]">Volume</div>

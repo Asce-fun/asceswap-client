@@ -4,6 +4,15 @@ export const ASCESWAP_CHAIN_ID = 421614;
 export const ASCESWAP_CHAIN_NAME = "Arbitrum Sepolia";
 export const ARBITRUM_SEPOLIA_CHAIN_ID_HEX = "0x66eee";
 export const ARBITRUM_SEPOLIA_EXPLORER_URL = "https://sepolia.arbiscan.io";
+export const ARBITRUM_SEPOLIA_RPC_URLS = [
+  "https://sepolia-rollup.arbitrum.io/rpc",
+  "https://arbitrum-sepolia-rpc.publicnode.com",
+] as const;
+export const ARBITRUM_SEPOLIA_NATIVE_CURRENCY = {
+  name: "Ether",
+  symbol: "ETH",
+  decimals: 18,
+} as const;
 
 export const ASCESWAP_ADDRESSES = {
   exchange: "0x346457c948EaA86Afa9392B9E790bE2E42c6ebD6" as Address,

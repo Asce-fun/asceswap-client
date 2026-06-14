@@ -23,6 +23,7 @@ const compile = spawnSync("./node_modules/.bin/tsc", [
   "app/protocol/order.ts",
   "app/protocol/eip712.ts",
   "app/protocol/constants.ts",
+  "app/protocol/clientConfig.ts",
   "app/trading/buildOrder.ts",
 ], {
   cwd: process.cwd(),
@@ -36,6 +37,7 @@ if (compile.status !== 0) {
 const orderModule = await import(pathToFileURL(`${outDir}/protocol/order.js`));
 const eip712Module = await import(pathToFileURL(`${outDir}/protocol/eip712.js`));
 const constantsModule = await import(pathToFileURL(`${outDir}/protocol/constants.js`));
+const clientConfigModule = await import(pathToFileURL(`${outDir}/protocol/clientConfig.js`));
 const buildOrderModule = await import(pathToFileURL(`${outDir}/trading/buildOrder.js`));
 
 const {
@@ -48,6 +50,7 @@ const {
 const { buildOrderTypedData } = eip712Module;
 const { buildSignedOrderPayload } = eip712Module;
 const { ASCESWAP_ADDRESSES, ASCESWAP_CHAIN_ID, ASCESWAP_DEMO_MARKETS, MUSDC_DECIMALS } = constantsModule;
+const { resolveSigningConfig } = clientConfigModule;
 const { buildBuyOrderFromCollateral, buildOrder } = buildOrderModule;
 
 const maker = "0x1111111111111111111111111111111111111111";
@@ -116,6 +119,12 @@ test("builds EIP-712 typed data with contract casing only", () => {
   assert.equal(typedData.message.makerAmount, order.maker_amount);
   assert.equal(typedData.message.takerAmount, order.taker_amount);
   assert.equal(typedData.message.maxFeeRateBps, 25);
+  assert.deepEqual(typedData.types.EIP712Domain, [
+    { name: "name", type: "string" },
+    { name: "version", type: "string" },
+    { name: "chainId", type: "uint256" },
+    { name: "verifyingContract", type: "address" },
+  ]);
   assert.equal("market_id" in typedData.message, false);
   assert.equal("maker_amount" in typedData.message, false);
   assert.equal("max_fee_rate_bps" in typedData.message, false);
@@ -169,4 +178,12 @@ test("builds signed payload with decimal strings and guide domain", () => {
   assert.equal(payload.order.claim, 1);
   assert.equal(payload.order.side, 1);
   assert.equal(payload.signature, "0xabc");
+});
+
+test("resolves fixed Arbitrum Sepolia signing domain", () => {
+  const config = resolveSigningConfig(ASCESWAP_CHAIN_ID);
+
+  assert.equal(config.chainId, 421614);
+  assert.equal(config.verifyingContract, ASCESWAP_ADDRESSES.exchange);
+  assert.equal(config.isDemoConfig, false);
 });
