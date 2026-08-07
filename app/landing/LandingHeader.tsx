@@ -51,7 +51,7 @@ export function LandingHeader() {
             HOW IT SETTLES
           </a>
           <a
-            href="#waitlist"
+            href="#early-access"
             className="rounded-lg bg-[#0c1a15] px-4 py-2 font-mono text-[11px] font-semibold tracking-[0.14em] text-[#fbfdfc] transition hover:bg-[#1c2a25]"
           >
             EARLY ACCESS

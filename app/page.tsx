@@ -12,7 +12,7 @@ import { GuaranteeAct } from "./landing/GuaranteeAct";
 import { HeroAct } from "./landing/HeroAct";
 import { LandingHeader } from "./landing/LandingHeader";
 import { SettlementAct } from "./landing/SettlementAct";
-import { WaitlistAct } from "./landing/WaitlistAct";
+import { EarlyAccessAct } from "./landing/EarlyAccessAct";
 import { useScrollTheme } from "./landing/useScrollTheme";
 
 export default function Landing() {
@@ -34,7 +34,7 @@ export default function Landing() {
         <CapAct />
         <SettlementAct />
         <GuaranteeAct />
-        <WaitlistAct />
+        <EarlyAccessAct />
         <CloseAct />
       </main>
     </motion.div>

@@ -107,7 +107,7 @@ export function SettlementReceipt() {
           {/* Revealed on hover / keyboard focus — the receipt doubles as a CTA. */}
           <div className="mt-5 max-h-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover:mt-5 group-hover:max-h-24 group-hover:opacity-100 group-focus-within:mt-5 group-focus-within:max-h-24 group-focus-within:opacity-100">
             <a
-              href="#waitlist"
+              href="#early-access"
               className="flex items-center justify-center rounded-sm bg-[#059669] px-5 py-3 font-mono text-[11px] font-semibold tracking-[0.18em] text-white transition hover:bg-[#047857]"
             >
               COVER YOUR RATE →

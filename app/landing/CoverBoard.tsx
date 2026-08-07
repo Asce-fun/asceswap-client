@@ -71,7 +71,7 @@ export function CoverBoard() {
         {rows.map((row) => (
           <li key={row.name}>
             <a
-              href="#waitlist"
+              href="#early-access"
               className="group/row relative flex items-center gap-3 border-b border-[#eaf2ee] py-3 pl-4 pr-3 transition-colors last:border-b-0 hover:bg-[#f4faf7] focus-visible:bg-[#f4faf7] focus-visible:outline-none sm:gap-4"
             >
               <span

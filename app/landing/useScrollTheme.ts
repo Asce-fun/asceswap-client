@@ -6,7 +6,7 @@ import { useScroll, useTransform, type MotionValue } from "motion/react";
 // Scroll progress stops aligned with the five acts. The explanatory middle
 // stays in daylight; only the closing act goes dark, so the CTA carries weight
 // without the settlement and trust copy being read against near-black.
-// hero → exposure → cap → settlement → trust → waitlist (dusk) → close (dark).
+// hero → exposure → cap → settlement → guarantee → early access (dusk) → close (dark).
 const STOPS = [0, 0.15, 0.3, 0.45, 0.6, 0.72, 0.86, 1];
 const COLORS = [
   "#fbfdfc",
