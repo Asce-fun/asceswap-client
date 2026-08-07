@@ -16,6 +16,19 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
+/**
+ * Trims and lowercases an address, returning null when it is not usable.
+ *
+ * Callers must normalize before validating: the pattern rejects surrounding
+ * whitespace, so a pasted address with a trailing space would otherwise be
+ * turned away as invalid.
+ */
+export function normalizeEmail(email: unknown): string | null {
+  if (typeof email !== "string") return null;
+  const normalized = email.trim().toLowerCase();
+  return isValidEmail(normalized) ? normalized : null;
+}
+
 /** Trims and length-caps the free-text exposure. Empty input becomes undefined. */
 export function normalizeExposure(exposure: unknown): string | undefined {
   if (typeof exposure !== "string") return undefined;

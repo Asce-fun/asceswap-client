@@ -46,6 +46,19 @@ test("accepts well-formed addresses and rejects the rest", () => {
   }
 });
 
+test("normalizes an address the way the route must before validating", () => {
+  // The pattern rejects surrounding whitespace, so a pasted address with a
+  // trailing space was turned away as invalid before it reached the store.
+  assert.equal(store.normalizeEmail("  DESK@Fund.XYZ  "), "desk@fund.xyz");
+  assert.equal(store.normalizeEmail("Treasury@Vault.io"), "treasury@vault.io");
+});
+
+test("rejects addresses that are not usable", () => {
+  for (const invalid of ["", "   ", "nope", "no@domain", "a b@x.com", undefined, null, 42]) {
+    assert.equal(store.normalizeEmail(invalid), null, `${String(invalid)} should be rejected`);
+  }
+});
+
 test("saves an address once and reports repeats", async () => {
   assert.equal(await store.saveEmail("desk@fund.xyz"), "added");
   assert.equal(await store.saveEmail("desk@fund.xyz"), "exists");
