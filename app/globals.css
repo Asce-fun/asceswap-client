@@ -196,6 +196,17 @@ body {
   }
 }
 
+/* Punched-hole top edge for the settlement receipt — semicircles of page
+   background bitten out of the card's top edge. */
+.receipt-perf {
+  height: 8px;
+  background-image: radial-gradient(circle at 7px 0, var(--terminal-bg-soft) 4px, transparent 4.6px);
+  background-size: 14px 8px;
+  background-repeat: repeat-x;
+  border-left: 1px solid #cfe0d8;
+  border-right: 1px solid #cfe0d8;
+}
+
 .logo-a {
   cursor: pointer;
   transform-origin: 75% center;
