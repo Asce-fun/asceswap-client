@@ -3,15 +3,17 @@
 import type { RefObject } from "react";
 import { useScroll, useTransform, type MotionValue } from "motion/react";
 
-// Scroll progress stops aligned with the seven acts:
-// hero → problem → draw-the-line → how-it-works → trust → markets (dusk) → launch (dark).
-const STOPS = [0, 0.14, 0.3, 0.46, 0.6, 0.72, 0.84, 1];
+// Scroll progress stops aligned with the five acts. The explanatory middle
+// stays in daylight; only the closing act goes dark, so the CTA carries weight
+// without the settlement and trust copy being read against near-black.
+// hero → exposure → cap → settlement → guarantee → early access (dusk) → close (dark).
+const STOPS = [0, 0.15, 0.3, 0.45, 0.6, 0.72, 0.86, 1];
 const COLORS = [
   "#fbfdfc",
+  "#f7fcfa",
   "#f4faf7",
   "#eef7f2",
   "#e6f2ec",
-  "#d8e9e0",
   "#1c2a25",
   "#0b1512",
   "#030506",

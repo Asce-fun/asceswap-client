@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:protocol": "node --test tests/protocol.test.mjs",
-    "test:landing": "node --test tests/drawTheLine.test.mjs",
+    "test:landing": "node --test tests/hedgeMath.test.mjs",
     "test:markets": "node --test tests/marketsCopy.test.mjs"
   },
   "dependencies": {

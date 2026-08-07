@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# local waitlist storage (dev fallback when WAITLIST_SHEET_URL is unset)
+/data
+
 # debug
 npm-debug.log*
 yarn-debug.log*

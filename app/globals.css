@@ -3,114 +3,23 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  --font-mono: var(--font-plex-mono), "SFMono-Regular", Consolas, Menlo, monospace;
 
-  /* Background Layers */
-  --bg-base: #030506;
-  --bg-card: #070d0d;
-  --bg-elevated: #0a1211;
-  --bg-surface: #0d1715;
-
-  /* Borders */
-  --border-default: #1b2d28;
-  --border-hover: #2b4c41;
-  --border-active: rgba(46, 229, 157, 0.4);
-
-  /* Text Hierarchy */
-  --text-primary: #f2f5f3;
-  --text-secondary: #8a96a3;
-  --text-muted: #66756f;
-  --text-dim: #3f504a;
-
-  /* Mint Accent */
-  --mint: #2ee59d;
-  --mint-light: #6fdcb4;
-  --mint-dark: #059669;
-  --mint-deep: #064e3b;
-  --mint-glow: rgba(46, 229, 157, 0.08);
-  --mint-text: rgba(46, 229, 157, 0.78);
-
-  /* Semantic */
-  --positive: #2ee59d;
-  --positive-bg: rgba(46, 229, 157, 0.12);
-  --negative: #ff5c7a;
-  --negative-bg: rgba(255, 92, 122, 0.12);
-  --neutral: #6ea8ff;
-  --neutral-bg: rgba(110, 168, 255, 0.1);
-
-  /* Grid */
-  --grid-color: rgba(76, 141, 255, 0.05);
-
-  /* Shadcn tokens — light (kept for future light mode) */
+  /* Only the tokens the base layer actually applies. */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
   --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-  --grid-color: rgba(76, 141, 255, 0.05);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0.00 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 }
 
 body {
@@ -145,37 +54,13 @@ body {
 
 
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-plex-mono), "SFMono-Regular", Consolas, Menlo, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
-  --color-input: var(--input);
   --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
   --radius-sm: calc(var(--radius) - 4px);
@@ -196,6 +81,17 @@ body {
   }
 }
 
+/* Punched-hole top edge for the settlement receipt — semicircles of page
+   background bitten out of the card's top edge. */
+.receipt-perf {
+  height: 8px;
+  background-image: radial-gradient(circle at 7px 0, var(--terminal-bg-soft) 4px, transparent 4.6px);
+  background-size: 14px 8px;
+  background-repeat: repeat-x;
+  border-left: 1px solid #cfe0d8;
+  border-right: 1px solid #cfe0d8;
+}
+
 .logo-a {
   cursor: pointer;
   transform-origin: 75% center;
@@ -214,18 +110,6 @@ body {
   -webkit-backdrop-filter: blur(18px) saturate(132%);
 }
 
-.glass-card {
-  border: 1px solid rgba(188, 213, 201, 0.86);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 250, 247, 0.82)),
-    rgba(255, 255, 255, 0.68);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 16px 42px rgba(64, 86, 74, 0.1);
-  backdrop-filter: blur(16px) saturate(126%);
-  -webkit-backdrop-filter: blur(16px) saturate(126%);
-}
-
 .glass-control {
   border: 1px solid rgba(207, 224, 216, 0.95);
   background: rgba(255, 255, 255, 0.7);
@@ -234,40 +118,10 @@ body {
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* ── Daylight (landing) tokens ───────────────────────────── */
 :root {
-  --day-bg-0: #fbfdfc;
-  --day-bg-1: #f4faf7;
-  --day-bg-2: #eef7f2;
-  --day-bg-3: #e6f2ec;
-  --day-bg-4: #d8e9e0;
-  --day-dusk: #1c2a25;
-  --day-ink: #0c1a15;
-  --day-ink-secondary: #5c6b64;
-  --day-hairline: #cfe0d8;
-  --day-accent: #059669;
-  --day-accent-deep: #047857;
-  --day-clay: #b4715a;
-
-  /* Daylight terminal tokens */
   --terminal-bg: #e3eee8;
   --terminal-bg-soft: #eef6f1;
-  --terminal-panel: #ffffff;
-  --terminal-panel-soft: #f7fbf9;
-  --terminal-elevated: #edf7f2;
-  --terminal-border: #cfe0d8;
-  --terminal-border-strong: #bcd5c9;
   --terminal-ink: #0c1a15;
-  --terminal-ink-2: #41514a;
-  --terminal-muted: #5c6b64;
-  --terminal-faint: #8aa096;
-  --terminal-mint: #059669;
-  --terminal-mint-deep: #047857;
-  --terminal-mint-soft: #e3f5ee;
-  --terminal-rose: #b94a5a;
-  --terminal-rose-soft: #fff0f3;
-  --terminal-amber: #9c6b19;
-  --terminal-amber-soft: #fff6df;
 }
 
 /* Ambient hero rate line: svg is 200% wide with two identical halves,
@@ -281,30 +135,46 @@ body {
   animation: rate-drift 24s linear infinite;
 }
 
-@keyframes hero-logo-float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) rotate(-3deg);
-  }
-  50% {
-    transform: translate3d(10px, -14px, 0) rotate(4deg);
-  }
+/* Dust drift: three small closed paths, assigned round-robin. Combined with
+   mutually incommensurate durations per mark, the field never visibly syncs
+   or repeats even though each path is a short deterministic loop. */
+/* Dust drift: three small closed paths, assigned round-robin. Combined with
+   mutually incommensurate durations per mark, the field never visibly syncs
+   or repeats even though each path is a short deterministic loop. */
+@keyframes dust-a {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  25% { transform: translate3d(18px, -24px, 0) rotate(4deg); }
+  50% { transform: translate3d(-8px, -36px, 0) rotate(-3deg); }
+  75% { transform: translate3d(-24px, -14px, 0) rotate(2deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
 }
-.hero-logo-float {
-  animation: hero-logo-float 16s ease-in-out infinite;
-  transform-origin: center;
+@keyframes dust-b {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  33% { transform: translate3d(-28px, -16px, 0) rotate(-5deg); }
+  66% { transform: translate3d(14px, -30px, 0) rotate(3deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
 }
+@keyframes dust-c {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  20% { transform: translate3d(11px, 20px, 0) rotate(3deg); }
+  55% { transform: translate3d(30px, -9px, 0) rotate(-4deg); }
+  80% { transform: translate3d(6px, -26px, 0) rotate(2deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+.dust-a { animation: dust-a linear infinite; }
+.dust-b { animation: dust-b linear infinite; }
+.dust-c { animation: dust-c linear infinite; }
 
-/* Market preview strip: track contains the card list twice. */
-@keyframes marquee-drift {
+/* Feature ticker: the track holds the list twice, so -50% loops seamlessly. */
+@keyframes ticker-drift {
   to {
     transform: translateX(-50%);
   }
 }
-.marquee-drift {
-  animation: marquee-drift 48s linear infinite;
+.ticker-drift {
+  animation: ticker-drift 38s linear infinite;
 }
-.marquee-drift:hover {
+.ticker-drift:hover {
   animation-play-state: paused;
 }
 
@@ -321,8 +191,10 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .rate-drift,
-  .hero-logo-float,
-  .marquee-drift,
+  .ticker-drift,
+  .dust-a,
+  .dust-b,
+  .dust-c,
   .page-enter {
     animation: none;
   }
@@ -333,6 +205,6 @@ body {
    out-rank the inline background-color set by the motion value. */
 @media (prefers-reduced-motion: reduce) {
   .landing-theme {
-    background: linear-gradient(180deg, #fbfdfc 0%, #f4faf7 14%, #eef7f2 30%, #e6f2ec 46%, #d8e9e0 60%, #1c2a25 72%, #0b1512 84%, #030506 100%) !important;
+    background: linear-gradient(180deg, #fbfdfc 0%, #f7fcfa 15%, #f4faf7 30%, #eef7f2 45%, #e6f2ec 60%, #1c2a25 72%, #0b1512 86%, #030506 100%) !important;
   }
 }
