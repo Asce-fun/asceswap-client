@@ -1,11 +1,13 @@
 export function CloseAct() {
   return (
-    <section className="overflow-hidden px-5 pb-2 pt-16 sm:px-8">
+    <section className="px-5 pb-14 pt-10 sm:px-8">
+      {/* Title case to match the header mark, sized to sit as a sign-off rather
+          than bleed across the fold. */}
       <p
         aria-hidden="true"
-        className="translate-y-[0.14em] whitespace-nowrap text-center text-[clamp(48px,17vw,260px)] font-bold leading-[0.78] tracking-[-0.02em] text-[#2b3f39]"
+        className="whitespace-nowrap text-center font-serif text-[clamp(30px,7vw,96px)] font-semibold leading-none tracking-wide text-[#8fb3a3]"
       >
-        Asce<span className="text-[#2a9d78]">Swap</span>
+        Asce<span className="text-[#2ee59d]">Swap</span>
       </p>
     </section>
   );
