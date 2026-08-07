@@ -10,7 +10,7 @@ export function SettlementAct() {
             <p className="font-mono text-[11px] tracking-[0.28em] text-[#8aa096]">
               SETTLEMENT
             </p>
-            <h2 className="mt-4 max-w-md text-3xl font-semibold leading-tight tracking-tight text-[#0c1a15] sm:text-4xl">
+            <h2 className="mt-4 max-w-md font-serif text-3xl leading-snug text-[#0c1a15] sm:text-4xl">
               One reading. One payout. Done.
             </h2>
             <p className="mt-5 max-w-sm leading-relaxed text-[#5c6b64]">

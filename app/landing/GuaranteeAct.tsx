@@ -25,7 +25,7 @@ export function GuaranteeAct() {
             <p className="font-mono text-[11px] tracking-[0.28em] text-[#8aa096]">
               THE GUARANTEE
             </p>
-            <h2 className="mt-4 max-w-lg text-3xl font-semibold leading-tight tracking-tight text-[#0c1a15] sm:text-4xl">
+            <h2 className="mt-4 max-w-lg font-serif text-3xl leading-snug text-[#0c1a15] sm:text-4xl">
               A hedge that can be liquidated is not a hedge.
             </h2>
             <p className="mt-5 max-w-md leading-relaxed text-[#5c6b64]">

@@ -26,7 +26,7 @@ export function ExposureAct() {
           <p className="font-mono text-[11px] tracking-[0.28em] text-[#8aa096]">
             THE EXPOSURE
           </p>
-          <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#0c1a15] sm:text-4xl">
+          <h2 className="mt-4 max-w-2xl font-serif text-3xl leading-snug text-[#0c1a15] sm:text-4xl">
             You already know which number hurts you.
           </h2>
         </FadeUp>
@@ -50,7 +50,7 @@ export function ExposureAct() {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <p className="mt-6 text-xl font-semibold leading-snug tracking-tight text-[#0c1a15]">
+                <p className="mt-6 font-serif text-2xl leading-snug text-[#0c1a15]">
                   {position.statement}
                 </p>
                 <div className="mt-3 font-mono text-[11px] tracking-[0.2em] text-[#8aa096]">

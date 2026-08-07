@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Archivo, IBM_Plex_Mono } from "next/font/google";
+import { Archivo, Fraunces, IBM_Plex_Mono } from "next/font/google";
 
 import "./globals.css";
 
 const archivo = Archivo({
   subsets: ["latin"],
   variable: "--font-archivo",
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-fraunces",
   display: "swap",
 });
 
@@ -29,7 +36,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${archivo.variable} ${plexMono.variable} antialiased`}>
+      <body
+        className={`${archivo.variable} ${fraunces.variable} ${plexMono.variable} antialiased`}
+      >
         {children}
       </body>
     </html>

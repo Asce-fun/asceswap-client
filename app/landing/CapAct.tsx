@@ -11,7 +11,7 @@ export function CapAct() {
           <p className="font-mono text-[11px] tracking-[0.28em] text-[#059669]">
             SO CAP IT
           </p>
-          <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#0c1a15] sm:text-4xl">
+          <h2 className="mt-4 max-w-2xl font-serif text-3xl leading-snug text-[#0c1a15] sm:text-4xl">
             Pick the level you never want to pay beyond.
           </h2>
         </FadeUp>
