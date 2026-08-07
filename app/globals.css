@@ -346,19 +346,6 @@ body {
   transform-origin: center;
 }
 
-/* Market preview strip: track contains the card list twice. */
-@keyframes marquee-drift {
-  to {
-    transform: translateX(-50%);
-  }
-}
-.marquee-drift {
-  animation: marquee-drift 48s linear infinite;
-}
-.marquee-drift:hover {
-  animation-play-state: paused;
-}
-
 /* Subtle entrance for the trading app when arriving from the landing page. */
 @keyframes page-enter {
   from {
@@ -373,7 +360,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .rate-drift,
   .hero-logo-float,
-  .marquee-drift,
   .ticker-drift,
   .dust-a,
   .dust-b,
@@ -388,6 +374,6 @@ body {
    out-rank the inline background-color set by the motion value. */
 @media (prefers-reduced-motion: reduce) {
   .landing-theme {
-    background: linear-gradient(180deg, #fbfdfc 0%, #f4faf7 14%, #eef7f2 30%, #e6f2ec 46%, #d8e9e0 60%, #1c2a25 72%, #0b1512 84%, #030506 100%) !important;
+    background: linear-gradient(180deg, #fbfdfc 0%, #f7fcfa 15%, #f4faf7 30%, #eef7f2 45%, #e6f2ec 60%, #1c2a25 72%, #0b1512 86%, #030506 100%) !important;
   }
 }

@@ -3,14 +3,16 @@
 import { useRef } from "react";
 import { motion } from "motion/react";
 
-import { DrawTheLineAct } from "./landing/DrawTheLineAct";
+import { AmbientBackdrop } from "./landing/AmbientBackdrop";
+import { CapAct } from "./landing/CapAct";
+import { CloseAct } from "./landing/CloseAct";
+import { ExposureAct } from "./landing/ExposureAct";
+import { FeatureTicker } from "./landing/FeatureTicker";
+import { GuaranteeAct } from "./landing/GuaranteeAct";
 import { HeroAct } from "./landing/HeroAct";
-import { HowItWorksAct } from "./landing/HowItWorksAct";
 import { LandingHeader } from "./landing/LandingHeader";
-import { LaunchAct } from "./landing/LaunchAct";
-import { MarketsPreviewAct } from "./landing/MarketsPreviewAct";
-import { ProblemAct } from "./landing/ProblemAct";
-import { TrustAct } from "./landing/TrustAct";
+import { SettlementAct } from "./landing/SettlementAct";
+import { WaitlistAct } from "./landing/WaitlistAct";
 import { useScrollTheme } from "./landing/useScrollTheme";
 
 export default function Landing() {
@@ -23,15 +25,17 @@ export default function Landing() {
       style={{ backgroundColor }}
       className="landing-theme relative min-h-screen font-sans"
     >
+      <AmbientBackdrop containerRef={containerRef} />
       <LandingHeader />
-      <main>
+      <main className="relative z-10">
         <HeroAct />
-        <ProblemAct />
-        <DrawTheLineAct />
-        <HowItWorksAct />
-        <TrustAct />
-        <MarketsPreviewAct />
-        <LaunchAct />
+        <FeatureTicker />
+        <ExposureAct />
+        <CapAct />
+        <SettlementAct />
+        <GuaranteeAct />
+        <WaitlistAct />
+        <CloseAct />
       </main>
     </motion.div>
   );

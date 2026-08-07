@@ -45,17 +45,17 @@ export function LandingHeader() {
 
         <nav className="flex items-center gap-2">
           <a
-            href="#how-it-works"
-            className="hidden rounded-md px-3 py-2 text-sm font-medium text-[#5c6b64] transition hover:text-[#0c1a15] sm:block"
+            href="#settlement"
+            className="hidden rounded-md px-3 py-2 font-mono text-[11px] tracking-[0.16em] text-[#5c6b64] transition hover:text-[#0c1a15] sm:block"
           >
-            How it works
+            HOW IT SETTLES
           </a>
-          <Link
-            href="/markets"
-            className="rounded-lg bg-[#0c1a15] px-4 py-2 text-sm font-semibold text-[#fbfdfc] transition hover:bg-[#1c2a25]"
+          <a
+            href="#waitlist"
+            className="rounded-lg bg-[#0c1a15] px-4 py-2 font-mono text-[11px] font-semibold tracking-[0.14em] text-[#fbfdfc] transition hover:bg-[#1c2a25]"
           >
-            Launch app
-          </Link>
+            EARLY ACCESS
+          </a>
         </nav>
       </div>
     </header>
