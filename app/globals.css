@@ -292,6 +292,46 @@ body {
   animation: rate-drift 24s linear infinite;
 }
 
+/* Dust drift: three small closed paths, assigned round-robin. Combined with
+   mutually incommensurate durations per mark, the field never visibly syncs
+   or repeats even though each path is a short deterministic loop. */
+@keyframes dust-a {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  25% { transform: translate3d(18px, -24px, 0) rotate(4deg); }
+  50% { transform: translate3d(-8px, -36px, 0) rotate(-3deg); }
+  75% { transform: translate3d(-24px, -14px, 0) rotate(2deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+@keyframes dust-b {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  33% { transform: translate3d(-28px, -16px, 0) rotate(-5deg); }
+  66% { transform: translate3d(14px, -30px, 0) rotate(3deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+@keyframes dust-c {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  20% { transform: translate3d(11px, 20px, 0) rotate(3deg); }
+  55% { transform: translate3d(30px, -9px, 0) rotate(-4deg); }
+  80% { transform: translate3d(6px, -26px, 0) rotate(2deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+.dust-a { animation: dust-a linear infinite; }
+.dust-b { animation: dust-b linear infinite; }
+.dust-c { animation: dust-c linear infinite; }
+
+/* Feature ticker: the track holds the list twice, so -50% loops seamlessly. */
+@keyframes ticker-drift {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.ticker-drift {
+  animation: ticker-drift 38s linear infinite;
+}
+.ticker-drift:hover {
+  animation-play-state: paused;
+}
+
 @keyframes hero-logo-float {
   0%,
   100% {
@@ -334,6 +374,10 @@ body {
   .rate-drift,
   .hero-logo-float,
   .marquee-drift,
+  .ticker-drift,
+  .dust-a,
+  .dust-b,
+  .dust-c,
   .page-enter {
     animation: none;
   }
