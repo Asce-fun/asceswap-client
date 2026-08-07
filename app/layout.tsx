@@ -1,25 +1,25 @@
 import type { Metadata } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
 
 import "./globals.css";
 
-const inter = Inter({
+const archivo = Archivo({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-archivo",
   display: "swap",
 });
 
-const fraunces = Fraunces({
+const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  style: ["normal", "italic"],
-  variable: "--font-fraunces",
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "AsceSwap — Programmable Rate Markets",
+  title: "AsceSwap — Hedge any number",
   description:
-    "Hedge borrow rates, gas fees, and yields with fully collateralized markets. No margin calls. No liquidations.",
+    "Protection on any number an oracle can read — funding rates, borrow costs, gas, prices. Pay a premium once. Fully collateralized, no margin, no liquidations.",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${fraunces.variable} antialiased`}>
+      <body className={`${archivo.variable} ${plexMono.variable} antialiased`}>
         {children}
       </body>
     </html>
